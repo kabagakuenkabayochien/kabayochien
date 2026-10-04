@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ひだまりタイム 利用申し込み</title>
+<style>
+  :root {
+    --bg: #fff8ee;
+    --card: #ffffff;
+    --text: #3d3326;
+    --sub: #7a6c5a;
+    --accent: #f08a24;
+    --accent-dark: #c96a10;
+    --accent-soft: #fff0dc;
+    --border: #eadcc8;
+    --error: #c62828;
+    --error-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+    font-size: 16px; line-height: 1.6;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; }
+  h1 { font-size: 1.3rem; margin: 8px 0 4px; }
+  .notice { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; margin: 12px 0 20px; white-space: pre-wrap; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  label.field { display: block; font-weight: bold; margin: 14px 0 6px; }
+  label.field:first-of-type { margin-top: 0; }
+  .req { color: var(--error); font-size: 0.8rem; margin-left: 6px; }
+  .hint { color: var(--sub); font-size: 0.85rem; margin-top: 4px; }
+  input[type=text], input[type=tel], select, textarea {
+    width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fff; color: var(--text); font-family: inherit;
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  .contact-row { display: flex; flex-direction: column; gap: 8px; }
+  .day { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  .day.on { border-color: var(--accent); background: #fffaf3; }
+  .day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .day-head label { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.05rem; cursor: pointer; flex: 1; }
+  .day-head input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--accent); }
+  .day-times { display: none; margin-top: 10px; }
+  .day.on .day-times { display: block; }
+  .time-row { display: flex; align-items: center; gap: 8px; }
+  .time-row select { flex: 1; }
+  .time-row span { flex: none; }
+  .lunch-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; cursor: pointer; }
+  .lunch-row input { width: 22px; height: 22px; accent-color: var(--accent); }
+  .copy-btn { background: none; border: 1px solid var(--accent); color: var(--accent-dark); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; cursor: pointer; margin-top: 8px; }
+  .btn { display: block; width: 100%; padding: 14px; font-size: 1.05rem; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; margin-top: 12px; }
+  .btn-main { background: var(--accent); color: #fff; }
+  .btn-main:disabled { background: #d9c3a8; cursor: wait; }
+  .btn-sub { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .error { background: var(--error-bg); color: var(--error); border-radius: 8px; padding: 10px 12px; margin: 12px 0; display: none; white-space: pre-wrap; }
+  .error.show { display: block; }
+  table.confirm { width: 100%; border-collapse: collapse; }
+  table.confirm th, table.confirm td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.confirm th { width: 40%; color: var(--sub); font-weight: normal; }
+  table.confirm td { white-space: pre-wrap; }
+  .center { text-align: center; }
+  .hidden { display: none; }
+  .big-icon { font-size: 3rem; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title"></h1>
+
+  <!-- 読み込み中・受付終了など -->
+  <div id="statusBox" class="card center">読み込んでいます…</div>
+
+  <!-- ① 入力 -->
+  <div id="stepInput" class="hidden">
+    <div id="notice" class="notice hidden"></div>
+
+    <div class="card">
+      <h2>お子さまのこと</h2>
+      <label class="field" for="className">クラス<span class="req">必須</span></label>
+      <select id="className"></select>
+      <label class="field" for="childName">園児名<span class="req">必須</span></label>
+      <input type="text" id="childName" autocomplete="off" placeholder="例：ひだまり たろう">
+      <div class="hint"><strong>ひらがな</strong>で、<strong>苗字と名前の間にスペース</strong>を入れて入力してください。申し込みを直すときは、同じクラス・同じ名前で送ってください。</div>
+    </div>
+
+    <div class="card">
+      <h2>利用する日と時間</h2>
+      <div class="hint" style="margin-bottom: 12px;">利用する日にチェックを入れ、来る時刻と帰る時刻を選んでください。給食が必要な日は「給食を注文する」にもチェックを入れてください。</div>
+      <div id="days"></div>
+    </div>
+
+    <div class="card">
+      <h2>連絡先など</h2>
+      <label class="field" for="contact1Tel">緊急連絡先①<span class="req">必須</span></label>
+      <div class="contact-row">
+        <input type="tel" id="contact1Tel" autocomplete="tel" placeholder="電話番号　例：090-1234-5678">
+        <input type="text" id="contact1Label" list="contactLabels" placeholder="つながる先　例：母携帯">
+      </div>
+      <label class="field" for="contact2Tel">緊急連絡先②</label>
+      <div class="contact-row">
+        <input type="tel" id="contact2Tel" placeholder="電話番号　例：03-1234-5678">
+        <input type="text" id="contact2Label" list="contactLabels" placeholder="つながる先　例：父勤務先">
+      </div>
+      <div class="hint">「つながる先」は、だれの・どこの電話かを書いてください（例：母携帯、父勤務先、自宅）。</div>
+      <datalist id="contactLabels">
+        <option value="母携帯"></option>
+        <option value="父携帯"></option>
+        <option value="母勤務先"></option>
+        <option value="父勤務先"></option>
+        <option value="自宅"></option>
+        <option value="祖母携帯"></option>
+        <option value="祖父携帯"></option>
+      </datalist>
+      <label class="field" for="memo">連絡事項</label>
+      <textarea id="memo" placeholder="アレルギー、お迎えの人など、伝えたいことがあれば書いてください。"></textarea>
+    </div>
+
+    <div id="inputError" class="error"></div>
+    <button type="button" class="btn btn-main" onclick="toConfirm()">確認する</button>
+  </div>
+
+  <!-- ② 確認 -->
+  <div id="stepConfirm" class="hidden">
+    <div class="card">
+      <h2>この内容で申し込みます</h2>
+      <table class="confirm" id="confirmTable"></table>
+      <div class="hint" style="margin-top: 12px;">同じクラス・同じ園児名で前に申し込んでいる場合は、前の申し込みがこの内容に置き換わります。</div>
+    </div>
+    <div id="sendError" class="error"></div>
+    <button type="button" class="btn btn-main" id="sendBtn" onclick="send()">申し込む</button>
+    <button type="button" class="btn btn-sub" onclick="backToInput()">戻って直す</button>
+  </div>
+
+  <!-- ③ 完了 -->
+  <div id="stepDone" class="hidden">
+    <div class="card center">
+      <div class="big-icon">🌞</div>
+      <h2 id="doneTitle">申し込みを受け付けました</h2>
+      <p>ありがとうございました。</p>
+      <p class="hint">内容を変えたいときは、もう一度このページから、<strong>同じクラス・同じ園児名で、すべての日をあらためて入力して</strong>申し込んでください。前の申し込みと置き換わります。</p>
+      <button type="button" class="btn btn-sub" onclick="location.reload()">もう一人申し込む</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // GitHub Pages などGoogleの外に置くときは、ここにウェブアプリの「/exec」で終わるURLを書く。
+  // （Apps Scriptのウェブアプリとして開いたときは使わない）
+  var API_URL = 'https://script.google.com/macros/s/AKfycbwA1K-HWFtn7lyE_tLFYaaouJFdbwtEOdwyKPwhLGj3msDnwzYkX-NkIfVevkG8DD0Q/exec';
+
+  var IN_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
+  var CONFIG = null;
+
+  // サーバー（Apps Script）を呼ぶ。Googleの外に置いたときは fetch で /exec とやりとりする
+  // （Content-Type を text/plain にして、ブラウザの事前確認（プリフライト）が起きないようにする）
+  function callServer(name, arg, onOk, onNg) {
+    if (IN_APPS_SCRIPT) {
+      var run = google.script.run.withSuccessHandler(onOk).withFailureHandler(onNg);
+      if (arg === undefined) run[name](); else run[name](arg);
+      return;
+    }
+    if (!API_URL) { onNg(new Error('フォームの設定（API_URL）がありません。園にお問い合わせください。')); return; }
+    var req = name === 'getFormConfig'
+      ? fetch(API_URL + '?action=config')
+      : fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(arg) });
+    req
+      .then(function (r) { return r.json(); }, function () {
+        throw new Error('通信できませんでした。電波のよいところで、もう一度お試しください。');
+      })
+      .then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.error) || '時間をおいて、もう一度お試しください。');
+        onOk(name === 'getFormConfig' ? res.config : res.result);
+      })
+      .catch(onNg);
+  }
+
+  function el(id) { return document.getElementById(id); }
+
+  function showStep(id) {
+    ['statusBox', 'stepInput', 'stepConfirm', 'stepDone'].forEach(function (s) {
+      el(s).classList.toggle('hidden', s !== id);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  function showStatus(text) {
+    el('statusBox').textContent = text;
+    showStep('statusBox');
+  }
+
+  function setError(id, text) {
+    el(id).textContent = text || '';
+    el(id).classList.toggle('show', !!text);
+  }
+
+  function option(value, text) {
+    var o = document.createElement('option');
+    o.value = value;
+    o.textContent = text;
+    return o;
+  }
+
+  function timeSelect(placeholder) {
+    var s = document.createElement('select');
+    s.appendChild(option('', placeholder));
+    CONFIG.times.forEach(function (t) { s.appendChild(option(t, t)); });
+    return s;
+  }
+
+  function build(config) {
+    CONFIG = config;
+    document.title = config.title;
+    el('title').textContent = config.title;
+
+    if (!config.open) { showStatus('ただいま申し込みの受付を終了しています。'); return; }
+    if (config.dates.length === 0 || config.classes.length === 0) {
+      showStatus('申し込みの準備中です。しばらくしてからもう一度開いてください。');
+      return;
+    }
+
+    if (config.notice) {
+      el('notice').textContent = config.notice;
+      el('notice').classList.remove('hidden');
+    }
+
+    var cls = el('className');
+    cls.appendChild(option('', '選んでください'));
+    config.classes.forEach(function (c) { cls.appendChild(option(c, c)); });
+
+    var box = el('days');
+    config.dates.forEach(function (d, i) {
+      var day = document.createElement('div');
+      day.className = 'day';
+      day.dataset.iso = d.iso;
+
+      var head = document.createElement('div');
+      head.className = 'day-head';
+      var lab = document.createElement('label');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'use';
+      cb.addEventListener('change', function () { day.classList.toggle('on', cb.checked); });
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode(d.label));
+      head.appendChild(lab);
+      day.appendChild(head);
+
+      var times = document.createElement('div');
+      times.className = 'day-times';
+      var row = document.createElement('div');
+      row.className = 'time-row';
+      var start = timeSelect('来る時刻');
+      start.className = 'start';
+      var end = timeSelect('帰る時刻');
+      end.className = 'end';
+      var sep = document.createElement('span');
+      sep.textContent = '〜';
+      row.appendChild(start);
+      row.appendChild(sep);
+      row.appendChild(end);
+      times.appendChild(row);
+
+      var lunchLabel = document.createElement('label');
+      lunchLabel.className = 'lunch-row';
+      var lunch = document.createElement('input');
+      lunch.type = 'checkbox';
+      lunch.className = 'lunch';
+      lunchLabel.appendChild(lunch);
+      lunchLabel.appendChild(document.createTextNode('給食を注文する'));
+      times.appendChild(lunchLabel);
+
+      if (i > 0) {
+        var copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'copy-btn';
+        copy.textContent = '前の利用日と同じにする（時間・給食）';
+        copy.addEventListener('click', function () { copyFromPrevious(day); });
+        times.appendChild(copy);
+      }
+      day.appendChild(times);
+      box.appendChild(day);
+    });
+
+    showStep('stepInput');
+  }
+
+  // この日より前で、時間が入っているいちばん近い日の時間と給食の注文を写す
+  function copyFromPrevious(day) {
+    var all = Array.prototype.slice.call(document.querySelectorAll('.day'));
+    for (var i = all.indexOf(day) - 1; i >= 0; i--) {
+      var s = all[i].querySelector('.start').value;
+      var e = all[i].querySelector('.end').value;
+      if (all[i].querySelector('.use').checked && s && e) {
+        day.querySelector('.start').value = s;
+        day.querySelector('.end').value = e;
+        day.querySelector('.lunch').checked = all[i].querySelector('.lunch').checked;
+        return;
+      }
+    }
+    alert('時間が入っている、前の利用日がありません。');
+  }
+
+  // 全角スペース・続いたスペースを半角スペース1つにそろえる
+  function normalizeName(v) {
+    return String(v || '').replace(/[\s　]+/g, ' ').trim();
+  }
+
+  function normalizeTel(v) {
+    return String(v || '')
+      .replace(/[０-９]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); })
+      .replace(/[－ー−‐―]/g, '-')
+      .replace(/[\s　]+/g, '');
+  }
+
+  // 連絡先の入力を調べ、間違いがあれば errors に足す。戻り値は「090-1234-5678（母携帯）」の形（空なら ''）
+  function checkContact(tel, label, title, required, errors) {
+    if (!tel && !label) {
+      if (required) errors.push(title + 'の電話番号と、つながる先を入力してください。');
+      return '';
+    }
+    var digits = tel.replace(/-/g, '').length;
+    if (!tel) errors.push(title + 'の電話番号を入力してください。');
+    else if (!/^[0-9-]+$/.test(tel) || digits < 10 || digits > 11) errors.push(title + 'の電話番号を、数字で正しく入力してください（例：090-1234-5678）。');
+    if (!label) errors.push(title + 'の、つながる先（例：母携帯）を入力してください。');
+    return tel + '（' + label + '）';
+  }
+
+  function collect() {
+    el('childName').value = normalizeName(el('childName').value);
+    el('contact1Tel').value = normalizeTel(el('contact1Tel').value);
+    el('contact2Tel').value = normalizeTel(el('contact2Tel').value);
+    var data = {
+      className: el('className').value,
+      name: el('childName').value,
+      contact1Tel: el('contact1Tel').value,
+      contact1Label: el('contact1Label').value.trim(),
+      contact2Tel: el('contact2Tel').value,
+      contact2Label: el('contact2Label').value.trim(),
+      memo: el('memo').value.trim(),
+      days: {}
+    };
+    var errors = [];
+    if (!data.className) errors.push('クラスを選んでください。');
+    if (!data.name) {
+      errors.push('園児名を入力してください。');
+    } else if (!/^[ぁ-ゖー]+ [ぁ-ゖー]+$/.test(data.name)) {
+      errors.push('園児名は、ひらがなで、苗字と名前の間にスペースを入れて入力してください（例：ひだまり たろう）。');
+    }
+    data.contact1 = checkContact(data.contact1Tel, data.contact1Label, '緊急連絡先①', true, errors);
+    data.contact2 = checkContact(data.contact2Tel, data.contact2Label, '緊急連絡先②', false, errors);
+
+    var used = 0;
+    CONFIG.dates.forEach(function (d) {
+      var day = document.querySelector('.day[data-iso="' + d.iso + '"]');
+      var use = day.querySelector('.use').checked;
+      var start = day.querySelector('.start').value;
+      var end = day.querySelector('.end').value;
+      if (!use) return;
+      used++;
+      if (!start || !end) {
+        errors.push(d.label + '：来る時刻と帰る時刻を選んでください。');
+      } else if (CONFIG.times.indexOf(end) <= CONFIG.times.indexOf(start)) {
+        errors.push(d.label + '：帰る時刻が、来る時刻より前（または同じ）になっています。');
+      }
+      data.days[d.iso] = { use: true, start: start, end: end, lunch: day.querySelector('.lunch').checked };
+    });
+    if (used === 0) errors.push('利用する日を1日以上選んでください。');
+    return { data: data, errors: errors };
+  }
+
+  var pending = null;
+
+  function toConfirm() {
+    var r = collect();
+    if (r.errors.length) {
+      setError('inputError', r.errors.join('\n'));
+      return;
+    }
+    setError('inputError', '');
+    pending = r.data;
+
+    var rows = [['クラス', pending.className], ['園児名', pending.name]];
+    CONFIG.dates.forEach(function (d) {
+      var day = pending.days[d.iso];
+      rows.push([d.label, day ? day.start + '〜' + day.end + '\n給食：' + (day.lunch ? '注文する' : '注文しない') : '利用なし']);
+    });
+    rows.push(['緊急連絡先①', pending.contact1], ['緊急連絡先②', pending.contact2 || '（なし）'], ['連絡事項', pending.memo || '（なし）']);
+
+    var table = el('confirmTable');
+    table.innerHTML = '';
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var th = document.createElement('th');
+      var td = document.createElement('td');
+      th.textContent = r[0];
+      td.textContent = r[1];
+      if (r[1] === '利用なし') td.style.color = 'var(--sub)';
+      tr.appendChild(th);
+      tr.appendChild(td);
+      table.appendChild(tr);
+    });
+    setError('sendError', '');
+    showStep('stepConfirm');
+  }
+
+  function backToInput() { showStep('stepInput'); }
+
+  function send() {
+    var btn = el('sendBtn');
+    btn.disabled = true;
+    btn.textContent = '送信しています…';
+    setError('sendError', '');
+    callServer('submitApplication', pending, function (res) {
+      el('doneTitle').textContent = res && res.replaced
+        ? '申し込みを受け付けました（前の申し込みを置き換えました）'
+        : '申し込みを受け付けました';
+      showStep('stepDone');
+    }, function (err) {
+      btn.disabled = false;
+      btn.textContent = '申し込む';
+      setError('sendError', '送信できませんでした：' + (err && err.message ? err.message : '時間をおいて、もう一度お試しください。'));
+    });
+  }
+
+  callServer('getFormConfig', undefined, build, function (err) {
+    showStatus('読み込めませんでした。時間をおいて、もう一度開いてください。' + (err && err.message ? '\n（' + err.message + '）' : ''));
+  });
+</script>
+</body>
+</html>
