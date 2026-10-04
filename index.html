@@ -51,6 +51,10 @@
   .time-row span { flex: none; }
   .lunch-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; cursor: pointer; }
   .lunch-row input { width: 22px; height: 22px; accent-color: var(--accent); }
+  .allergy-box { display: flex; align-items: flex-start; gap: 10px; border: 1px dashed var(--accent); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; background: var(--accent-soft); cursor: pointer; }
+  .allergy-box input { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+  .allergy-box .hint { margin-top: 2px; }
+  .lunch-kind { color: var(--accent-dark); font-weight: bold; }
   .copy-btn { background: none; border: 1px solid var(--accent); color: var(--accent-dark); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; cursor: pointer; margin-top: 8px; }
   .btn { display: block; width: 100%; padding: 14px; font-size: 1.05rem; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; margin-top: 12px; }
   .btn-main { background: var(--accent); color: #fff; }
@@ -90,6 +94,11 @@
     <div class="card">
       <h2>利用する日と時間</h2>
       <div class="hint" style="margin-bottom: 12px;">利用する日にチェックを入れ、来る時刻と帰る時刻を選んでください。給食が必要な日は「給食を注文する」にもチェックを入れてください。</div>
+      <label class="allergy-box" for="allergyMeal">
+        <input type="checkbox" id="allergyMeal">
+        <span><strong>給食はアレルギー対応食にする</strong><br>
+          <span class="hint">チェックすると、給食を注文した日はすべて「対応食」になります。</span></span>
+      </label>
       <div id="days"></div>
     </div>
 
@@ -271,6 +280,9 @@
       lunch.className = 'lunch';
       lunchLabel.appendChild(lunch);
       lunchLabel.appendChild(document.createTextNode('給食を注文する'));
+      var kind = document.createElement('span');
+      kind.className = 'lunch-kind';
+      lunchLabel.appendChild(kind);
       times.appendChild(lunchLabel);
 
       if (i > 0) {
@@ -285,7 +297,15 @@
       box.appendChild(day);
     });
 
+    el('allergyMeal').addEventListener('change', updateLunchKind);
+    updateLunchKind();
     showStep('stepInput');
+  }
+
+  // アレルギー対応食にするときは、各日の「給食を注文する」の横に「（対応食）」と出す
+  function updateLunchKind() {
+    var text = el('allergyMeal').checked ? '（対応食）' : '';
+    document.querySelectorAll('.lunch-kind').forEach(function (s) { s.textContent = text; });
   }
 
   // この日より前で、時間が入っているいちばん近い日の時間と給食の注文を写す
@@ -341,6 +361,7 @@
       contact2Tel: el('contact2Tel').value,
       contact2Label: el('contact2Label').value.trim(),
       memo: el('memo').value.trim(),
+      allergyMeal: el('allergyMeal').checked,
       days: {}
     };
     var errors = [];
@@ -383,10 +404,11 @@
     setError('inputError', '');
     pending = r.data;
 
-    var rows = [['クラス', pending.className], ['園児名', pending.name]];
+    var mealKind = pending.allergyMeal ? '対応食' : '通常食';
+    var rows = [['クラス', pending.className], ['園児名', pending.name], ['給食の種類', pending.allergyMeal ? '対応食（アレルギー対応）' : '通常食']];
     CONFIG.dates.forEach(function (d) {
       var day = pending.days[d.iso];
-      rows.push([d.label, day ? day.start + '〜' + day.end + '\n給食：' + (day.lunch ? '注文する' : '注文しない') : '利用なし']);
+      rows.push([d.label, day ? day.start + '〜' + day.end + '\n給食：' + (day.lunch ? '注文する（' + mealKind + '）' : '注文しない') : '利用なし']);
     });
     rows.push(['緊急連絡先①', pending.contact1], ['緊急連絡先②', pending.contact2 || '（なし）'], ['連絡事項', pending.memo || '（なし）']);
 
