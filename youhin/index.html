@@ -89,7 +89,6 @@
   table.items td.num { text-align: right; white-space: nowrap; }
   table.items tr.total td { font-weight: bold; font-size: 1.1rem; border-bottom: none; }
   .pay { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; margin-top: 12px; white-space: pre-wrap; text-align: left; }
-  .order-no { font-size: 1.6rem; font-weight: bold; color: var(--accent-dark); letter-spacing: 0.05em; }
   .center { text-align: center; }
   .hidden { display: none; }
   .big-icon { font-size: 3rem; margin: 8px 0 0; }
@@ -154,8 +153,6 @@
     <div class="card center">
       <div class="big-icon">✅</div>
       <p style="margin:4px 0 0">ご注文を受け付けました</p>
-      <div class="hint">注文番号</div>
-      <div class="order-no" id="doneNo"></div>
       <p style="margin:8px 0 0">合計 <b id="doneTotal"></b></p>
       <div id="donePay" class="pay hidden"></div>
       <p class="hint" id="doneMail"></p>
@@ -198,7 +195,7 @@ var DEMO_DATA = {
     { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] }
   ]
 };
-var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ、園児名と注文番号を書いて園にお持ちください。';
+var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ、園児名を書いて園にお持ちください。';
 
 function call(fn, arg) {
   return new Promise(function (resolve, reject) {
@@ -548,7 +545,6 @@ $('sendBtn').addEventListener('click', function () {
     return { id: it.id, size: it.size, qty: it.qty };
   });
   call('submitOrder', f).then(function (r) {
-    $('doneNo').textContent = r.orderNo;
     $('doneTotal').textContent = yen(r.total);
     $('donePay').textContent = r.payNote ? '■ 代金のお支払い\n' + r.payNote : '';
     show('donePay', !!r.payNote);
