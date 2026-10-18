@@ -92,6 +92,13 @@
   .center { text-align: center; }
   .hidden { display: none; }
   .big-icon { font-size: 3rem; margin: 8px 0 0; }
+  /* 注文の確認・変更（確認メールのリンクから開いたとき） */
+  .edit-head p { margin: 0 0 6px; }
+  .edit-head .who { font-size: 1.15rem; font-weight: bold; }
+  .locked-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 8px 10px; background: #f4f6f6; border-radius: 8px; color: var(--sub); font-size: 0.9rem; }
+  .locked-line b { color: var(--text); font-weight: normal; }
+  .lock-tag { display: inline-block; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; background: #e3e8e7; color: #4b5b58; margin-left: 4px; white-space: nowrap; }
+  .btn-danger { background: #fff; color: var(--error); border: 1px solid #f0c4c4; }
 </style>
 </head>
 <body>
@@ -106,8 +113,9 @@
   <!-- ① 入力 -->
   <div id="formArea" class="hidden">
     <div id="notice" class="notice hidden"></div>
+    <div id="editHead" class="card edit-head hidden"></div>
 
-    <div class="card">
+    <div class="card" id="personCard">
       <h2>お子さまと保護者の方</h2>
       <label class="field" id="ageLabel">入園する年齢<span class="req">必須</span></label>
       <div class="ages" id="ages" role="radiogroup" aria-labelledby="ageLabel"></div>
@@ -127,17 +135,24 @@
 
     <div id="ageInfo" class="info hidden"></div>
     <div id="products"></div>
+    <div id="lockedBox" class="card hidden"></div>
 
-    <div class="card">
+    <div class="card" id="noteCard">
       <h2>備考<span class="opt">任意</span></h2>
       <textarea id="note" placeholder="園への連絡があれば書いてください"></textarea>
+    </div>
+
+    <div id="cancelArea" class="hidden">
+      <button class="btn btn-danger" id="cancelOrderBtn">この注文を取り消す</button>
+      <div class="hint center">ご注文をすべて取り消します。</div>
+      <div id="cancelError" class="error" style="margin-top:10px"></div>
     </div>
   </div>
 
   <!-- ② 確認 -->
   <div id="confirmArea" class="hidden">
     <div class="card">
-      <h2>ご注文の内容をご確認ください</h2>
+      <h2 id="confirmTitle">ご注文の内容をご確認ください</h2>
       <table class="confirm items" id="confirmItems"></table>
     </div>
     <div class="card">
@@ -152,11 +167,11 @@
   <div id="doneArea" class="hidden">
     <div class="card center">
       <div class="big-icon">✅</div>
-      <p style="margin:4px 0 0">ご注文を受け付けました</p>
-      <p style="margin:8px 0 0">合計 <b id="doneTotal"></b></p>
+      <p style="margin:4px 0 0" id="doneTitle">ご注文を受け付けました</p>
+      <p style="margin:8px 0 0" id="doneTotalLine">合計 <b id="doneTotal"></b></p>
       <div id="donePay" class="pay hidden"></div>
-      <p class="hint" id="doneMail"></p>
-      <p class="hint">この画面を保存（スクリーンショット）しておくと安心です。</p>
+      <p class="hint" id="doneMail" style="white-space:pre-wrap"></p>
+      <p class="hint" id="doneKeep">この画面を保存（スクリーンショット）しておくと安心です。</p>
     </div>
     <button class="btn btn-sub" id="againBtn">続けて、ほかのお子さまの注文をする</button>
   </div>
@@ -196,13 +211,33 @@ var DEMO_DATA = {
   ]
 };
 var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ、園児名を書いて園にお持ちください。';
+// 見本の「注文の確認・変更」（パソコンで ?k=... を付けて開いたとき）
+var DEMO_MY_ORDER = {
+  child: 'やまだ はなこ', age: '3歳児', parent: '山田 花子', email: 'hanako@example.com', date: '10月18日',
+  items: [
+    { id: 1, category: '衣服', name: '上着', size: '110', qty: 1, price: 4500, amount: 4500, locked: true, lockReason: '発注済み' },
+    { id: 2, category: '衣服', name: '体操服（上）', size: '110', qty: 2, price: 1800, amount: 3600, locked: false, lockReason: '' },
+    { id: 3, category: '衣服', name: '紅白帽子', size: '', qty: 1, price: 600, amount: 600, locked: false, lockReason: '' },
+    { id: 4, category: '用品', name: 'クレヨン（16色）', size: '', qty: 1, price: 800, amount: 800, locked: false, lockReason: '' },
+    { id: 6, category: '用品', name: 'のり', size: '', qty: 1, price: 150, amount: 150, locked: false, lockReason: '' }
+  ],
+  total: 9650, editable: true, reason: '', cancellable: false, payNote: DEMO_PAY
+};
+
+// 確認メールのリンク（…/?k=変更用の鍵）から開いたときは「注文の確認・変更」になる
+var EDIT_KEY = '';
+if (!IN_APPS_SCRIPT) {
+  try { EDIT_KEY = new URLSearchParams(location.search).get('k') || ''; } catch (e) { /* 古いブラウザ */ }
+}
 
 function call(fn, arg) {
   return new Promise(function (resolve, reject) {
     if (DEMO) {
       setTimeout(function () {
         if (fn === 'getFormData') resolve(DEMO_DATA);
-        else resolve({ orderNo: 'No.0001', child: arg.child, total: totalOf(chosenItems()), payNote: DEMO_PAY, mailSent: true });
+        else if (fn === 'getMyOrder') resolve(DEMO_MY_ORDER);
+        else if (fn === 'cancelMyOrder') resolve({ mailSent: true });
+        else resolve({ orderNo: 'No.0001', child: arg.child, total: totalOf(chosenItems()) + lockedSum(), payNote: DEMO_PAY, mailSent: true });
       }, 400);
       return;
     }
@@ -231,6 +266,22 @@ var $ = function (id) { return document.getElementById(id); };
 var data = null;
 var lines = [];  // 商品ごとの注文行 lines[商品の番号] = [{ size, qty, auto }]（auto = 年齢を選んだときに自動で入れた行）
 var age = '';    // 選ばれている入園する年齢
+var myOrder = null;   // 「注文の確認・変更」で開いている注文
+var locked = [];      // 変えられない（発注済み・お渡し済み）品物 locked[商品の番号] = [{ size, qty, amount, lockReason }]
+var lockedOther = []; // 変えられない品物のうち、今は注文画面に出ていない用品
+
+// 変えられない品物の数・金額
+function lockedQty(i) { return (locked[i] || []).reduce(function (a, it) { return a + it.qty; }, 0); }
+function lockedSum() {
+  var all = lockedOther.slice();
+  locked.forEach(function (list) { all = all.concat(list || []); });
+  return all.reduce(function (a, it) { return a + it.amount; }, 0);
+}
+function lockedCount() {
+  var all = lockedOther.slice();
+  locked.forEach(function (list) { all = all.concat(list || []); });
+  return all.reduce(function (a, it) { return a + it.qty; }, 0);
+}
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -275,7 +326,7 @@ function applyAge(newAge) {
 // 必須なのに数が0の用品（年齢を選び直した直後などに起こりうるので、確認へ進むときに調べる）
 function missingRequired() {
   return data.products.filter(function (p, i) {
-    return isRequired(p) && !lines[i].some(function (l) { return l.qty > 0; });
+    return isRequired(p) && !lockedQty(i) && !lines[i].some(function (l) { return l.qty > 0; });
   });
 }
 
@@ -330,6 +381,7 @@ call('getFormData').then(function (d) {
   $('kg').textContent = d.kindergarten || '';
   $('title').textContent = d.title || '用品の注文';
   document.title = d.title || '用品の注文';
+  if (EDIT_KEY) return loadMyOrder();
   if (!d.open) { $('statusBox').textContent = 'ただいま注文の受付を停止しています。'; return; }
   if (!d.products.length) { $('statusBox').textContent = '注文できる用品がありません。'; return; }
 
@@ -345,6 +397,83 @@ call('getFormData').then(function (d) {
   updateBar();
 }).catch(function (e) {
   $('statusBox').textContent = '読み込めませんでした。時間をおいて開き直してください。\n（' + errMsg(e) + '）';
+});
+
+// ===== 注文の確認・変更（確認メールのリンクから） =====
+
+function loadMyOrder() {
+  $('title').textContent = 'ご注文の確認・変更';
+  return call('getMyOrder', { action: 'myOrder', key: EDIT_KEY }).then(function (o) {
+    myOrder = o;
+    age = o.age;
+    var head = '<p class="who">' + esc(o.child) + ' さん（' + esc(o.age) + '）</p>'
+      + '<p class="hint">' + esc(o.date) + 'のご注文</p>';
+    if (!o.editable) {
+      // 変えられないときは、中身だけ見せる
+      $('statusBox').classList.remove('center');
+      $('statusBox').innerHTML = head + '<div class="info" style="margin:10px 0">' + esc(o.reason) + '</div>'
+        + '<table class="confirm items">' + o.items.map(function (it) {
+          return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td><td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
+        }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(o.total) + '</td></tr></table>';
+      return;
+    }
+    $('editHead').innerHTML = head
+      + '<p class="hint" style="margin-top:8px">数を変えたり、用品を足したりして、下の「変更内容を確認」を押してください。'
+      + '業者に発注済み・お渡し済みの用品は変えられません。</p>';
+    show('editHead', true);
+    show('personCard', false);
+    show('noteCard', false);
+    show('cancelArea', o.cancellable);
+    $('nextBtn').textContent = '変更内容を確認';
+
+    data.products.forEach(function (p, i) { lines[i] = []; locked[i] = []; });
+    o.items.forEach(function (it) {
+      var i = -1;
+      data.products.forEach(function (p, k) { if (p.id === it.id) i = k; });
+      if (i < 0) lockedOther.push(it);
+      else if (it.locked) locked[i].push(it);
+      else lines[i].push({ size: it.size, qty: it.qty, auto: false });
+    });
+    data.products.forEach(function (p, i) { if (!lines[i].length) lines[i] = emptyLines(); });
+    if (lockedOther.length) {
+      $('lockedBox').innerHTML = '<h2>変更できない用品</h2>' + lockedOther.map(function (it) {
+        return '<div class="locked-line"><b>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '　' + it.qty + '点</b>'
+          + '<span>' + esc(it.lockReason) + '</span></div>';
+      }).join('');
+      show('lockedBox', true);
+    }
+    renderProducts();
+    show('statusBox', false);
+    show('formArea', true);
+    show('bar', true);
+    updateBar();
+  });
+}
+
+$('cancelOrderBtn').addEventListener('click', function () {
+  if (!confirm('このご注文をすべて取り消します。よろしいですか？')) return;
+  var btn = $('cancelOrderBtn');
+  btn.disabled = true;
+  btn.textContent = '取り消しています…';
+  $('cancelError').classList.remove('show');
+  call('cancelMyOrder', { action: 'cancelMyOrder', key: EDIT_KEY }).then(function (r) {
+    $('doneTitle').textContent = 'ご注文を取り消しました';
+    show('doneTotalLine', false);
+    show('donePay', false);
+    show('doneKeep', false);
+    show('againBtn', false);
+    $('doneMail').textContent = r.mailSent ? '取り消したことを ' + myOrder.email + ' にお知らせしました。' : '';
+    show('formArea', false);
+    show('bar', false);
+    show('doneArea', true);
+    window.scrollTo(0, 0);
+  }).catch(function (e) {
+    $('cancelError').textContent = '取り消せませんでした。\n' + errMsg(e);
+    $('cancelError').classList.add('show');
+  }).then(function () {
+    btn.disabled = false;
+    btn.textContent = 'この注文を取り消す';
+  });
 });
 
 // ===== 商品の表示 =====
@@ -368,7 +497,7 @@ function productTotal(i) { return lines[i].reduce(function (a, l) { return a + l
 
 // 減らす・取り消すと必須の用品が0になってしまうか
 function wouldBreakRequired(i, minus) {
-  return isRequired(data.products[i]) && productTotal(i) - minus < 1;
+  return isRequired(data.products[i]) && productTotal(i) + lockedQty(i) - minus < 1;
 }
 
 function itemHtml(i) {
@@ -379,6 +508,10 @@ function itemHtml(i) {
   var html = '<div class="item-head"><div class="item-name">' + esc(p.name)
     + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
     + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>';
+  (locked[i] || []).forEach(function (it) {
+    html += '<div class="locked-line"><b>' + (it.size ? esc(it.size) + '　' : '') + it.qty + '点</b>'
+      + '<span>' + esc(it.lockReason) + '・変更できません</span></div>';
+  });
   lines[i].forEach(function (l, j) {
     html += '<div class="line">';
     if (hasSize(p)) {
@@ -444,9 +577,9 @@ $('products').addEventListener('change', function (ev) {
 
 function updateBar() {
   var items = chosenItems();
-  var count = items.reduce(function (a, it) { return a + it.qty; }, 0);
+  var count = items.reduce(function (a, it) { return a + it.qty; }, 0) + lockedCount();
   $('barCount').textContent = count ? '合計 ' + count + '点' : 'まだ選ばれていません';
-  $('barSum').textContent = yen(totalOf(items));
+  $('barSum').textContent = yen(totalOf(items) + lockedSum());
   showBarError('');
 }
 
@@ -472,21 +605,12 @@ function formValues() {
   };
 }
 
-function validate(f, items) {
-  if (!f.age) return { msg: '入園する年齢を選んでください。', el: 'ages' };
-  var childError = checkKanaName(f.child);
-  if (childError) return { msg: childError, el: 'child' };
-  var parentError = checkParentName(f.parent);
-  if (parentError) return { msg: parentError, el: 'parent' };
-  if (!f.email) return { msg: 'メールアドレスを入力してください。', el: 'email' };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return { msg: 'メールアドレスの形が正しくありません。', el: 'email' };
-  if (!f.tel) return { msg: '電話番号を入力してください。', el: 'tel' };
-  if (!/^0\d{9,10}$/.test(f.tel.replace(/-/g, ''))) return { msg: '電話番号を正しく入力してください（例：090-1234-5678）。', el: 'tel' };
+// 用品の選び方の確かめ（新しい注文と、注文の変更で共通）
+function validateItems(items) {
   var missing = missingRequired();
   if (missing.length) {
-    return { msg: '「' + missing[0].name + '」は' + f.age + 'で必ず購入する用品です。1点以上にしてください。', el: 'item' + data.products.indexOf(missing[0]) };
+    return { msg: '「' + missing[0].name + '」は' + age + 'で必ず購入する用品です。1点以上にしてください。', el: 'item' + data.products.indexOf(missing[0]) };
   }
-  if (!items.length) return { msg: '注文する用品の数を選んでください。', el: 'products' };
   for (var k = 0; k < items.length; k++) {
     if (hasSize(data.products[items[k].index]) && !items[k].size) {
       return { msg: '「' + items[k].name + '」のサイズを選んでください。', el: 'item' + items[k].index };
@@ -501,6 +625,26 @@ function validate(f, items) {
   return null;
 }
 
+function validate(f, items) {
+  if (myOrder) {
+    if (!items.length && !lockedCount()) return { msg: 'すべて取り消す場合は、下の「この注文を取り消す」を押してください。', el: 'products' };
+    return validateItems(items);
+  }
+  if (!f.age) return { msg: '入園する年齢を選んでください。', el: 'ages' };
+  var childError = checkKanaName(f.child);
+  if (childError) return { msg: childError, el: 'child' };
+  var parentError = checkParentName(f.parent);
+  if (parentError) return { msg: parentError, el: 'parent' };
+  if (!f.email) return { msg: 'メールアドレスを入力してください。', el: 'email' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return { msg: 'メールアドレスの形が正しくありません。', el: 'email' };
+  if (!f.tel) return { msg: '電話番号を入力してください。', el: 'tel' };
+  if (!/^0\d{9,10}$/.test(f.tel.replace(/-/g, ''))) return { msg: '電話番号を正しく入力してください（例：090-1234-5678）。', el: 'tel' };
+  var bad = validateItems(items);
+  if (bad) return bad;
+  if (!items.length) return { msg: '注文する用品の数を選んでください。', el: 'products' };
+  return null;
+}
+
 $('nextBtn').addEventListener('click', function () {
   var f = formValues();
   var items = chosenItems();
@@ -510,12 +654,24 @@ $('nextBtn').addEventListener('click', function () {
     $(bad.el).scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
-  $('confirmItems').innerHTML = items.map(function (it) {
+  // 変えられない品物も、合計に入るので一緒に見せる
+  var fixed = lockedOther.slice();
+  data.products.forEach(function (p, i) {
+    (locked[i] || []).forEach(function (it) { fixed.push({ name: p.name, size: it.size, qty: it.qty, amount: it.amount, lockReason: it.lockReason }); });
+  });
+  $('confirmItems').innerHTML = fixed.map(function (it) {
+    return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '<span class="lock-tag">' + esc(it.lockReason) + '</span></td>'
+      + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
+  }).join('') + items.map(function (it) {
     return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td>'
       + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.price * it.qty) + '</td></tr>';
-  }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(totalOf(items)) + '</td></tr>';
-  var rows = [['入園する年齢', f.age], ['園児のお名前', f.child], ['保護者のお名前', f.parent],
-    ['メールアドレス', f.email], ['電話番号', f.tel], ['備考', f.note || '（なし）']];
+  }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(totalOf(items) + lockedSum()) + '</td></tr>';
+  var rows = myOrder
+    ? [['入園する年齢', myOrder.age], ['園児のお名前', myOrder.child], ['保護者のお名前', myOrder.parent]]
+    : [['入園する年齢', f.age], ['園児のお名前', f.child], ['保護者のお名前', f.parent],
+      ['メールアドレス', f.email], ['電話番号', f.tel], ['備考', f.note || '（なし）']];
+  $('confirmTitle').textContent = myOrder ? '変更後の内容をご確認ください' : 'ご注文の内容をご確認ください';
+  $('sendBtn').textContent = myOrder ? 'この内容に変更する' : 'この内容で注文する';
   $('confirmInfo').innerHTML = rows.map(function (r) {
     return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
   }).join('');
@@ -544,11 +700,22 @@ $('sendBtn').addEventListener('click', function () {
   f.items = chosenItems().map(function (it) {
     return { id: it.id, size: it.size, qty: it.qty };
   });
-  call('submitOrder', f).then(function (r) {
+  var req = myOrder
+    ? call('updateMyOrder', { action: 'updateMyOrder', key: EDIT_KEY, items: f.items })
+    : call('submitOrder', f);
+  req.then(function (r) {
     $('doneTotal').textContent = yen(r.total);
     $('donePay').textContent = r.payNote ? '■ 代金のお支払い\n' + r.payNote : '';
     show('donePay', !!r.payNote);
-    $('doneMail').textContent = r.mailSent ? '注文の内容を ' + f.email + ' にお送りしました。' : '';
+    if (myOrder) {
+      $('doneTitle').textContent = 'ご注文を変更しました';
+      $('doneMail').textContent = r.mailSent ? '変更後の内容を ' + myOrder.email + ' にお送りしました。' : '';
+      $('againBtn').textContent = 'ご注文をもう一度確認する';
+    } else {
+      $('doneMail').textContent = r.mailSent
+        ? '注文の内容を ' + f.email + ' にお送りしました。\nあとから数を変えたり取り消したりするときは、メールにあるリンクから行えます。'
+        : '';
+    }
     show('confirmArea', false);
     show('doneArea', true);
     window.scrollTo(0, 0);
@@ -557,13 +724,15 @@ $('sendBtn').addEventListener('click', function () {
     $('sendError').classList.add('show');
   }).then(function () {
     btn.disabled = false;
-    btn.textContent = 'この内容で注文する';
+    btn.textContent = myOrder ? 'この内容に変更する' : 'この内容で注文する';
     $('backBtn').disabled = false;
   });
 });
 
 // きょうだいの注文：保護者の情報は残して、園児と用品だけ空にする
 $('againBtn').addEventListener('click', function () {
+  // 注文の変更のあとは、変わった内容で開き直す
+  if (myOrder) { location.reload(); return; }
   $('child').value = '';
   $('note').value = '';
   Array.prototype.forEach.call(document.getElementsByName('age'), function (r) { r.checked = false; });
