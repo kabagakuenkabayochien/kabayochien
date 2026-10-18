@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用品の注文</title>
+<style>
+  :root {
+    --bg: #f3faf8;
+    --card: #ffffff;
+    --text: #2d3a37;
+    --sub: #6b7c78;
+    --accent: #2a9d8f;
+    --accent-dark: #1f6f64;
+    --accent-soft: #e0f2ef;
+    --border: #d5e6e2;
+    --error: #c62828;
+    --error-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+    font-size: 16px; line-height: 1.6;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 16px 120px; }
+  .kg { color: var(--sub); font-size: 0.9rem; margin-top: 4px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .demo { background: #fff3cd; color: #7a5b00; border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; margin-bottom: 12px; }
+  .notice { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; margin: 12px 0 20px; white-space: pre-wrap; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 1.05rem; margin: 0 0 12px; color: var(--accent-dark); }
+  label.field { display: block; font-weight: bold; margin: 14px 0 6px; }
+  label.field:first-of-type { margin-top: 0; }
+  .req { color: var(--error); font-size: 0.8rem; margin-left: 6px; }
+  .opt { color: var(--sub); font-size: 0.8rem; font-weight: normal; margin-left: 6px; }
+  .hint { color: var(--sub); font-size: 0.85rem; margin-top: 4px; }
+  input[type=text], input[type=tel], input[type=email], select, textarea {
+    width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fff; color: var(--text); font-family: inherit;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+
+  .item { border-top: 1px solid var(--border); padding: 14px 0; }
+  .item:first-of-type { border-top: none; padding-top: 0; }
+  .item:last-child { padding-bottom: 0; }
+  .item-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .item-name { font-weight: bold; }
+  .item-price { flex: none; color: var(--accent-dark); font-weight: bold; }
+  .item-desc { color: var(--sub); font-size: 0.85rem; }
+  .ages { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ages label { flex: 1; min-width: 88px; }
+  .ages input { position: absolute; opacity: 0; pointer-events: none; }
+  .ages span { display: block; text-align: center; padding: 10px 8px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-weight: bold; cursor: pointer; }
+  .ages input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ages input:focus-visible + span { outline: 2px solid var(--accent-dark); outline-offset: 2px; }
+  .must { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 4px; background: #fde9d4; color: #a0521a; margin-left: 6px; vertical-align: 2px; }
+  .info { background: #fff7ec; border: 1px solid #f3d9b8; color: #7a4a14; border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; white-space: pre-wrap; font-size: 0.95rem; }
+  .line { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .line select { flex: 1; min-width: 0; }
+  .line .spacer { flex: 1; }
+  .stepper { display: flex; align-items: center; flex: none; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .stepper button { width: 44px; height: 44px; border: none; background: var(--accent-soft); color: var(--accent-dark); font-size: 1.3rem; font-weight: bold; cursor: pointer; }
+  .stepper button:disabled { color: #b8cbc7; background: #f4f8f7; cursor: default; }
+  .stepper span { width: 40px; text-align: center; font-weight: bold; font-size: 1.1rem; }
+  .remove { flex: none; border: none; background: none; color: var(--sub); font-size: 0.85rem; cursor: pointer; padding: 4px; }
+  .add-size { border: none; background: none; color: var(--accent-dark); font-size: 0.9rem; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .bar-inner { max-width: 560px; margin: 0 auto; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-total { flex: 1; }
+  .bar-total .count { color: var(--sub); font-size: 0.85rem; }
+  .bar-total .sum { font-size: 1.25rem; font-weight: bold; }
+  .bar .btn { width: auto; margin: 0; padding: 12px 20px; }
+
+  .btn { display: block; width: 100%; padding: 14px; font-size: 1.05rem; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; margin-top: 12px; font-family: inherit; }
+  .btn-main { background: var(--accent); color: #fff; }
+  .btn-main:disabled { background: #a9cfc9; cursor: wait; }
+  .btn-sub { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .error { background: var(--error-bg); color: var(--error); border-radius: 8px; padding: 10px 12px; margin: 0 0 10px; display: none; white-space: pre-wrap; font-size: 0.95rem; }
+  .error.show { display: block; }
+
+  table.confirm { width: 100%; border-collapse: collapse; }
+  table.confirm th, table.confirm td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.confirm th { width: 36%; color: var(--sub); font-weight: normal; }
+  table.confirm td { white-space: pre-wrap; word-break: break-all; }
+  table.items td.num { text-align: right; white-space: nowrap; }
+  table.items tr.total td { font-weight: bold; font-size: 1.1rem; border-bottom: none; }
+  .pay { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; margin-top: 12px; white-space: pre-wrap; text-align: left; }
+  .order-no { font-size: 1.6rem; font-weight: bold; color: var(--accent-dark); letter-spacing: 0.05em; }
+  .center { text-align: center; }
+  .hidden { display: none; }
+  .big-icon { font-size: 3rem; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="demoBox" class="demo hidden">試し表示です（パソコンで直接開いたときの見本）。注文は送信されません。</div>
+  <div class="kg" id="kg"></div>
+  <h1 id="title">用品の注文</h1>
+
+  <!-- 読み込み中・受付停止など -->
+  <div id="statusBox" class="card center">読み込んでいます…</div>
+
+  <!-- ① 入力 -->
+  <div id="formArea" class="hidden">
+    <div id="notice" class="notice hidden"></div>
+
+    <div class="card">
+      <h2>お子さまと保護者の方</h2>
+      <label class="field" id="ageLabel">入園する年齢<span class="req">必須</span></label>
+      <div class="ages" id="ages" role="radiogroup" aria-labelledby="ageLabel"></div>
+      <div class="hint">選ぶと、その年齢で必ず購入する用品が1点ずつ入ります。</div>
+      <label class="field" for="child">園児のお名前（ひらがな）<span class="req">必須</span></label>
+      <input type="text" id="child" autocomplete="off" placeholder="例：やまだ はなこ">
+      <div class="hint">ひらがなで、姓と名の間にスペースを入れてください。</div>
+      <label class="field" for="parent">保護者のお名前<span class="req">必須</span></label>
+      <input type="text" id="parent" autocomplete="name" placeholder="例：山田 花子">
+      <label class="field" for="email">メールアドレス<span class="req">必須</span></label>
+      <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="例：hanako@example.com">
+      <div class="hint">注文の内容をメールでお送りします。</div>
+      <label class="field" for="tel">電話番号<span class="req">必須</span></label>
+      <input type="tel" id="tel" autocomplete="tel" inputmode="tel" placeholder="例：090-1234-5678">
+    </div>
+
+    <div id="ageInfo" class="info hidden"></div>
+    <div id="products"></div>
+
+    <div class="card">
+      <h2>備考<span class="opt">任意</span></h2>
+      <textarea id="note" placeholder="園への連絡があれば書いてください"></textarea>
+    </div>
+  </div>
+
+  <!-- ② 確認 -->
+  <div id="confirmArea" class="hidden">
+    <div class="card">
+      <h2>ご注文の内容をご確認ください</h2>
+      <table class="confirm items" id="confirmItems"></table>
+    </div>
+    <div class="card">
+      <table class="confirm" id="confirmInfo"></table>
+    </div>
+    <div id="sendError" class="error"></div>
+    <button class="btn btn-main" id="sendBtn">この内容で注文する</button>
+    <button class="btn btn-sub" id="backBtn">戻って直す</button>
+  </div>
+
+  <!-- ③ 完了 -->
+  <div id="doneArea" class="hidden">
+    <div class="card center">
+      <div class="big-icon">✅</div>
+      <p style="margin:4px 0 0">ご注文を受け付けました</p>
+      <div class="hint">注文番号</div>
+      <div class="order-no" id="doneNo"></div>
+      <p style="margin:8px 0 0">合計 <b id="doneTotal"></b></p>
+      <div id="donePay" class="pay hidden"></div>
+      <p class="hint" id="doneMail"></p>
+      <p class="hint">この画面を保存（スクリーンショット）しておくと安心です。</p>
+    </div>
+    <button class="btn btn-sub" id="againBtn">続けて、ほかのお子さまの注文をする</button>
+  </div>
+</div>
+
+<!-- 下の合計バー（入力画面だけ） -->
+<div class="bar hidden" id="bar">
+  <div class="bar-inner">
+    <div id="barError" class="error"></div>
+    <div class="bar-row">
+      <div class="bar-total"><div class="count" id="barCount">まだ選ばれていません</div><div class="sum" id="barSum">0円</div></div>
+      <button class="btn btn-main" id="nextBtn">確認へ進む</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// GitHub Pages などGoogleの外に置いたときに、注文をやりとりするウェブアプリのURL（最後が /exec）
+// （Apps Scriptのウェブアプリとして開いたときは使わない）
+var API_URL = 'https://script.google.com/macros/s/AKfycbxvUiB_ojaCDwsOdV8EKtYNd0CGcC12fccDQXVm4-qojPeUKdv2ptWqhwSXNkrSpGCYlQ/exec';
+
+var IN_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
+// パソコンでファイルを直接開いた（file:）ときは、見本のデータで動かす（本物の注文は送らない）
+var DEMO = !IN_APPS_SCRIPT && location.protocol === 'file:';
+
+var DEMO_DATA = {
+  kindergarten: '○○幼稚園', title: '入園用品の注文', open: true,
+  notice: '入園する年齢を選ぶと、必ず購入する用品が1点ずつ入ります。\nほかに必要な用品があれば数を選んで、「確認へ進む」を押してください。',
+  ages: ['3歳児', '4歳児', '5歳児'],
+  products: [
+    { id: 1, category: '衣服', name: '上着', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 4500 }, { size: '110', price: 4500 }, { size: '120', price: 4800 }, { size: '130', price: 4800 }] },
+    { id: 2, category: '衣服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
+    { id: 3, category: '衣服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
+    { id: 4, category: '用品', name: 'クレヨン（16色）', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
+    { id: 5, category: '用品', name: '自由画帳', required: [], sizes: [{ size: '', price: 250 }] },
+    { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] }
+  ]
+};
+var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ、園児名と注文番号を書いて園にお持ちください。';
+
+function call(fn, arg) {
+  return new Promise(function (resolve, reject) {
+    if (DEMO) {
+      setTimeout(function () {
+        if (fn === 'getFormData') resolve(DEMO_DATA);
+        else resolve({ orderNo: 'No.0001', child: arg.child, total: totalOf(chosenItems()), payNote: DEMO_PAY, mailSent: true });
+      }, 400);
+      return;
+    }
+    if (IN_APPS_SCRIPT) {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](arg);
+      return;
+    }
+    // Googleの外に置いたとき：fetch で /exec とやりとりする
+    // （Content-Type を text/plain にして、ブラウザの事前確認（プリフライト）が起きないようにする）
+    var req = fn === 'getFormData'
+      ? fetch(API_URL + '?action=config')
+      : fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(arg) });
+    req
+      .then(function (r) { return r.json(); }, function () {
+        throw new Error('通信できませんでした。電波のよいところで、もう一度お試しください。');
+      })
+      .then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.error) || '時間をおいて、もう一度お試しください。');
+        resolve(fn === 'getFormData' ? res.config : res.result);
+      })
+      .catch(reject);
+  });
+}
+
+var $ = function (id) { return document.getElementById(id); };
+var data = null;
+var lines = [];  // 商品ごとの注文行 lines[商品の番号] = [{ size, qty, auto }]（auto = 年齢を選んだときに自動で入れた行）
+var age = '';    // 選ばれている入園する年齢
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function yen(n) { return Number(n).toLocaleString('ja-JP') + '円'; }
+function show(id, on) { $(id).classList.toggle('hidden', !on); }
+function errMsg(e) { return String((e && e.message) || e).replace(/^Error:\s*/, ''); }
+
+function totalOf(items) {
+  return items.reduce(function (a, it) { return a + it.price * it.qty; }, 0);
+}
+
+// サイズがある用品か（サイズがない用品は sizes = [{ size: '', price }]）
+function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
+
+// 選んだ年齢で必須購入の用品か
+function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
+
+function emptyLines() { return [{ size: '', qty: 0, auto: false }]; }
+
+// 年齢が変わったら、前に自動で入れた分を外し、新しい年齢の必須用品を1点ずつ入れる。
+// 保護者が自分で数を変えた用品はそのまま残す
+function applyAge(newAge) {
+  age = newAge;
+  var count = 0;
+  data.products.forEach(function (p, i) {
+    lines[i] = lines[i].filter(function (l) { return !l.auto; });
+    if (!lines[i].length) lines[i] = emptyLines();
+    if (!isRequired(p)) return;
+    count++;
+    var ordered = lines[i].some(function (l) { return l.qty > 0; });
+    if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: 1, auto: true };
+  });
+  $('ageInfo').textContent = count
+    ? age + 'で必ず購入する用品（' + count + '品）に、1点ずつ入れました。必須の用品は0にはできません。\nサイズのある用品は、サイズを選んでください。'
+    : '';
+  show('ageInfo', !!count);
+  renderProducts();
+  updateBar();
+}
+
+// 必須なのに数が0の用品（年齢を選び直した直後などに起こりうるので、確認へ進むときに調べる）
+function missingRequired() {
+  return data.products.filter(function (p, i) {
+    return isRequired(p) && !lines[i].some(function (l) { return l.qty > 0; });
+  });
+}
+
+function sizePrice(p, size) {
+  var s = p.sizes.filter(function (x) { return x.size === size; })[0];
+  return s ? s.price : 0;
+}
+
+// 数が1以上の行を、注文の品として集める
+function chosenItems() {
+  var items = [];
+  data.products.forEach(function (p, i) {
+    lines[i].forEach(function (l) {
+      var size = hasSize(p) ? l.size : '';
+      if (l.qty > 0) items.push({ index: i, id: p.id, name: p.name, size: size, qty: l.qty, price: sizePrice(p, size) });
+    });
+  });
+  return items;
+}
+
+// 園児名：全角スペースを半角にし、スペースが続いたら1つにまとめる
+function normalizeKanaName(v) { return v.replace(/[　\s]+/g, ' ').trim(); }
+function checkKanaName(name) {
+  if (!name) return '園児のお名前を入力してください。';
+  if (!/^[ぁ-ゖー ]+$/.test(name)) return '園児のお名前は、ひらがなで入力してください。';
+  if (!/^[ぁ-ゖー]+ [ぁ-ゖー]+$/.test(name)) return '園児のお名前は、姓と名の間にスペースを1つ入れてください（例：やまだ はなこ）。';
+  return '';
+}
+// 全角の英数字を半角にする（メールアドレス・電話番号用）
+function toHalfWidth(v) {
+  return v.replace(/[！-～]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/　/g, ' ');
+}
+function normalizeTel(v) { return toHalfWidth(v).replace(/[ー―‐−]/g, '-').replace(/[\s()]/g, ''); }
+
+// 入力し終わったら（欄から離れたら）、その場で直して見せる
+$('child').addEventListener('blur', function () { this.value = normalizeKanaName(this.value); });
+$('email').addEventListener('blur', function () { this.value = toHalfWidth(this.value).trim(); });
+$('tel').addEventListener('blur', function () { this.value = normalizeTel(this.value); });
+
+// ===== 読み込み =====
+
+call('getFormData').then(function (d) {
+  data = d;
+  show('demoBox', DEMO);
+  $('kg').textContent = d.kindergarten || '';
+  $('title').textContent = d.title || '用品の注文';
+  document.title = d.title || '用品の注文';
+  if (!d.open) { $('statusBox').textContent = 'ただいま注文の受付を停止しています。'; return; }
+  if (!d.products.length) { $('statusBox').textContent = '注文できる用品がありません。'; return; }
+
+  if (d.notice) { $('notice').textContent = d.notice; show('notice', true); }
+  $('ages').innerHTML = d.ages.map(function (a) {
+    return '<label><input type="radio" name="age" value="' + esc(a) + '"><span>' + esc(a) + '</span></label>';
+  }).join('');
+  d.products.forEach(function (p, i) { lines[i] = emptyLines(); });
+  renderProducts();
+  show('statusBox', false);
+  show('formArea', true);
+  show('bar', true);
+  updateBar();
+}).catch(function (e) {
+  $('statusBox').textContent = '読み込めませんでした。時間をおいて開き直してください。\n（' + errMsg(e) + '）';
+});
+
+// ===== 商品の表示 =====
+
+function renderProducts() {
+  var groups = [];
+  data.products.forEach(function (p, i) {
+    var g = groups.filter(function (x) { return x.name === p.category; })[0];
+    if (!g) { g = { name: p.category, idx: [] }; groups.push(g); }
+    g.idx.push(i);
+  });
+  $('products').innerHTML = groups.map(function (g) {
+    return '<div class="card"><h2>' + esc(g.name) + '</h2>'
+      + g.idx.map(function (i) { return '<div class="item" id="item' + i + '">' + itemHtml(i) + '</div>'; }).join('')
+      + '</div>';
+  }).join('');
+}
+
+// その用品の合計の数（サイズ違いもまとめて）
+function productTotal(i) { return lines[i].reduce(function (a, l) { return a + l.qty; }, 0); }
+
+// 減らす・取り消すと必須の用品が0になってしまうか
+function wouldBreakRequired(i, minus) {
+  return isRequired(data.products[i]) && productTotal(i) - minus < 1;
+}
+
+function itemHtml(i) {
+  var p = data.products[i];
+  var prices = p.sizes.map(function (s) { return s.price; });
+  var min = Math.min.apply(null, prices);
+  var samePrice = min === Math.max.apply(null, prices);
+  var html = '<div class="item-head"><div class="item-name">' + esc(p.name)
+    + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
+    + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>';
+  lines[i].forEach(function (l, j) {
+    html += '<div class="line">';
+    if (hasSize(p)) {
+      html += '<select data-i="' + i + '" data-j="' + j + '" class="size-sel" aria-label="' + esc(p.name) + 'のサイズ">'
+        + '<option value="">サイズを選ぶ</option>'
+        + p.sizes.map(function (s) {
+          return '<option value="' + esc(s.size) + '"' + (s.size === l.size ? ' selected' : '') + '>'
+            + esc(s.size) + (samePrice ? '' : '（' + yen(s.price) + '）') + '</option>';
+        }).join('')
+        + '</select>';
+    } else {
+      html += '<div class="spacer"></div>';
+    }
+    html += '<div class="stepper">'
+      + '<button type="button" data-act="minus" data-i="' + i + '" data-j="' + j + '"' + (l.qty <= 0 || wouldBreakRequired(i, 1) ? ' disabled' : '') + ' aria-label="減らす">−</button>'
+      + '<span>' + l.qty + '</span>'
+      + '<button type="button" data-act="plus" data-i="' + i + '" data-j="' + j + '"' + (l.qty >= 20 ? ' disabled' : '') + ' aria-label="増やす">＋</button>'
+      + '</div>';
+    if (j > 0 && !wouldBreakRequired(i, l.qty)) html += '<button type="button" class="remove" data-act="remove" data-i="' + i + '" data-j="' + j + '">取消</button>';
+    html += '</div>';
+  });
+  if (hasSize(p) && lines[i].length < p.sizes.length) {
+    html += '<button type="button" class="add-size" data-act="addline" data-i="' + i + '">＋ 別のサイズも注文する</button>';
+  }
+  return html;
+}
+
+function refreshItem(i) {
+  $('item' + i).innerHTML = itemHtml(i);
+  updateBar();
+}
+
+$('products').addEventListener('click', function (ev) {
+  var b = ev.target.closest('button[data-act]');
+  if (!b) return;
+  var i = Number(b.dataset.i), j = Number(b.dataset.j);
+  var act = b.dataset.act;
+  if (act === 'minus' && wouldBreakRequired(i, 1)) return;
+  if (act === 'remove' && wouldBreakRequired(i, lines[i][j].qty)) return;
+  // 保護者が自分で触った行は、年齢を選び直しても消さない
+  if (lines[i][j]) lines[i][j].auto = false;
+  if (act === 'plus') lines[i][j].qty = Math.min(20, lines[i][j].qty + 1);
+  else if (act === 'minus') lines[i][j].qty = Math.max(0, lines[i][j].qty - 1);
+  else if (act === 'remove') lines[i].splice(j, 1);
+  else if (act === 'addline') lines[i].push({ size: '', qty: 0, auto: false });
+  refreshItem(i);
+});
+
+$('ages').addEventListener('change', function (ev) {
+  if (ev.target.name === 'age') applyAge(ev.target.value);
+});
+
+$('products').addEventListener('change', function (ev) {
+  var s = ev.target;
+  if (!s.classList.contains('size-sel')) return;
+  var i = Number(s.dataset.i), j = Number(s.dataset.j);
+  lines[i][j].size = s.value;
+  lines[i][j].auto = false;
+  // サイズを選んだら、数を1にしておく（0のままだと注文に入らないため）
+  if (s.value && lines[i][j].qty === 0) lines[i][j].qty = 1;
+  refreshItem(i);
+});
+
+function updateBar() {
+  var items = chosenItems();
+  var count = items.reduce(function (a, it) { return a + it.qty; }, 0);
+  $('barCount').textContent = count ? '合計 ' + count + '点' : 'まだ選ばれていません';
+  $('barSum').textContent = yen(totalOf(items));
+  showBarError('');
+}
+
+function showBarError(msg) {
+  $('barError').textContent = msg;
+  $('barError').classList.toggle('show', !!msg);
+}
+
+// ===== 確認へ =====
+
+function formValues() {
+  $('child').value = normalizeKanaName($('child').value);
+  $('email').value = toHalfWidth($('email').value).trim();
+  $('tel').value = normalizeTel($('tel').value);
+  return {
+    age: age,
+    child: $('child').value,
+    parent: $('parent').value.trim(),
+    email: $('email').value,
+    tel: $('tel').value,
+    note: $('note').value.trim()
+  };
+}
+
+function validate(f, items) {
+  if (!f.age) return { msg: '入園する年齢を選んでください。', el: 'ages' };
+  var childError = checkKanaName(f.child);
+  if (childError) return { msg: childError, el: 'child' };
+  if (!f.parent) return { msg: '保護者のお名前を入力してください。', el: 'parent' };
+  if (!f.email) return { msg: 'メールアドレスを入力してください。', el: 'email' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return { msg: 'メールアドレスの形が正しくありません。', el: 'email' };
+  if (!f.tel) return { msg: '電話番号を入力してください。', el: 'tel' };
+  if (!/^0\d{9,10}$/.test(f.tel.replace(/-/g, ''))) return { msg: '電話番号を正しく入力してください（例：090-1234-5678）。', el: 'tel' };
+  var missing = missingRequired();
+  if (missing.length) {
+    return { msg: '「' + missing[0].name + '」は' + f.age + 'で必ず購入する用品です。1点以上にしてください。', el: 'item' + data.products.indexOf(missing[0]) };
+  }
+  if (!items.length) return { msg: '注文する用品の数を選んでください。', el: 'products' };
+  for (var k = 0; k < items.length; k++) {
+    if (hasSize(data.products[items[k].index]) && !items[k].size) {
+      return { msg: '「' + items[k].name + '」のサイズを選んでください。', el: 'item' + items[k].index };
+    }
+  }
+  var seen = {};
+  for (var m = 0; m < items.length; m++) {
+    var key = items[m].index + '|' + items[m].size;
+    if (seen[key]) return { msg: '「' + items[m].name + '」で同じサイズが2回選ばれています。1つにまとめてください。', el: 'item' + items[m].index };
+    seen[key] = true;
+  }
+  return null;
+}
+
+$('nextBtn').addEventListener('click', function () {
+  var f = formValues();
+  var items = chosenItems();
+  var bad = validate(f, items);
+  if (bad) {
+    showBarError(bad.msg);
+    $(bad.el).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  $('confirmItems').innerHTML = items.map(function (it) {
+    return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td>'
+      + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.price * it.qty) + '</td></tr>';
+  }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(totalOf(items)) + '</td></tr>';
+  var rows = [['入園する年齢', f.age], ['園児のお名前', f.child], ['保護者のお名前', f.parent],
+    ['メールアドレス', f.email], ['電話番号', f.tel], ['備考', f.note || '（なし）']];
+  $('confirmInfo').innerHTML = rows.map(function (r) {
+    return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>';
+  }).join('');
+  $('sendError').classList.remove('show');
+  show('formArea', false);
+  show('bar', false);
+  show('confirmArea', true);
+  window.scrollTo(0, 0);
+});
+
+$('backBtn').addEventListener('click', function () {
+  show('confirmArea', false);
+  show('formArea', true);
+  show('bar', true);
+  window.scrollTo(0, 0);
+});
+
+// ===== 送信 =====
+
+$('sendBtn').addEventListener('click', function () {
+  var btn = $('sendBtn');
+  btn.disabled = true;
+  btn.textContent = '送信しています…';
+  $('backBtn').disabled = true;
+  var f = formValues();
+  f.items = chosenItems().map(function (it) {
+    return { id: it.id, size: it.size, qty: it.qty };
+  });
+  call('submitOrder', f).then(function (r) {
+    $('doneNo').textContent = r.orderNo;
+    $('doneTotal').textContent = yen(r.total);
+    $('donePay').textContent = r.payNote ? '■ 代金のお支払い\n' + r.payNote : '';
+    show('donePay', !!r.payNote);
+    $('doneMail').textContent = r.mailSent ? '注文の内容を ' + f.email + ' にお送りしました。' : '';
+    show('confirmArea', false);
+    show('doneArea', true);
+    window.scrollTo(0, 0);
+  }).catch(function (e) {
+    $('sendError').textContent = '送信できませんでした。\n' + errMsg(e);
+    $('sendError').classList.add('show');
+  }).then(function () {
+    btn.disabled = false;
+    btn.textContent = 'この内容で注文する';
+    $('backBtn').disabled = false;
+  });
+});
+
+// きょうだいの注文：保護者の情報は残して、園児と用品だけ空にする
+$('againBtn').addEventListener('click', function () {
+  $('child').value = '';
+  $('note').value = '';
+  Array.prototype.forEach.call(document.getElementsByName('age'), function (r) { r.checked = false; });
+  data.products.forEach(function (p, i) { lines[i] = emptyLines(); });
+  applyAge('');
+  show('doneArea', false);
+  show('formArea', true);
+  show('bar', true);
+  window.scrollTo(0, 0);
+});
+</script>
+</body>
+</html>
