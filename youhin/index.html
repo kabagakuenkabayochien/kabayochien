@@ -118,6 +118,7 @@
       <div class="hint">ひらがなで、姓と名の間にスペースを入れてください。</div>
       <label class="field" for="parent">保護者のお名前<span class="req">必須</span></label>
       <input type="text" id="parent" autocomplete="name" placeholder="例：山田 花子">
+      <div class="hint">姓と名の間にスペースを入れてください。</div>
       <label class="field" for="email">メールアドレス<span class="req">必須</span></label>
       <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="例：hanako@example.com">
       <div class="hint">注文の内容をメールでお送りします。</div>
@@ -300,6 +301,12 @@ function chosenItems() {
 
 // 園児名：全角スペースを半角にし、スペースが続いたら1つにまとめる
 function normalizeKanaName(v) { return v.replace(/[　\s]+/g, ' ').trim(); }
+// 保護者名：姓と名の間にスペースが1つあるか（漢字・かななど、文字の種類は問わない）
+function checkParentName(name) {
+  if (!name) return '保護者のお名前を入力してください。';
+  if (!/^\S+ \S+$/.test(name)) return '保護者のお名前は、姓と名の間にスペースを1つ入れてください（例：山田 花子）。';
+  return '';
+}
 function checkKanaName(name) {
   if (!name) return '園児のお名前を入力してください。';
   if (!/^[ぁ-ゖー ]+$/.test(name)) return '園児のお名前は、ひらがなで入力してください。';
@@ -314,6 +321,7 @@ function normalizeTel(v) { return toHalfWidth(v).replace(/[ー―‐−]/g, '-')
 
 // 入力し終わったら（欄から離れたら）、その場で直して見せる
 $('child').addEventListener('blur', function () { this.value = normalizeKanaName(this.value); });
+$('parent').addEventListener('blur', function () { this.value = normalizeKanaName(this.value); });
 $('email').addEventListener('blur', function () { this.value = toHalfWidth(this.value).trim(); });
 $('tel').addEventListener('blur', function () { this.value = normalizeTel(this.value); });
 
@@ -454,12 +462,13 @@ function showBarError(msg) {
 
 function formValues() {
   $('child').value = normalizeKanaName($('child').value);
+  $('parent').value = normalizeKanaName($('parent').value);
   $('email').value = toHalfWidth($('email').value).trim();
   $('tel').value = normalizeTel($('tel').value);
   return {
     age: age,
     child: $('child').value,
-    parent: $('parent').value.trim(),
+    parent: $('parent').value,
     email: $('email').value,
     tel: $('tel').value,
     note: $('note').value.trim()
@@ -470,7 +479,8 @@ function validate(f, items) {
   if (!f.age) return { msg: '入園する年齢を選んでください。', el: 'ages' };
   var childError = checkKanaName(f.child);
   if (childError) return { msg: childError, el: 'child' };
-  if (!f.parent) return { msg: '保護者のお名前を入力してください。', el: 'parent' };
+  var parentError = checkParentName(f.parent);
+  if (parentError) return { msg: parentError, el: 'parent' };
   if (!f.email) return { msg: 'メールアドレスを入力してください。', el: 'email' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return { msg: 'メールアドレスの形が正しくありません。', el: 'email' };
   if (!f.tel) return { msg: '電話番号を入力してください。', el: 'tel' };
