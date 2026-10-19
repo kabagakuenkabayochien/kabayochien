@@ -296,6 +296,8 @@ function totalOf(items) {
 
 // サイズがある用品か（サイズがない用品は sizes = [{ size: '', price }]）
 function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
+// 選ぶものの呼び方：衣服は「サイズ」、用品（はさみなど）は「種類」
+function sizeWord(p) { return p.category === '衣服' ? 'サイズ' : '種類'; }
 
 // 選んだ年齢で必須購入の用品か
 function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
@@ -316,7 +318,7 @@ function applyAge(newAge) {
     if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: 1, auto: true };
   });
   $('ageInfo').textContent = count
-    ? age + 'で必ず購入する用品（' + count + '品）に、1点ずつ入れました。必須の用品は0にはできません。\nサイズのある用品は、サイズを選んでください。'
+    ? age + 'で必ず購入する用品（' + count + '品）に、1点ずつ入れました。必須の用品は0にはできません。\nサイズや種類のある用品は、選んでください。'
     : '';
   show('ageInfo', !!count);
   renderProducts();
@@ -515,8 +517,8 @@ function itemHtml(i) {
   lines[i].forEach(function (l, j) {
     html += '<div class="line">';
     if (hasSize(p)) {
-      html += '<select data-i="' + i + '" data-j="' + j + '" class="size-sel" aria-label="' + esc(p.name) + 'のサイズ">'
-        + '<option value="">サイズを選ぶ</option>'
+      html += '<select data-i="' + i + '" data-j="' + j + '" class="size-sel" aria-label="' + esc(p.name) + 'の' + sizeWord(p) + '">'
+        + '<option value="">' + sizeWord(p) + 'を選ぶ</option>'
         + p.sizes.map(function (s) {
           return '<option value="' + esc(s.size) + '"' + (s.size === l.size ? ' selected' : '') + '>'
             + esc(s.size) + (samePrice ? '' : '（' + yen(s.price) + '）') + '</option>';
@@ -534,7 +536,7 @@ function itemHtml(i) {
     html += '</div>';
   });
   if (hasSize(p) && lines[i].length < p.sizes.length) {
-    html += '<button type="button" class="add-size" data-act="addline" data-i="' + i + '">＋ 別のサイズも注文する</button>';
+    html += '<button type="button" class="add-size" data-act="addline" data-i="' + i + '">＋ 別の' + sizeWord(p) + 'も注文する</button>';
   }
   return html;
 }
@@ -613,13 +615,13 @@ function validateItems(items) {
   }
   for (var k = 0; k < items.length; k++) {
     if (hasSize(data.products[items[k].index]) && !items[k].size) {
-      return { msg: '「' + items[k].name + '」のサイズを選んでください。', el: 'item' + items[k].index };
+      return { msg: '「' + items[k].name + '」の' + sizeWord(data.products[items[k].index]) + 'を選んでください。', el: 'item' + items[k].index };
     }
   }
   var seen = {};
   for (var m = 0; m < items.length; m++) {
     var key = items[m].index + '|' + items[m].size;
-    if (seen[key]) return { msg: '「' + items[m].name + '」で同じサイズが2回選ばれています。1つにまとめてください。', el: 'item' + items[m].index };
+    if (seen[key]) return { msg: '「' + items[m].name + '」で同じ' + sizeWord(data.products[items[m].index]) + 'が2回選ばれています。1つにまとめてください。', el: 'item' + items[m].index };
     seen[key] = true;
   }
   return null;
