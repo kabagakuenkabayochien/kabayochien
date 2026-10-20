@@ -118,7 +118,7 @@
       <select id="className"></select>
       <label class="field" for="childName">園児名<span class="req">必須</span></label>
       <input type="text" id="childName" autocomplete="off" placeholder="例：ひだまり たろう">
-      <div class="hint" id="nameHint"><strong>ひらがな</strong>で、<strong>苗字と名前の間にスペース</strong>を入れて入力してください。</div>
+      <div class="hint" id="nameHint"><strong>ひらがな</strong>で、<strong>苗字と名前の間にスペース</strong>を入れて入力してください（全角のスペースは、自動で半角になります）。</div>
     </div>
 
     <div class="card">
@@ -371,6 +371,21 @@
   function normalizeName(v) {
     return String(v || '').replace(/[\s　]+/g, ' ').trim();
   }
+
+  // 園児名：入力しているそばから、全角スペースを半角スペースにする
+  // （かな漢字変換の途中は値を書き換えない。変換が終わったときに直す）
+  (function () {
+    var input = el('childName');
+    var fixSpaces = function () {
+      if (input.value.indexOf('　') < 0) return;
+      var pos = input.selectionStart;
+      input.value = input.value.replace(/　/g, ' ');
+      try { input.setSelectionRange(pos, pos); } catch (e) { /* 位置を戻せなくても入力は続けられる */ }
+    };
+    input.addEventListener('input', function (e) { if (!e.isComposing) fixSpaces(); });
+    input.addEventListener('compositionend', fixSpaces);
+    input.addEventListener('blur', function () { input.value = normalizeName(input.value); });
+  })();
 
   // 全角の英数字・記号を半角に、空白を取り、小文字にそろえる
   function normalizeEmail(v) {
