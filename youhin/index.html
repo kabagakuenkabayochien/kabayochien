@@ -70,7 +70,8 @@
   .stepper { display: flex; align-items: center; flex: none; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
   .stepper button { width: 44px; height: 44px; border: none; background: var(--accent-soft); color: var(--accent-dark); font-size: 1.3rem; font-weight: bold; cursor: pointer; }
   .stepper button:disabled { color: #b8cbc7; background: #f4f8f7; cursor: default; }
-  .stepper span { width: 40px; text-align: center; font-weight: bold; font-size: 1.1rem; }
+  .stepper span { min-width: 40px; padding: 0 4px; box-sizing: border-box; text-align: center; font-weight: bold; font-size: 1.1rem; white-space: nowrap; }
+  .stepper span small { font-size: 0.75rem; font-weight: normal; margin-left: 1px; }
   .remove { flex: none; border: none; background: none; color: var(--sub); font-size: 0.85rem; cursor: pointer; padding: 4px; }
   .add-size { border: none; background: none; color: var(--accent-dark); font-size: 0.9rem; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
   /* 保護者証ケースの「何枚必要か調べる」 */
@@ -232,7 +233,8 @@ var DEMO_DATA = {
     { id: 7, category: '用品', name: '保護者証ケース', required: [], sizes: [{ size: '', price: 300 }] },
     { id: 8, category: '用品', name: '日除け付き色帽子', required: ['3歳児', '4歳児', '5歳児'], ageColor: true, sizes: [{ size: '', price: 1100 }] },
     { id: 9, category: '用品', name: '上靴', required: [], ageColor: true, sizes: [{ size: '14cm', price: 2100 }, { size: '15cm', price: 2100 }, { size: '21cm', price: 2400 }] },
-    { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] }
+    { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] },
+    { id: 10, category: '用品', name: '肝油', caption: '入園の時期に合わせて、月数を減らしてください。', required: ['3歳児', '4歳児', '5歳児'], unit: 'ヶ月分', startQty: 12, maxQty: 12, sizes: [{ size: '', price: 130 }] }
   ]
 };
 var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ、園児名を書いて園にお持ちください。';
@@ -305,8 +307,15 @@ function lockedSum() {
 function lockedCount() {
   var all = lockedOther.slice();
   locked.forEach(function (list) { all = all.concat(list || []); });
-  return all.reduce(function (a, it) { return a + it.qty; }, 0);
+  return all.reduce(function (a, it) { return a + countOf(it); }, 0);
 }
+
+// 数の書き方（肝油の「12ヶ月分」など、単位のある用品はその単位で）
+function qtyText(qty, unit) { return qty + (unit || '点'); }
+// 合計の点数に数える数（単位のある用品は、何ヶ月分でも1点と数える）
+function countOf(it) { return it.unit ? 1 : it.qty; }
+// その用品の数の上限
+function maxOf(p) { return p.maxQty || 20; }
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -321,8 +330,8 @@ function totalOf(items) {
 
 // サイズがある用品か（サイズがない用品は sizes = [{ size: '', price }]）
 function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
-// 選ぶものの呼び方：衣服は「サイズ」、用品（はさみなど）は「種類」
-function sizeWord(p) { return p.category === '衣服' ? 'サイズ' : '種類'; }
+// 選ぶものの呼び方：衣服と、数字で始まる用品（上靴の 14cm など）は「サイズ」、ほかの用品（はさみなど）は「種類」
+function sizeWord(p) { return p.category === '衣服' || /^\d/.test(p.sizes[0].size) ? 'サイズ' : '種類'; }
 // 分類の色分け用のクラス
 function catClass(category) { return category === '衣服' ? 'cat-clothes' : 'cat-goods'; }
 
@@ -421,11 +430,11 @@ function applyAge(newAge) {
     if (!isRequired(p)) return;
     count++;
     var ordered = lines[i].some(function (l) { return l.qty > 0; });
-    if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: 1, auto: true };
+    if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: p.startQty || 1, auto: true };
   });
   var ageOnly = !age && data.products.some(dependsOnAge);
   $('ageInfo').textContent = count
-    ? age + 'で必ず購入する用品（' + count + '品）に、1点ずつ入れました。必須の用品は0にはできません。\nサイズや種類のある用品は、選んでください。'
+    ? age + 'で必ず購入する用品（' + count + '品）を入れました。必須の用品は0にはできません。\nサイズや種類のある用品は、選んでください。'
     : ageOnly ? '入園する年齢を選ぶと、その年齢で注文できる用品がすべて出ます（帽子・上靴の色も、年齢で決まります）。' : '';
   show('ageInfo', !!count || ageOnly);
   renderProducts();
@@ -451,7 +460,7 @@ function chosenItems() {
     if (!isVisible(p)) return;
     lines[i].forEach(function (l) {
       var size = hasSize(p) ? l.size : '';
-      if (l.qty > 0) items.push({ index: i, id: p.id, category: p.category, name: displayName(p), size: size, qty: l.qty, price: sizePrice(p, size) });
+      if (l.qty > 0) items.push({ index: i, id: p.id, category: p.category, name: displayName(p), size: size, unit: p.unit || '', qty: l.qty, price: sizePrice(p, size) });
     });
   });
   return items;
@@ -523,7 +532,7 @@ function loadMyOrder() {
       $('statusBox').classList.remove('center');
       $('statusBox').innerHTML = head + '<div class="info" style="margin:10px 0">' + esc(o.reason) + '</div>'
         + '<table class="confirm items">' + o.items.map(function (it) {
-          return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td><td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
+          return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td><td class="num">' + qtyText(it.qty, it.unit) + '</td><td class="num">' + yen(it.amount) + '</td></tr>';
         }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(o.total) + '</td></tr></table>';
       return;
     }
@@ -547,7 +556,7 @@ function loadMyOrder() {
     data.products.forEach(function (p, i) { if (!lines[i].length) lines[i] = emptyLines(); });
     if (lockedOther.length) {
       $('lockedBox').innerHTML = '<h2>変更できない用品</h2>' + lockedOther.map(function (it) {
-        return '<div class="locked-line"><b>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '　' + it.qty + '点</b>'
+        return '<div class="locked-line"><b>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '　' + qtyText(it.qty, it.unit) + '</b>'
           + '<span>' + esc(it.lockReason) + '</span></div>';
       }).join('');
       show('lockedBox', true);
@@ -618,14 +627,14 @@ function itemHtml(i) {
   var samePrice = min === Math.max.apply(null, prices);
   var html = '<div class="item-head"><div class="item-name">' + esc(displayName(p))
     + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
-    + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>'
+    + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + (p.unit ? '／1' + esc(p.unit) : '') + '</div></div>'
     + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '');
   if (hasGuide(p)) {
     html += guide && guide.i === i ? guideHtml(i)
       : '<button type="button" class="guide-open" data-act="guide-open" data-i="' + i + '">❓ 何枚必要か調べる</button>';
   }
   (locked[i] || []).forEach(function (it) {
-    html += '<div class="locked-line"><b>' + (it.size ? esc(it.size) + '　' : '') + it.qty + '点</b>'
+    html += '<div class="locked-line"><b>' + (it.size ? esc(it.size) + '　' : '') + qtyText(it.qty, it.unit) + '</b>'
       + '<span>' + esc(it.lockReason) + '・変更できません</span></div>';
   });
   lines[i].forEach(function (l, j) {
@@ -643,8 +652,8 @@ function itemHtml(i) {
     }
     html += '<div class="stepper">'
       + '<button type="button" data-act="minus" data-i="' + i + '" data-j="' + j + '"' + (l.qty <= 0 || wouldBreakRequired(i, 1) ? ' disabled' : '') + ' aria-label="減らす">−</button>'
-      + '<span>' + l.qty + '</span>'
-      + '<button type="button" data-act="plus" data-i="' + i + '" data-j="' + j + '"' + (l.qty >= 20 ? ' disabled' : '') + ' aria-label="増やす">＋</button>'
+      + '<span>' + l.qty + (p.unit ? '<small>' + esc(p.unit) + '</small>' : '') + '</span>'
+      + '<button type="button" data-act="plus" data-i="' + i + '" data-j="' + j + '"' + (l.qty >= maxOf(p) ? ' disabled' : '') + ' aria-label="増やす">＋</button>'
       + '</div>';
     if (j > 0 && !wouldBreakRequired(i, l.qty)) html += '<button type="button" class="remove" data-act="remove" data-i="' + i + '" data-j="' + j + '">取消</button>';
     html += '</div>';
@@ -681,7 +690,7 @@ $('products').addEventListener('click', function (ev) {
   if (act === 'remove' && wouldBreakRequired(i, lines[i][j].qty)) return;
   // 保護者が自分で触った行は、年齢を選び直しても消さない
   if (lines[i][j]) lines[i][j].auto = false;
-  if (act === 'plus') lines[i][j].qty = Math.min(20, lines[i][j].qty + 1);
+  if (act === 'plus') lines[i][j].qty = Math.min(maxOf(data.products[i]), lines[i][j].qty + 1);
   else if (act === 'minus') lines[i][j].qty = Math.max(0, lines[i][j].qty - 1);
   else if (act === 'remove') lines[i].splice(j, 1);
   else if (act === 'addline') lines[i].push({ size: '', qty: 0, auto: false });
@@ -705,7 +714,7 @@ $('products').addEventListener('change', function (ev) {
 
 function updateBar() {
   var items = chosenItems();
-  var count = items.reduce(function (a, it) { return a + it.qty; }, 0) + lockedCount();
+  var count = items.reduce(function (a, it) { return a + countOf(it); }, 0) + lockedCount();
   $('barCount').textContent = count ? '合計 ' + count + '点' : 'まだ選ばれていません';
   $('barSum').textContent = yen(totalOf(items) + lockedSum());
   showBarError('');
@@ -785,14 +794,14 @@ $('nextBtn').addEventListener('click', function () {
   // 変えられない品物も、合計に入るので一緒に見せる
   var fixed = lockedOther.slice();
   data.products.forEach(function (p, i) {
-    (locked[i] || []).forEach(function (it) { fixed.push({ category: p.category, name: p.name, size: it.size, qty: it.qty, amount: it.amount, lockReason: it.lockReason }); });
+    (locked[i] || []).forEach(function (it) { fixed.push({ category: p.category, name: p.name, size: it.size, qty: it.qty, unit: it.unit, amount: it.amount, lockReason: it.lockReason }); });
   });
   $('confirmItems').innerHTML = fixed.map(function (it) {
     return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '<span class="lock-tag">' + esc(it.lockReason) + '</span></td>'
-      + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
+      + '<td class="num">' + qtyText(it.qty, it.unit) + '</td><td class="num">' + yen(it.amount) + '</td></tr>';
   }).join('') + items.map(function (it) {
     return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td>'
-      + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.price * it.qty) + '</td></tr>';
+      + '<td class="num">' + qtyText(it.qty, it.unit) + '</td><td class="num">' + yen(it.price * it.qty) + '</td></tr>';
   }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(totalOf(items) + lockedSum()) + '</td></tr>';
   var rows = myOrder
     ? [['入園する年齢', myOrder.age], ['園児のお名前', myOrder.child], ['保護者のお名前', myOrder.parent]]
