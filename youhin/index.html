@@ -228,7 +228,7 @@ var DEMO_DATA = {
     { id: 2, category: '衣服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
     { id: 3, category: '衣服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
     { id: 4, category: '用品', name: 'クレヨン（16色）', caption: '1本ずつお名前を書いてください。', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
-    { id: 5, category: '用品', name: '自由画帳', required: [], sizes: [{ size: '', price: 250 }] },
+    { id: 5, category: '用品', name: '自由画帳', required: [], hideAges: ['5歳児'], sizes: [{ size: '', price: 250 }] },
     { id: 7, category: '用品', name: '保護者証ケース', required: [], sizes: [{ size: '', price: 300 }] },
     { id: 8, category: '用品', name: '日除け付き色帽子', required: ['3歳児', '4歳児', '5歳児'], ageColor: true, sizes: [{ size: '', price: 1100 }] },
     { id: 9, category: '用品', name: '上靴', required: [], ageColor: true, sizes: [{ size: '14cm', price: 2100 }, { size: '15cm', price: 2100 }, { size: '21cm', price: 2400 }] },
@@ -396,8 +396,14 @@ function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
 
 // 色が入園する年齢で決まる用品の、選んだ年齢の色（ほかの用品は ''）
 function colorOf(p) { return p.ageColor && age ? (data.ageColors || {})[age] || '' : ''; }
-// 色が年齢で決まる用品は、年齢を選んで色がわかるまで出さない
-function isVisible(p) { return !p.ageColor || !!colorOf(p); }
+// 年齢で変わる用品か（色が年齢で決まる・買わなくてよい年齢がある）
+function dependsOnAge(p) { return p.ageColor || (p.hideAges || []).length > 0; }
+// 年齢で変わる用品は、年齢を選ぶまで出さない。色が決まっていない年齢・出さない年齢でも出さない
+function isVisible(p) {
+  if (!dependsOnAge(p)) return true;
+  if (!age || (p.hideAges || []).indexOf(age) >= 0) return false;
+  return !p.ageColor || !!colorOf(p);
+}
 // 画面・注文に出す用品名（例：上靴（赤））
 function displayName(p) { return p.name + (colorOf(p) ? '（' + colorOf(p) + '）' : ''); }
 
@@ -410,17 +416,17 @@ function applyAge(newAge) {
   var count = 0;
   data.products.forEach(function (p, i) {
     lines[i] = lines[i].filter(function (l) { return !l.auto; });
-    // 色が年齢で決まる用品は、年齢を変えると色も変わるので、選んでいた数も消す
-    if (!lines[i].length || p.ageColor) lines[i] = emptyLines();
+    // 色が年齢で決まる用品（年齢を変えると色も変わる）と、その年齢では出ない用品は、選んでいた数も消す
+    if (!lines[i].length || p.ageColor || !isVisible(p)) lines[i] = emptyLines();
     if (!isRequired(p)) return;
     count++;
     var ordered = lines[i].some(function (l) { return l.qty > 0; });
     if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: 1, auto: true };
   });
-  var ageOnly = !age && data.products.some(function (p) { return p.ageColor; });
+  var ageOnly = !age && data.products.some(dependsOnAge);
   $('ageInfo').textContent = count
     ? age + 'で必ず購入する用品（' + count + '品）に、1点ずつ入れました。必須の用品は0にはできません。\nサイズや種類のある用品は、選んでください。'
-    : ageOnly ? '入園する年齢を選ぶと、色が年齢で決まっている用品（帽子・上靴など）も出ます。' : '';
+    : ageOnly ? '入園する年齢を選ぶと、その年齢で注文できる用品がすべて出ます（帽子・上靴の色も、年齢で決まります）。' : '';
   show('ageInfo', !!count || ageOnly);
   renderProducts();
   updateBar();
