@@ -49,6 +49,13 @@
   .item-name { font-weight: bold; }
   .item-price { flex: none; color: var(--accent-dark); font-weight: bold; }
   .item-desc { color: var(--sub); font-size: 0.85rem; }
+  /* 衣服＝青、用品＝黄（管理アプリと同じ色） */
+  .card.cat-clothes { background: #eaf3fc; border-color: #c9def3; }
+  .card.cat-goods { background: #fdf6e0; border-color: #efe0b0; }
+  .card.cat-clothes .item { border-top-color: #c9def3; }
+  .card.cat-goods .item { border-top-color: #efe0b0; }
+  table.items tr.cat-clothes td { background: #eaf3fc; }
+  table.items tr.cat-goods td { background: #fdf6e0; }
   .ages { display: flex; flex-wrap: wrap; gap: 8px; }
   .ages label { flex: 1; min-width: 88px; }
   .ages input { position: absolute; opacity: 0; pointer-events: none; }
@@ -298,6 +305,8 @@ function totalOf(items) {
 function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
 // 選ぶものの呼び方：衣服は「サイズ」、用品（はさみなど）は「種類」
 function sizeWord(p) { return p.category === '衣服' ? 'サイズ' : '種類'; }
+// 分類の色分け用のクラス
+function catClass(category) { return category === '衣服' ? 'cat-clothes' : 'cat-goods'; }
 
 // 選んだ年齢で必須購入の用品か
 function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
@@ -343,7 +352,7 @@ function chosenItems() {
   data.products.forEach(function (p, i) {
     lines[i].forEach(function (l) {
       var size = hasSize(p) ? l.size : '';
-      if (l.qty > 0) items.push({ index: i, id: p.id, name: p.name, size: size, qty: l.qty, price: sizePrice(p, size) });
+      if (l.qty > 0) items.push({ index: i, id: p.id, category: p.category, name: p.name, size: size, qty: l.qty, price: sizePrice(p, size) });
     });
   });
   return items;
@@ -415,7 +424,7 @@ function loadMyOrder() {
       $('statusBox').classList.remove('center');
       $('statusBox').innerHTML = head + '<div class="info" style="margin:10px 0">' + esc(o.reason) + '</div>'
         + '<table class="confirm items">' + o.items.map(function (it) {
-          return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td><td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
+          return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td><td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
         }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(o.total) + '</td></tr></table>';
       return;
     }
@@ -488,7 +497,7 @@ function renderProducts() {
     g.idx.push(i);
   });
   $('products').innerHTML = groups.map(function (g) {
-    return '<div class="card"><h2>' + esc(g.name) + '</h2>'
+    return '<div class="card ' + catClass(g.name) + '"><h2>' + esc(g.name) + '</h2>'
       + g.idx.map(function (i) { return '<div class="item" id="item' + i + '">' + itemHtml(i) + '</div>'; }).join('')
       + '</div>';
   }).join('');
@@ -659,13 +668,13 @@ $('nextBtn').addEventListener('click', function () {
   // 変えられない品物も、合計に入るので一緒に見せる
   var fixed = lockedOther.slice();
   data.products.forEach(function (p, i) {
-    (locked[i] || []).forEach(function (it) { fixed.push({ name: p.name, size: it.size, qty: it.qty, amount: it.amount, lockReason: it.lockReason }); });
+    (locked[i] || []).forEach(function (it) { fixed.push({ category: p.category, name: p.name, size: it.size, qty: it.qty, amount: it.amount, lockReason: it.lockReason }); });
   });
   $('confirmItems').innerHTML = fixed.map(function (it) {
-    return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '<span class="lock-tag">' + esc(it.lockReason) + '</span></td>'
+    return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '<span class="lock-tag">' + esc(it.lockReason) + '</span></td>'
       + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.amount) + '</td></tr>';
   }).join('') + items.map(function (it) {
-    return '<tr><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td>'
+    return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td>'
       + '<td class="num">' + it.qty + '点</td><td class="num">' + yen(it.price * it.qty) + '</td></tr>';
   }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(totalOf(items) + lockedSum()) + '</td></tr>';
   var rows = myOrder
