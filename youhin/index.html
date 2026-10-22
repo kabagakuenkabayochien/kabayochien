@@ -222,6 +222,7 @@ var DEMO_DATA = {
   kindergarten: '○○幼稚園', title: '入園用品の注文', open: true,
   notice: '入園する年齢を選ぶと、必ず購入する用品が1点ずつ入ります。\nほかに必要な用品があれば数を選んで、「確認へ進む」を押してください。',
   ages: ['3歳児', '4歳児', '5歳児'],
+  ageColors: { '3歳児': '赤', '4歳児': '青', '5歳児': '緑' },
   products: [
     { id: 1, category: '衣服', name: '上着', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 4500 }, { size: '110', price: 4500 }, { size: '120', price: 4800 }, { size: '130', price: 4800 }] },
     { id: 2, category: '衣服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
@@ -229,6 +230,8 @@ var DEMO_DATA = {
     { id: 4, category: '用品', name: 'クレヨン（16色）', caption: '1本ずつお名前を書いてください。', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
     { id: 5, category: '用品', name: '自由画帳', required: [], sizes: [{ size: '', price: 250 }] },
     { id: 7, category: '用品', name: '保護者証ケース', required: [], sizes: [{ size: '', price: 300 }] },
+    { id: 8, category: '用品', name: '日除け付き色帽子', required: ['3歳児', '4歳児', '5歳児'], ageColor: true, sizes: [{ size: '', price: 1100 }] },
+    { id: 9, category: '用品', name: '上靴', required: [], ageColor: true, sizes: [{ size: '14cm', price: 2100 }, { size: '15cm', price: 2100 }, { size: '21cm', price: 2400 }] },
     { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] }
   ]
 };
@@ -391,6 +394,13 @@ function guideApply(i) {
 // 選んだ年齢で必須購入の用品か
 function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
 
+// 色が入園する年齢で決まる用品の、選んだ年齢の色（ほかの用品は ''）
+function colorOf(p) { return p.ageColor && age ? (data.ageColors || {})[age] || '' : ''; }
+// 色が年齢で決まる用品は、年齢を選んで色がわかるまで出さない
+function isVisible(p) { return !p.ageColor || !!colorOf(p); }
+// 画面・注文に出す用品名（例：上靴（赤））
+function displayName(p) { return p.name + (colorOf(p) ? '（' + colorOf(p) + '）' : ''); }
+
 function emptyLines() { return [{ size: '', qty: 0, auto: false }]; }
 
 // 年齢が変わったら、前に自動で入れた分を外し、新しい年齢の必須用品を1点ずつ入れる。
@@ -400,16 +410,18 @@ function applyAge(newAge) {
   var count = 0;
   data.products.forEach(function (p, i) {
     lines[i] = lines[i].filter(function (l) { return !l.auto; });
-    if (!lines[i].length) lines[i] = emptyLines();
+    // 色が年齢で決まる用品は、年齢を変えると色も変わるので、選んでいた数も消す
+    if (!lines[i].length || p.ageColor) lines[i] = emptyLines();
     if (!isRequired(p)) return;
     count++;
     var ordered = lines[i].some(function (l) { return l.qty > 0; });
     if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: 1, auto: true };
   });
+  var ageOnly = !age && data.products.some(function (p) { return p.ageColor; });
   $('ageInfo').textContent = count
     ? age + 'で必ず購入する用品（' + count + '品）に、1点ずつ入れました。必須の用品は0にはできません。\nサイズや種類のある用品は、選んでください。'
-    : '';
-  show('ageInfo', !!count);
+    : ageOnly ? '入園する年齢を選ぶと、色が年齢で決まっている用品（帽子・上靴など）も出ます。' : '';
+  show('ageInfo', !!count || ageOnly);
   renderProducts();
   updateBar();
 }
@@ -430,9 +442,10 @@ function sizePrice(p, size) {
 function chosenItems() {
   var items = [];
   data.products.forEach(function (p, i) {
+    if (!isVisible(p)) return;
     lines[i].forEach(function (l) {
       var size = hasSize(p) ? l.size : '';
-      if (l.qty > 0) items.push({ index: i, id: p.id, category: p.category, name: p.name, size: size, qty: l.qty, price: sizePrice(p, size) });
+      if (l.qty > 0) items.push({ index: i, id: p.id, category: p.category, name: displayName(p), size: size, qty: l.qty, price: sizePrice(p, size) });
     });
   });
   return items;
@@ -481,7 +494,7 @@ call('getFormData').then(function (d) {
     return '<label><input type="radio" name="age" value="' + esc(a) + '"><span>' + esc(a) + '</span></label>';
   }).join('');
   d.products.forEach(function (p, i) { lines[i] = emptyLines(); });
-  renderProducts();
+  applyAge('');
   show('statusBox', false);
   show('formArea', true);
   show('bar', true);
@@ -572,6 +585,7 @@ $('cancelOrderBtn').addEventListener('click', function () {
 function renderProducts() {
   var groups = [];
   data.products.forEach(function (p, i) {
+    if (!isVisible(p)) return;
     var g = groups.filter(function (x) { return x.name === p.category; })[0];
     if (!g) { g = { name: p.category, idx: [] }; groups.push(g); }
     g.idx.push(i);
@@ -596,7 +610,7 @@ function itemHtml(i) {
   var prices = p.sizes.map(function (s) { return s.price; });
   var min = Math.min.apply(null, prices);
   var samePrice = min === Math.max.apply(null, prices);
-  var html = '<div class="item-head"><div class="item-name">' + esc(p.name)
+  var html = '<div class="item-head"><div class="item-name">' + esc(displayName(p))
     + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
     + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>'
     + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '');
@@ -636,7 +650,7 @@ function itemHtml(i) {
 }
 
 function refreshItem(i) {
-  $('item' + i).innerHTML = itemHtml(i);
+  if ($('item' + i)) $('item' + i).innerHTML = itemHtml(i);
   updateBar();
 }
 
