@@ -48,7 +48,7 @@
   .item-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
   .item-name { font-weight: bold; }
   .item-price { flex: none; color: var(--accent-dark); font-weight: bold; }
-  .item-desc { color: var(--sub); font-size: 0.85rem; }
+  .item-desc { color: var(--sub); font-size: 0.85rem; margin-top: 2px; white-space: pre-wrap; }
   /* 衣服＝青、用品＝黄（管理アプリと同じ色） */
   .card.cat-clothes { background: #eaf3fc; border-color: #c9def3; }
   .card.cat-goods { background: #fdf6e0; border-color: #efe0b0; }
@@ -212,7 +212,7 @@ var DEMO_DATA = {
     { id: 1, category: '衣服', name: '上着', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 4500 }, { size: '110', price: 4500 }, { size: '120', price: 4800 }, { size: '130', price: 4800 }] },
     { id: 2, category: '衣服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
     { id: 3, category: '衣服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
-    { id: 4, category: '用品', name: 'クレヨン（16色）', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
+    { id: 4, category: '用品', name: 'クレヨン（16色）', caption: '1本ずつお名前を書いてください。', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
     { id: 5, category: '用品', name: '自由画帳', required: [], sizes: [{ size: '', price: 250 }] },
     { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] }
   ]
@@ -518,7 +518,8 @@ function itemHtml(i) {
   var samePrice = min === Math.max.apply(null, prices);
   var html = '<div class="item-head"><div class="item-name">' + esc(p.name)
     + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
-    + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>';
+    + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>'
+    + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '');
   (locked[i] || []).forEach(function (it) {
     html += '<div class="locked-line"><b>' + (it.size ? esc(it.size) + '　' : '') + it.qty + '点</b>'
       + '<span>' + esc(it.lockReason) + '・変更できません</span></div>';
