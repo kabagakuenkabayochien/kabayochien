@@ -73,6 +73,20 @@
   .stepper span { width: 40px; text-align: center; font-weight: bold; font-size: 1.1rem; }
   .remove { flex: none; border: none; background: none; color: var(--sub); font-size: 0.85rem; cursor: pointer; padding: 4px; }
   .add-size { border: none; background: none; color: var(--accent-dark); font-size: 0.9rem; cursor: pointer; padding: 8px 0 0; text-decoration: underline; }
+  /* 保護者証ケースの「何枚必要か調べる」 */
+  .guide-open { display: inline-block; margin-top: 8px; padding: 6px 12px; border: 1px solid var(--accent); border-radius: 999px; background: #fff; color: var(--accent-dark); font-size: 0.9rem; font-weight: bold; cursor: pointer; font-family: inherit; }
+  .guide { margin-top: 10px; background: #fff; border: 2px solid var(--accent); border-radius: 12px; padding: 14px; }
+  .guide-step { color: var(--sub); font-size: 0.8rem; }
+  .guide-q { font-weight: bold; margin: 4px 0 10px; }
+  .guide-sub { color: var(--sub); font-size: 0.85rem; margin: -6px 0 10px; }
+  .guide-answers { display: flex; flex-wrap: wrap; gap: 8px; }
+  .guide-answers button { flex: 1; min-width: 88px; padding: 12px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); font-size: 1rem; font-weight: bold; cursor: pointer; font-family: inherit; }
+  .guide-result { text-align: center; font-size: 1.05rem; margin: 4px 0 6px; }
+  .guide-result b { font-size: 1.6rem; color: var(--accent-dark); }
+  .guide-why { color: var(--sub); font-size: 0.85rem; text-align: center; margin-bottom: 10px; }
+  .guide .btn { margin-top: 8px; padding: 12px; }
+  .guide-links { display: flex; justify-content: space-between; margin-top: 8px; }
+  .guide-links button { border: none; background: none; color: var(--accent-dark); font-size: 0.9rem; cursor: pointer; padding: 6px 0; text-decoration: underline; font-family: inherit; }
 
   .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
   .bar-inner { max-width: 560px; margin: 0 auto; }
@@ -214,6 +228,7 @@ var DEMO_DATA = {
     { id: 3, category: '衣服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
     { id: 4, category: '用品', name: 'クレヨン（16色）', caption: '1本ずつお名前を書いてください。', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
     { id: 5, category: '用品', name: '自由画帳', required: [], sizes: [{ size: '', price: 250 }] },
+    { id: 7, category: '用品', name: '保護者証ケース', required: [], sizes: [{ size: '', price: 300 }] },
     { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] }
   ]
 };
@@ -307,6 +322,71 @@ function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
 function sizeWord(p) { return p.category === '衣服' ? 'サイズ' : '種類'; }
 // 分類の色分け用のクラス
 function catClass(category) { return category === '衣服' ? 'cat-clothes' : 'cat-goods'; }
+
+// ===== 保護者証ケース：質問に答えると何枚必要かわかる =====
+// 用品名にこの言葉が入っている用品に「何枚必要か調べる」ボタンを出す
+var GUIDE_PRODUCT_WORD = '保護者証';
+var guide = null; // 開いている質問 { i: 商品の番号, step: 'first' | 'sibling' | 'have' | 'result', count, why }
+
+function hasGuide(p) { return p.name.indexOf(GUIDE_PRODUCT_WORD) >= 0; }
+
+function guideHtml(i) {
+  var kg = esc(data.kindergarten || '園');
+  var q = function (no, text, sub, answers) {
+    return '<div class="guide-step">質問 ' + no + '</div><div class="guide-q">' + text + '</div>'
+      + (sub ? '<div class="guide-sub">' + sub + '</div>' : '')
+      + '<div class="guide-answers">' + answers.map(function (a) {
+        return '<button type="button" data-act="guide-answer" data-i="' + i + '" data-v="' + a[0] + '">' + a[1] + '</button>';
+      }).join('') + '</div>';
+  };
+  var html = '<div class="guide">';
+  if (guide.step === 'first') {
+    html += q(1, kg + 'に入園するのは、ご家庭で初めてですか？', '上のお子さまが' + kg + 'に通ったことがなければ「はい」です。',
+      [['yes', 'はい'], ['no', 'いいえ']]);
+  } else if (guide.step === 'sibling') {
+    html += q(2, '来年度も、お兄さん・お姉さんが' + kg + 'に在園していますか？', '', [['yes', 'はい'], ['no', 'いいえ']]);
+  } else if (guide.step === 'have') {
+    html += q(3, kg + 'で購入した保護者証ケースを、今何枚お持ちですか？', '', [['0', '持っていない'], ['1', '1枚'], ['2', '2枚']]);
+  } else {
+    html += '<div class="guide-result">' + (guide.count ? '<b>' + guide.count + '枚</b> の購入が必要です' : '<b>購入の必要はありません</b>') + '</div>'
+      + '<div class="guide-why">' + esc(guide.why) + '</div>'
+      + '<button type="button" class="btn btn-main" data-act="guide-apply" data-i="' + i + '">'
+      + (guide.count ? guide.count + '枚にする' : '0枚にする') + '</button>';
+  }
+  html += '<div class="guide-links">'
+    + (guide.step !== 'first' ? '<button type="button" data-act="guide-restart" data-i="' + i + '">最初から答え直す</button>' : '<span></span>')
+    + '<button type="button" data-act="guide-close" data-i="' + i + '">閉じる</button></div></div>';
+  return html;
+}
+
+// 答えを受けて、次の質問か結果へ進む
+function guideAnswer(v) {
+  var done = function (count, why) { guide.step = 'result'; guide.count = count; guide.why = why; };
+  if (guide.step === 'first') {
+    if (v === 'yes') done(2, '初めて入園するご家庭は2枚です。');
+    else guide.step = 'sibling';
+  } else if (guide.step === 'sibling') {
+    if (v === 'yes') done(1, '来年度もお兄さん・お姉さんが在園しているので1枚です。');
+    else guide.step = 'have';
+  } else if (guide.step === 'have') {
+    if (v === '0') done(2, 'お持ちでないので2枚です。');
+    else if (v === '1') done(1, '1枚お持ちなので、あと1枚です。');
+    else done(0, '2枚お持ちなので、新しく買う必要はありません。');
+  }
+}
+
+// 調べた枚数を注文の数に入れる（注文の変更で、発注済みの分があるときはその分を引く）
+function guideApply(i) {
+  var p = data.products[i];
+  var n = Math.max(0, guide.count - lockedQty(i));
+  if (n === 0 && isRequired(p) && !lockedQty(i)) {
+    return '「' + p.name + '」は' + age + 'で必ず購入する用品のため、0にはできません。園にお問い合わせください。';
+  }
+  var size = lines[i][0] ? lines[i][0].size : '';
+  lines[i] = [{ size: size, qty: n, auto: false }];
+  guide = null;
+  return '';
+}
 
 // 選んだ年齢で必須購入の用品か
 function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
@@ -520,6 +600,10 @@ function itemHtml(i) {
     + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
     + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + '</div></div>'
     + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '');
+  if (hasGuide(p)) {
+    html += guide && guide.i === i ? guideHtml(i)
+      : '<button type="button" class="guide-open" data-act="guide-open" data-i="' + i + '">❓ 何枚必要か調べる</button>';
+  }
   (locked[i] || []).forEach(function (it) {
     html += '<div class="locked-line"><b>' + (it.size ? esc(it.size) + '　' : '') + it.qty + '点</b>'
       + '<span>' + esc(it.lockReason) + '・変更できません</span></div>';
@@ -561,6 +645,18 @@ $('products').addEventListener('click', function (ev) {
   if (!b) return;
   var i = Number(b.dataset.i), j = Number(b.dataset.j);
   var act = b.dataset.act;
+  if (act.indexOf('guide-') === 0) {
+    var before = guide ? guide.i : -1;
+    var msg = '';
+    if (act === 'guide-open' || act === 'guide-restart') guide = { i: i, step: 'first' };
+    else if (act === 'guide-answer') guideAnswer(b.dataset.v);
+    else if (act === 'guide-close') guide = null;
+    else if (act === 'guide-apply') msg = guideApply(i);
+    if (before >= 0 && before !== i) refreshItem(before); // ほかの用品で開いていた質問を閉じる
+    refreshItem(i);
+    if (msg) showBarError(msg);
+    return;
+  }
   if (act === 'minus' && wouldBreakRequired(i, 1)) return;
   if (act === 'remove' && wouldBreakRequired(i, lines[i][j].qty)) return;
   // 保護者が自分で触った行は、年齢を選び直しても消さない
