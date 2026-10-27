@@ -36,6 +36,8 @@
   .req { color: var(--error); font-size: 0.8rem; margin-left: 6px; }
   .opt { color: var(--sub); font-size: 0.8rem; font-weight: normal; margin-left: 6px; }
   .hint { color: var(--sub); font-size: 0.85rem; margin-top: 4px; }
+  .event-check { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: bold; cursor: pointer; padding: 6px 0; }
+  .event-check input { width: 24px; height: 24px; accent-color: var(--accent); margin: 0; flex: none; }
   input[type=text], input[type=tel], input[type=email], select, textarea {
     width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border);
     border-radius: 8px; background: #fff; color: var(--text); font-family: inherit;
@@ -158,6 +160,12 @@
     <div id="ageInfo" class="info hidden"></div>
     <div id="products"></div>
     <div id="lockedBox" class="card hidden"></div>
+
+    <div class="card" id="eventCard">
+      <h2>用品販売</h2>
+      <label class="event-check"><input type="checkbox" id="eventChk" checked> 用品販売で注文する</label>
+      <div class="hint">用品販売で注文しない場合は、チェックを外してください。</div>
+    </div>
 
     <div class="card" id="noteCard">
       <h2>備考<span class="opt">任意</span></h2>
@@ -541,6 +549,7 @@ function loadMyOrder() {
       + '業者に発注済み・お渡し済みの用品は変えられません。</p>';
     show('editHead', true);
     show('personCard', false);
+    show('eventCard', false);
     show('noteCard', false);
     show('cancelArea', o.cancellable);
     $('nextBtn').textContent = '変更内容を確認';
@@ -738,7 +747,8 @@ function formValues() {
     parent: $('parent').value,
     email: $('email').value,
     tel: $('tel').value,
-    note: $('note').value.trim()
+    note: $('note').value.trim(),
+    event: $('eventChk').checked
   };
 }
 
@@ -806,7 +816,8 @@ $('nextBtn').addEventListener('click', function () {
   var rows = myOrder
     ? [['入園する年齢', myOrder.age], ['園児のお名前', myOrder.child], ['保護者のお名前', myOrder.parent]]
     : [['入園する年齢', f.age], ['園児のお名前', f.child], ['保護者のお名前', f.parent],
-      ['メールアドレス', f.email], ['電話番号', f.tel], ['備考', f.note || '（なし）']];
+      ['メールアドレス', f.email], ['電話番号', f.tel],
+      ['用品販売', f.event ? '用品販売で注文する' : '用品販売では注文しない'], ['備考', f.note || '（なし）']];
   $('confirmTitle').textContent = myOrder ? '変更後の内容をご確認ください' : 'ご注文の内容をご確認ください';
   $('sendBtn').textContent = myOrder ? 'この内容に変更する' : 'この内容で注文する';
   $('confirmInfo').innerHTML = rows.map(function (r) {
