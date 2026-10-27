@@ -67,6 +67,7 @@
   .ages span { display: block; text-align: center; padding: 10px 8px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-weight: bold; cursor: pointer; }
   .ages input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
   .ages input:focus-visible + span { outline: 2px solid var(--accent-dark); outline-offset: 2px; }
+  .recycle { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 4px; background: #dff3e4; color: #276b3c; margin-left: 6px; vertical-align: 2px; white-space: nowrap; }
   .must { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 4px; background: #fde9d4; color: #a0521a; margin-left: 6px; vertical-align: 2px; }
   .info { background: #fff7ec; border: 1px solid #f3d9b8; color: #7a4a14; border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; white-space: pre-wrap; font-size: 0.95rem; }
   .line { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
@@ -237,10 +238,10 @@ var DEMO_DATA = {
   ageColors: { '3歳児': '赤', '4歳児': '青', '5歳児': '緑' },
   products: [
     { id: 1, category: '園服', name: '上着', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 4500 }, { size: '110', price: 4500 }, { size: '120', price: 4800 }, { size: '130', price: 4800 }] },
-    { id: 2, category: '園服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
+    { id: 2, category: '園服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], recycle: true, sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
     { id: 3, category: '園服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
     { id: 4, category: '用品', name: 'クレヨン（16色）', caption: '1本ずつお名前を書いてください。', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
-    { id: 5, category: '用品', name: '自由画帳', required: [], hideAges: ['5歳児'], sizes: [{ size: '', price: 250 }] },
+    { id: 5, category: '用品', name: '自由画帳', required: [], hideAges: ['5歳児'], recycle: true, sizes: [{ size: '', price: 250 }] },
     { id: 7, category: '用品', name: '保護者証ケース', required: [], sizes: [{ size: '', price: 300 }] },
     { id: 8, category: '用品', name: '日除け付き色帽子', required: ['3歳児', '4歳児', '5歳児'], ageColor: true, sizes: [{ size: '', price: 1100 }] },
     { id: 9, category: '用品', name: '上靴', required: [], ageColor: true, sizes: [{ size: '14cm', price: 2100 }, { size: '15cm', price: 2100 }, { size: '21cm', price: 2400 }] },
@@ -641,7 +642,8 @@ function itemHtml(i) {
   var min = Math.min.apply(null, prices);
   var samePrice = min === Math.max.apply(null, prices);
   var html = '<div class="item-head"><div class="item-name">' + esc(displayName(p))
-    + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '') + '</div>'
+    + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '')
+    + (p.recycle ? '<span class="recycle">♻ リサイクル品可</span>' : '') + '</div>'
     + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + (p.unit ? '／1' + esc(p.unit) : '') + '</div></div>'
     + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '');
   if (hasGuide(p)) {
