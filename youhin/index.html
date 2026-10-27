@@ -166,8 +166,8 @@
 
     <div class="card" id="eventCard">
       <h2>用品販売</h2>
-      <label class="event-check"><input type="checkbox" id="eventChk" checked> 用品販売で注文する</label>
-      <div class="hint">用品販売で注文しない場合は、チェックを外してください。</div>
+      <label class="event-check"><input type="checkbox" id="eventChk" checked> 用品販売の日に購入する</label>
+      <div class="hint">用品販売の日に購入しない場合は、チェックを外してください。</div>
     </div>
 
     <div class="card" id="noteCard">
@@ -823,7 +823,7 @@ $('nextBtn').addEventListener('click', function () {
     ? [['入園する年齢', myOrder.age], ['園児のお名前', myOrder.child], ['保護者のお名前', myOrder.parent]]
     : [['入園する年齢', f.age], ['園児のお名前', f.child], ['保護者のお名前', f.parent],
       ['メールアドレス', f.email], ['電話番号', f.tel],
-      ['用品販売', f.event ? '用品販売で注文する' : '用品販売では注文しない'], ['備考', f.note || '（なし）']];
+      ['用品販売', f.event ? '用品販売の日に購入する' : '用品販売の日には購入しない'], ['備考', f.note || '（なし）']];
   $('confirmTitle').textContent = myOrder ? '変更後の内容をご確認ください' : 'ご注文の内容をご確認ください';
   $('sendBtn').textContent = myOrder ? 'この内容に変更する' : 'この内容で注文する';
   $('confirmInfo').innerHTML = rows.map(function (r) {
