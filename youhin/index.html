@@ -51,13 +51,16 @@
   .item-name { font-weight: bold; }
   .item-price { flex: none; color: var(--accent-dark); font-weight: bold; }
   .item-desc { color: var(--sub); font-size: 0.85rem; margin-top: 2px; white-space: pre-wrap; }
-  /* 衣服＝青、用品＝黄（管理アプリと同じ色） */
+  /* 園服＝青、用品＝黄、その他の用品＝緑（管理アプリと同じ色） */
   .card.cat-clothes { background: #eaf3fc; border-color: #c9def3; }
   .card.cat-goods { background: #fdf6e0; border-color: #efe0b0; }
+  .card.cat-other { background: #ebf6ee; border-color: #c4e3cd; }
   .card.cat-clothes .item { border-top-color: #c9def3; }
   .card.cat-goods .item { border-top-color: #efe0b0; }
+  .card.cat-other .item { border-top-color: #c4e3cd; }
   table.items tr.cat-clothes td { background: #eaf3fc; }
   table.items tr.cat-goods td { background: #fdf6e0; }
+  table.items tr.cat-other td { background: #ebf6ee; }
   .ages { display: flex; flex-wrap: wrap; gap: 8px; }
   .ages label { flex: 1; min-width: 88px; }
   .ages input { position: absolute; opacity: 0; pointer-events: none; }
@@ -233,16 +236,17 @@ var DEMO_DATA = {
   ages: ['3歳児', '4歳児', '5歳児'],
   ageColors: { '3歳児': '赤', '4歳児': '青', '5歳児': '緑' },
   products: [
-    { id: 1, category: '衣服', name: '上着', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 4500 }, { size: '110', price: 4500 }, { size: '120', price: 4800 }, { size: '130', price: 4800 }] },
-    { id: 2, category: '衣服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
-    { id: 3, category: '衣服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
+    { id: 1, category: '園服', name: '上着', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 4500 }, { size: '110', price: 4500 }, { size: '120', price: 4800 }, { size: '130', price: 4800 }] },
+    { id: 2, category: '園服', name: '体操服（上）', required: ['3歳児', '4歳児', '5歳児'], sizes: [{ size: '100', price: 1800 }, { size: '110', price: 1800 }, { size: '120', price: 1800 }] },
+    { id: 3, category: '園服', name: '紅白帽子', required: ['3歳児'], sizes: [{ size: '', price: 600 }] },
     { id: 4, category: '用品', name: 'クレヨン（16色）', caption: '1本ずつお名前を書いてください。', required: ['3歳児'], sizes: [{ size: '', price: 800 }] },
     { id: 5, category: '用品', name: '自由画帳', required: [], hideAges: ['5歳児'], sizes: [{ size: '', price: 250 }] },
     { id: 7, category: '用品', name: '保護者証ケース', required: [], sizes: [{ size: '', price: 300 }] },
     { id: 8, category: '用品', name: '日除け付き色帽子', required: ['3歳児', '4歳児', '5歳児'], ageColor: true, sizes: [{ size: '', price: 1100 }] },
     { id: 9, category: '用品', name: '上靴', required: [], ageColor: true, sizes: [{ size: '14cm', price: 2100 }, { size: '15cm', price: 2100 }, { size: '21cm', price: 2400 }] },
     { id: 6, category: '用品', name: 'のり', required: ['3歳児', '4歳児'], sizes: [{ size: '', price: 150 }] },
-    { id: 10, category: '用品', name: '肝油', caption: '入園の時期に合わせて、月数を減らしてください。', required: ['3歳児', '4歳児', '5歳児'], unit: 'ヶ月分', startQty: 12, maxQty: 12, sizes: [{ size: '', price: 130 }] }
+    { id: 10, category: '用品', name: '肝油', caption: '入園の時期に合わせて、月数を減らしてください。', required: ['3歳児', '4歳児', '5歳児'], unit: 'ヶ月分', startQty: 12, maxQty: 12, sizes: [{ size: '', price: 130 }] },
+    { id: 11, category: 'その他の用品', name: 'お道具箱', required: [], sizes: [{ size: '', price: 800 }] }
   ]
 };
 var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ、園児名を書いて園にお持ちください。';
@@ -250,9 +254,9 @@ var DEMO_PAY = '代金は現金で、おつりのないように封筒に入れ�
 var DEMO_MY_ORDER = {
   child: 'やまだ はなこ', age: '3歳児', parent: '山田 花子', email: 'hanako@example.com', date: '10月18日',
   items: [
-    { id: 1, category: '衣服', name: '上着', size: '110', qty: 1, price: 4500, amount: 4500, locked: true, lockReason: '発注済み' },
-    { id: 2, category: '衣服', name: '体操服（上）', size: '110', qty: 2, price: 1800, amount: 3600, locked: false, lockReason: '' },
-    { id: 3, category: '衣服', name: '紅白帽子', size: '', qty: 1, price: 600, amount: 600, locked: false, lockReason: '' },
+    { id: 1, category: '園服', name: '上着', size: '110', qty: 1, price: 4500, amount: 4500, locked: true, lockReason: '発注済み' },
+    { id: 2, category: '園服', name: '体操服（上）', size: '110', qty: 2, price: 1800, amount: 3600, locked: false, lockReason: '' },
+    { id: 3, category: '園服', name: '紅白帽子', size: '', qty: 1, price: 600, amount: 600, locked: false, lockReason: '' },
     { id: 4, category: '用品', name: 'クレヨン（16色）', size: '', qty: 1, price: 800, amount: 800, locked: false, lockReason: '' },
     { id: 6, category: '用品', name: 'のり', size: '', qty: 1, price: 150, amount: 150, locked: false, lockReason: '' }
   ],
@@ -338,10 +342,12 @@ function totalOf(items) {
 
 // サイズがある用品か（サイズがない用品は sizes = [{ size: '', price }]）
 function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
-// 選ぶものの呼び方：衣服と、数字で始まる用品（上靴の 14cm など）は「サイズ」、ほかの用品（はさみなど）は「種類」
-function sizeWord(p) { return p.category === '衣服' || /^\d/.test(p.sizes[0].size) ? 'サイズ' : '種類'; }
+// 選ぶものの呼び方：園服と、数字で始まる用品（上靴の 14cm など）は「サイズ」、ほかの用品（はさみなど）は「種類」
+function sizeWord(p) { return p.category === '園服' || p.category === '衣服' || /^\d/.test(p.sizes[0].size) ? 'サイズ' : '種類'; }
 // 分類の色分け用のクラス
-function catClass(category) { return category === '衣服' ? 'cat-clothes' : 'cat-goods'; }
+function catClass(category) {
+  return category === '園服' || category === '衣服' ? 'cat-clothes' : category === 'その他の用品' ? 'cat-other' : 'cat-goods';
+}
 
 // ===== 保護者証ケース：質問に答えると何枚必要かわかる =====
 // 用品名にこの言葉が入っている用品に「何枚必要か調べる」ボタンを出す
