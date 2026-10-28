@@ -61,6 +61,18 @@
   table.items tr.cat-clothes td { background: #eaf3fc; }
   table.items tr.cat-goods td { background: #fdf6e0; }
   table.items tr.cat-other td { background: #ebf6ee; }
+  /* 入園する年齢：選ぶまではオレンジで目立たせ、選んだら緑に */
+  .age-card { border: 2px solid #f0a14a; background: #fff6ea; }
+  .age-card h2 { color: #a0521a; font-size: 1.15rem; }
+  .age-card.done { border-color: var(--accent); background: var(--card); }
+  .age-card.done h2 { color: var(--accent-dark); }
+  .age-step { display: inline-block; background: #f0a14a; color: #fff; font-weight: bold; font-size: 0.85rem; border-radius: 999px; padding: 2px 12px; margin-bottom: 8px; }
+  .age-card.done .age-step { background: var(--accent); }
+  .age-card.shake { animation: shake 0.4s; }
+  @keyframes shake { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .age-wait { text-align: center; border: 2px dashed #f0a14a; background: #fffaf3; color: #7a4a14; }
+  .age-wait-icon { font-size: 2rem; line-height: 1.2; }
+  .age-wait button { margin-top: 10px; font: inherit; font-weight: bold; padding: 8px 18px; border-radius: 999px; border: none; background: #f0a14a; color: #fff; cursor: pointer; }
   .ages { display: flex; flex-wrap: wrap; gap: 8px; }
   .ages label { flex: 1; min-width: 88px; }
   .ages input { position: absolute; opacity: 0; pointer-events: none; }
@@ -146,11 +158,16 @@
     <div id="notice" class="notice hidden"></div>
     <div id="editHead" class="card edit-head hidden"></div>
 
+    <!-- いちばん最初に年齢を選んでもらう（選ぶまで用品は出さない） -->
+    <div class="card age-card" id="ageCard">
+      <div class="age-step" id="ageStep">はじめに</div>
+      <h2 id="ageLabel">入園する年齢を選んでください<span class="req">必須</span></h2>
+      <div class="ages" id="ages" role="radiogroup" aria-labelledby="ageLabel"></div>
+      <div class="hint" id="ageHint">年齢によって、注文する用品や帽子・上靴の色が変わります。選ぶと、下に用品が出ます。</div>
+    </div>
+
     <div class="card" id="personCard">
       <h2>お子さまと保護者の方</h2>
-      <label class="field" id="ageLabel">入園する年齢<span class="req">必須</span></label>
-      <div class="ages" id="ages" role="radiogroup" aria-labelledby="ageLabel"></div>
-      <div class="hint">選ぶと、その年齢で必ず購入する用品が1点ずつ入ります。</div>
       <label class="field" for="child">園児のお名前（ひらがな）<span class="req">必須</span></label>
       <input type="text" id="child" autocomplete="off" placeholder="例：やまだ はなこ">
       <div class="hint">ひらがなで、姓と名の間にスペースを入れてください。</div>
@@ -165,6 +182,11 @@
     </div>
 
     <div id="ageInfo" class="info hidden"></div>
+    <div id="ageWait" class="card age-wait hidden">
+      <div class="age-wait-icon">☝</div>
+      <div><b>先に、いちばん上の「入園する年齢」を選んでください。</b><br>選ぶと、ここに注文する用品が出ます。</div>
+      <button type="button" id="ageWaitBtn">年齢を選びに戻る</button>
+    </div>
     <div id="products"></div>
     <div id="lockedBox" class="card hidden"></div>
 
@@ -492,15 +514,31 @@ function applyAge(newAge) {
     if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: p.startQty || 1, auto: true };
   });
   syncLinked();
-  var ageOnly = !age && data.products.some(dependsOnAge);
   var recycleNote = data.products.some(function (p) { return isRequired(p) && p.recycle; })
     ? '\n「必ず用意」の用品は、リサイクル品などをご家庭で用意する場合は0にできます。' : '';
   $('ageInfo').textContent = count
     ? age + 'で必ず用意する用品（' + count + '品）を入れました。「必ず購入」の用品は0にはできません。' + recycleNote + '\nサイズや種類のある用品は、選んでください。'
-    : ageOnly ? '入園する年齢を選ぶと、その年齢で注文できる用品がすべて出ます（帽子・上靴の色も、年齢で決まります）。' : '';
-  show('ageInfo', !!count || ageOnly);
+    : '';
+  show('ageInfo', !!count);
+  // 年齢を選ぶまでは用品を出さず、「先に年齢を」の案内を出す
+  $('ageCard').classList.toggle('done', !!age);
+  $('ageStep').textContent = age ? '✓ ' + age + 'を選びました' : 'はじめに';
+  $('ageHint').textContent = age
+    ? '年齢を選び直すと、色の決まる用品などは選び直しになります。'
+    : '年齢によって、注文する用品や帽子・上靴の色が変わります。選ぶと、下に用品が出ます。';
+  show('ageWait', !age);
+  show('products', !!age);
   renderProducts();
   updateBar();
+}
+
+// 年齢を選んでもらうために、年齢の欄へ戻して揺らす
+function askAge() {
+  var card = $('ageCard');
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.remove('shake');
+  void card.offsetWidth; // アニメーションをもう一度動かすため
+  card.classList.add('shake');
 }
 
 // 必須なのに数が0の用品（年齢を選び直した直後などに起こりうるので、確認へ進むときに調べる）
@@ -602,6 +640,7 @@ function loadMyOrder() {
       + '<p class="hint" style="margin-top:8px">数を変えたり、用品を足したりして、下の「変更内容を確認」を押してください。'
       + '業者に発注済み・お渡し済みの用品は変えられません。</p>';
     show('editHead', true);
+    show('ageCard', false);
     show('personCard', false);
     show('eventCard', false);
     show('noteCard', false);
@@ -780,6 +819,8 @@ $('ages').addEventListener('change', function (ev) {
   if (ev.target.name === 'age') applyAge(ev.target.value);
 });
 
+$('ageWaitBtn').addEventListener('click', askAge);
+
 $('products').addEventListener('change', function (ev) {
   var s = ev.target;
   if (!s.classList.contains('size-sel')) return;
@@ -794,7 +835,7 @@ $('products').addEventListener('change', function (ev) {
 function updateBar() {
   var items = chosenItems();
   var count = items.reduce(function (a, it) { return a + countOf(it); }, 0) + lockedCount();
-  $('barCount').textContent = count ? '合計 ' + count + '点' : 'まだ選ばれていません';
+  $('barCount').textContent = count ? '合計 ' + count + '点' : !age && !myOrder ? 'まず、入園する年齢を選んでください' : 'まだ選ばれていません';
   $('barSum').textContent = yen(totalOf(items) + lockedSum());
   showBarError('');
 }
@@ -847,7 +888,7 @@ function validate(f, items) {
     if (!items.length && !lockedCount()) return { msg: 'すべて取り消す場合は、下の「この注文を取り消す」を押してください。', el: 'products' };
     return validateItems(items);
   }
-  if (!f.age) return { msg: '入園する年齢を選んでください。', el: 'ages' };
+  if (!f.age) return { msg: '入園する年齢を選んでください。', el: 'ageCard' };
   var childError = checkKanaName(f.child);
   if (childError) return { msg: childError, el: 'child' };
   var parentError = checkParentName(f.parent);
@@ -868,7 +909,8 @@ $('nextBtn').addEventListener('click', function () {
   var bad = validate(f, items);
   if (bad) {
     showBarError(bad.msg);
-    $(bad.el).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (bad.el === 'ageCard') askAge();
+    else $(bad.el).scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
   // 変えられない品物も、合計に入るので一緒に見せる
