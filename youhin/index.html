@@ -68,7 +68,9 @@
   .ages input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
   .ages input:focus-visible + span { outline: 2px solid var(--accent-dark); outline-offset: 2px; }
   .recycle { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 4px; background: #dff3e4; color: #276b3c; margin-left: 6px; vertical-align: 2px; white-space: nowrap; }
-  .must { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 4px; background: #fde9d4; color: #a0521a; margin-left: 6px; vertical-align: 2px; }
+  .self-note { font-size: 0.85rem; font-weight: bold; color: #276b3c; background: #dff3e4; border-radius: 6px; padding: 4px 8px; margin-top: 6px; }
+.self-tag { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 6px; border-radius: 4px; background: #dff3e4; color: #276b3c; margin-left: 6px; }
+.must { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 4px; background: #fde9d4; color: #a0521a; margin-left: 6px; vertical-align: 2px; }
   .info { background: #fff7ec; border: 1px solid #f3d9b8; color: #7a4a14; border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; white-space: pre-wrap; font-size: 0.95rem; }
   .line { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
   .line select { flex: 1; min-width: 0; }
@@ -406,7 +408,7 @@ function guideAnswer(v) {
 function guideApply(i) {
   var p = data.products[i];
   var n = Math.max(0, guide.count - lockedQty(i));
-  if (n === 0 && isRequired(p) && !lockedQty(i)) {
+  if (n === 0 && mustBuy(p) && !lockedQty(i)) {
     return '「' + p.name + '」は' + age + 'で必ず購入する用品のため、0にはできません。園にお問い合わせください。';
   }
   var size = lines[i][0] ? lines[i][0].size : '';
@@ -417,6 +419,13 @@ function guideApply(i) {
 
 // 選んだ年齢で必須購入の用品か
 function isRequired(p) { return !!age && (p.required || []).indexOf(age) >= 0; }
+// 0にできない用品（必須でも、リサイクル品可なら最初に入れるだけで、ご家庭で用意するなら0にできる）
+function mustBuy(p) { return isRequired(p) && !p.recycle; }
+// 必須・リサイクル品可で、数が0（ご家庭で用意する）
+function selfPrepared(i) {
+  var p = data.products[i];
+  return isRequired(p) && p.recycle && productTotal(i) + lockedQty(i) === 0;
+}
 
 // 色が入園する年齢で決まる用品の、選んだ年齢の色（ほかの用品は ''）
 function colorOf(p) { return p.ageColor && age ? (data.ageColors || {})[age] || '' : ''; }
@@ -448,8 +457,10 @@ function applyAge(newAge) {
     if (!ordered) lines[i][0] = { size: lines[i][0].size, qty: p.startQty || 1, auto: true };
   });
   var ageOnly = !age && data.products.some(dependsOnAge);
+  var recycleNote = data.products.some(function (p) { return isRequired(p) && p.recycle; })
+    ? '\n♻ リサイクル品可の用品は、リサイクル品などをご家庭で用意する場合は0にできます。' : '';
   $('ageInfo').textContent = count
-    ? age + 'で必ず購入する用品（' + count + '品）を入れました。必須の用品は0にはできません。\nサイズや種類のある用品は、選んでください。'
+    ? age + 'で必ず用意する用品（' + count + '品）を入れました。必須の用品は0にはできません。' + recycleNote + '\nサイズや種類のある用品は、選んでください。'
     : ageOnly ? '入園する年齢を選ぶと、その年齢で注文できる用品がすべて出ます（帽子・上靴の色も、年齢で決まります）。' : '';
   show('ageInfo', !!count || ageOnly);
   renderProducts();
@@ -459,7 +470,7 @@ function applyAge(newAge) {
 // 必須なのに数が0の用品（年齢を選び直した直後などに起こりうるので、確認へ進むときに調べる）
 function missingRequired() {
   return data.products.filter(function (p, i) {
-    return isRequired(p) && !lockedQty(i) && !lines[i].some(function (l) { return l.qty > 0; });
+    return mustBuy(p) && !lockedQty(i) && !lines[i].some(function (l) { return l.qty > 0; });
   });
 }
 
@@ -633,7 +644,7 @@ function productTotal(i) { return lines[i].reduce(function (a, l) { return a + l
 
 // 減らす・取り消すと必須の用品が0になってしまうか
 function wouldBreakRequired(i, minus) {
-  return isRequired(data.products[i]) && productTotal(i) + lockedQty(i) - minus < 1;
+  return mustBuy(data.products[i]) && productTotal(i) + lockedQty(i) - minus < 1;
 }
 
 function itemHtml(i) {
@@ -642,10 +653,11 @@ function itemHtml(i) {
   var min = Math.min.apply(null, prices);
   var samePrice = min === Math.max.apply(null, prices);
   var html = '<div class="item-head"><div class="item-name">' + esc(displayName(p))
-    + (isRequired(p) ? '<span class="must">' + esc(age) + 'は必須</span>' : '')
+    + (isRequired(p) ? '<span class="must">' + esc(age) + (p.recycle ? 'は必ず用意' : 'は必須') + '</span>' : '')
     + (p.recycle ? '<span class="recycle">♻ リサイクル品可</span>' : '') + '</div>'
     + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + (p.unit ? '／1' + esc(p.unit) : '') + '</div></div>'
-    + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '');
+    + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '')
+    + (selfPrepared(i) ? '<div class="self-note">♻ リサイクル品などを、ご家庭でご用意ください。</div>' : '');
   if (hasGuide(p)) {
     html += guide && guide.i === i ? guideHtml(i)
       : '<button type="button" class="guide-open" data-act="guide-open" data-i="' + i + '">❓ 何枚必要か調べる</button>';
@@ -820,6 +832,10 @@ $('nextBtn').addEventListener('click', function () {
   }).join('') + items.map(function (it) {
     return '<tr class="' + catClass(it.category) + '"><td>' + esc(it.name) + (it.size ? '（' + esc(it.size) + '）' : '') + '</td>'
       + '<td class="num">' + qtyText(it.qty, it.unit) + '</td><td class="num">' + yen(it.price * it.qty) + '</td></tr>';
+  }).join('') + data.products.map(function (p, i) {
+    // 必須・リサイクル品可で0にした用品は、ご家庭で用意することを確認画面にも出す
+    return selfPrepared(i) ? '<tr class="' + catClass(p.category) + '"><td>' + esc(displayName(p)) + '<span class="self-tag">♻ ご家庭で用意</span></td>'
+      + '<td class="num">0</td><td class="num">' + yen(0) + '</td></tr>' : '';
   }).join('') + '<tr class="total"><td>合計</td><td></td><td class="num">' + yen(totalOf(items) + lockedSum()) + '</td></tr>';
   var rows = myOrder
     ? [['入園する年齢', myOrder.age], ['園児のお名前', myOrder.child], ['保護者のお名前', myOrder.parent]]
