@@ -458,9 +458,9 @@ function applyAge(newAge) {
   });
   var ageOnly = !age && data.products.some(dependsOnAge);
   var recycleNote = data.products.some(function (p) { return isRequired(p) && p.recycle; })
-    ? '\n♻ リサイクル品可の用品は、リサイクル品などをご家庭で用意する場合は0にできます。' : '';
+    ? '\n「必ず用意」の用品は、リサイクル品などをご家庭で用意する場合は0にできます。' : '';
   $('ageInfo').textContent = count
-    ? age + 'で必ず用意する用品（' + count + '品）を入れました。必須の用品は0にはできません。' + recycleNote + '\nサイズや種類のある用品は、選んでください。'
+    ? age + 'で必ず用意する用品（' + count + '品）を入れました。「必ず購入」の用品は0にはできません。' + recycleNote + '\nサイズや種類のある用品は、選んでください。'
     : ageOnly ? '入園する年齢を選ぶと、その年齢で注文できる用品がすべて出ます（帽子・上靴の色も、年齢で決まります）。' : '';
   show('ageInfo', !!count || ageOnly);
   renderProducts();
@@ -653,7 +653,7 @@ function itemHtml(i) {
   var min = Math.min.apply(null, prices);
   var samePrice = min === Math.max.apply(null, prices);
   var html = '<div class="item-head"><div class="item-name">' + esc(displayName(p))
-    + (isRequired(p) ? '<span class="must">' + esc(age) + (p.recycle ? 'は必ず用意' : 'は必須') + '</span>' : '')
+    + (isRequired(p) ? '<span class="must">' + esc(age) + (p.recycle ? 'は必ず用意' : 'は必ず購入') + '</span>' : '')
     + (p.recycle ? '<span class="recycle">♻ リサイクル品可</span>' : '') + '</div>'
     + '<div class="item-price">' + yen(min) + (samePrice ? '' : '〜') + (p.unit ? '／1' + esc(p.unit) : '') + '</div></div>'
     + (p.caption ? '<div class="item-desc">' + esc(p.caption) + '</div>' : '')
