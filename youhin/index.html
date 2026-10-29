@@ -73,8 +73,10 @@
   .age-wait { text-align: center; border: 2px dashed #f0a14a; background: #fffaf3; color: #7a4a14; }
   .age-wait-icon { font-size: 2rem; line-height: 1.2; }
   .age-wait button { margin-top: 10px; font: inherit; font-weight: bold; padding: 8px 18px; border-radius: 999px; border: none; background: #f0a14a; color: #fff; cursor: pointer; }
-  .ages { display: flex; flex-wrap: wrap; gap: 8px; }
-  .ages label { flex: 1; min-width: 88px; }
+  /* どの年齢のボタンも同じ大きさにする（スマホは2つずつ。3つなら1行、4つは広い画面なら1行） */
+  .ages { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ages.n3, .ages.many { grid-template-columns: repeat(3, 1fr); }
+  @media (min-width: 480px) { .ages.n4 { grid-template-columns: repeat(4, 1fr); } }
   .ages input { position: absolute; opacity: 0; pointer-events: none; }
   .ages span { display: block; text-align: center; padding: 10px 8px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-weight: bold; cursor: pointer; }
   .ages input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -609,6 +611,7 @@ call('getFormData').then(function (d) {
   $('ages').innerHTML = d.ages.map(function (a) {
     return '<label><input type="radio" name="age" value="' + esc(a) + '"><span>' + esc(a) + '</span></label>';
   }).join('');
+  $('ages').className = 'ages' + (d.ages.length === 3 ? ' n3' : d.ages.length === 4 ? ' n4' : d.ages.length > 4 ? ' many' : '');
   d.products.forEach(function (p, i) { lines[i] = emptyLines(); });
   applyAge('');
   show('statusBox', false);
