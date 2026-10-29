@@ -196,7 +196,7 @@
     <div class="card" id="eventCard">
       <h2>用品販売</h2>
       <label class="event-check"><input type="checkbox" id="eventChk" checked> 用品販売の日に購入する</label>
-      <div class="hint">用品販売の日に購入しない場合は、チェックを外してください。</div>
+      <div class="hint">用品販売の日に購入する場合はチェックを入れ、購入しない場合はチェックを外してください。</div>
     </div>
 
     <div class="card" id="noteCard">
@@ -612,6 +612,8 @@ call('getFormData').then(function (d) {
     return '<label><input type="radio" name="age" value="' + esc(a) + '"><span>' + esc(a) + '</span></label>';
   }).join('');
   $('ages').className = 'ages' + (d.ages.length === 3 ? ' n3' : d.ages.length === 4 ? ' n4' : d.ages.length > 4 ? ' many' : '');
+  // 「用品販売の日に購入する」の最初の状態は⚙設定で決める（設定がない古いサーバーではチェックあり）
+  $('eventChk').checked = d.eventDefault !== false;
   d.products.forEach(function (p, i) { lines[i] = emptyLines(); });
   applyAge('');
   show('statusBox', false);
