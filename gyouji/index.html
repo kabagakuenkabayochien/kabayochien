@@ -164,6 +164,10 @@ button { cursor: pointer; }
 .imgs:empty { display: none; }
 .img-card { border: 1px solid var(--line); border-radius: 10px; background: #fcfbf8; padding: 8px; position: relative; }
 .img-card .ph { height: 140px; border-radius: 6px; background: #eee center/contain no-repeat; display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 13px; cursor: zoom-in; }
+.img-card .ph.pdf { flex-direction: column; gap: 4px; background: #fdf1ef; color: #b4443a; cursor: pointer; text-align: center; padding: 6px; }
+.img-card .ph.pdf .pi { font-size: 40px; line-height: 1; }
+.img-card .ph.pdf .pn { font-size: 13px; color: var(--ink); word-break: break-all; max-height: 3.2em; overflow: hidden; }
+.img-card .ph.pdf .po { font-size: 12px; font-weight: bold; }
 .img-card input { width: 100%; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
 .img-card .x { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--danger); padding: 0; }
 .img-card .ord { position: absolute; top: 4px; left: 4px; display: flex; gap: 4px; }
@@ -348,6 +352,7 @@ button { cursor: pointer; }
 .p-toc { width: 100%; border-collapse: collapse; text-align: left; }
 .p-toc th, .p-toc td { border: 1px solid #000; padding: 1.4mm 2.4mm; font-size: 10pt; }
 .p-toc th { background: #eee; }
+.p-imgs { margin-bottom: 3.5mm; }
 .p-imgs .h { background: #eee; border: 1px solid #000; padding: 1mm 2.4mm; font-weight: bold; font-size: 10pt; break-after: avoid; page-break-after: avoid; }
 .p-imgs .g { display: flex; flex-wrap: wrap; gap: 3mm; padding-top: 2mm; }
 .p-img { width: calc(50% - 1.5mm); text-align: center; border: 1px solid #000; padding: 2mm; break-inside: avoid; page-break-inside: avoid; }
@@ -507,10 +512,10 @@ button { cursor: pointer; }
       <div class="field"><textarea id="f_other" rows="3"></textarea></div>
     </div>
     <div class="section" id="secImages">
-      <h3>画像（写真・配置図など）</h3>
-      <p class="hint">画像はGoogleドライブの「記録と反省の画像」フォルダに保存されます。大きな写真は自動で小さくしてから送ります。</p>
+      <h3>画像・PDF（写真・配置図・お便りなど）</h3>
+      <p class="hint">Googleドライブの「記録と反省の画像」フォルダに保存されます。大きな写真は自動で小さくしてから送ります。PDFは1つ10MBまでです。</p>
       <div class="imgs" id="imgList"></div>
-      <label class="btn small" id="imgAddBtn">＋ 画像を追加<input type="file" id="imgInput" accept="image/*" multiple hidden></label>
+      <label class="btn small" id="imgAddBtn">＋ 画像・PDFを追加<input type="file" id="imgInput" accept="image/*,application/pdf,.pdf" multiple hidden></label>
       <span class="img-count" id="imgCount"></span>
     </div>
     <div class="section hidden" id="secComments">
@@ -803,7 +808,7 @@ function renderList() {
 
 function metaLine(e) {
   return (e.place ? '📍' + esc(e.place) + '　' : '') + '✏ ' + esc(e.author) +
-    (e.imageCount ? '　📷' + e.imageCount + '枚' : '') + (e.commentCount ? '　💬' + e.commentCount : '');
+    (e.imageCount ? '　📎' + e.imageCount : '') + (e.commentCount ? '　💬' + e.commentCount : '');
 }
 
 // ===== 全部の記録から探す =====
@@ -1208,10 +1213,38 @@ var imageCache = {};    // id → 画面に出すデータ（data:URL）
 var MAX_IMAGES = 20;
 var IMAGE_MAX_SIDE = 1600;
 
+var MAX_PDF_BYTES = 10 * 1024 * 1024;
+function isPdf(im) { return im && im.type === 'pdf'; }
+function isPdfFile(file) { return file.type === 'application/pdf' || /\.pdf$/i.test(file.name); }
+
 function setImages(list) {
-  images = (list || []).map(function (im) { return { id: im.id, caption: im.caption || '', src: imageCache[im.id] || '' }; });
+  images = (list || []).map(function (im) {
+    return { id: im.id, caption: im.caption || '', type: im.type || '', src: isPdf(im) ? '' : imageCache[im.id] || '' };
+  });
   renderImages();
-  images.forEach(function (im) { if (!im.src) loadImage(im); });
+  // PDFは開くときに読み込む（大きいことがあるため）
+  images.forEach(function (im) { if (!im.src && !isPdf(im)) loadImage(im); });
+}
+// PDFを開く（先に新しいタブを開いておき、読み込めたらそこに出す。スマホでタブが止められたら保存にする）
+function openPdf(im) {
+  if (im.uploading || !im.id) return;
+  var w = window.open('', '_blank');
+  if (w) { try { w.document.title = '読み込んでいます…'; w.document.body.innerHTML = '<p style="font-family:sans-serif;padding:20px">PDFを読み込んでいます…</p>'; } catch (e) {} }
+  busy(true);
+  call('getImage', im.id).then(function (r) {
+    busy(false);
+    var bin = atob(r.data), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    if (w && !w.closed) { w.location.href = url; return; }
+    var a = document.createElement('a');
+    a.href = url; a.download = (im.caption || 'file').replace(/[\\\/:*?"<>|]/g, '_') + '.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+  }).catch(function (e) {
+    busy(false);
+    if (w && !w.closed) w.close();
+    showError(e);
+  });
 }
 function loadImage(im) {
   return fetchImage(im.id).then(function (src) { im.src = src; renderImages(); }).catch(function () { im.failed = true; renderImages(); });
@@ -1229,18 +1262,23 @@ function renderImages() {
   images.forEach(function (im, i) {
     var card = document.createElement('div');
     card.className = 'img-card';
+    var pdf = isPdf(im);
     var label = im.uploading ? '送っています…' : im.failed ? '画像を読み込めませんでした' : im.src ? '' : '読み込んでいます…';
-    card.innerHTML = '<div class="ph"' + (im.src ? ' style="background-image:url(\'' + im.src + '\')"' : '') + '>' + label + '</div>' +
-      '<input type="text" maxlength="200" placeholder="説明（例：ホールの配置図）">' +
-      '<button type="button" class="x" title="この画像を外す">✕</button>' +
+    var ph = pdf ?
+      '<div class="ph pdf"><span class="pi">📄</span><span class="pn">' + esc(im.caption || 'PDF') + '</span><span class="po">' +
+        (im.uploading ? '送っています…' : 'PDF・押すと開きます') + '</span></div>' :
+      '<div class="ph"' + (im.src ? ' style="background-image:url(\'' + im.src + '\')"' : '') + '>' + label + '</div>';
+    card.innerHTML = ph +
+      '<input type="text" maxlength="200" placeholder="' + (pdf ? '説明（例：運動会のお知らせ）' : '説明（例：ホールの配置図）') + '">' +
+      '<button type="button" class="x" title="外す">✕</button>' +
       (images.length > 1 ? '<div class="ord"><button type="button" class="l" title="前へ">◀</button><button type="button" class="r" title="後ろへ">▶</button></div>' : '');
     var cap = card.querySelector('input');
     cap.value = im.caption || '';
     cap.addEventListener('input', function () { im.caption = cap.value; });
-    card.querySelector('.ph').onclick = function () { if (im.src) showBigImage(im); };
+    card.querySelector('.ph').onclick = function () { if (pdf) openPdf(im); else if (im.src) showBigImage(im); };
     card.querySelector('.x').onclick = function () {
       if (im.uploading) return;
-      if (!confirm('この画像を外しますか？\n（保存すると、ドライブの画像はゴミ箱に移ります）')) return;
+      if (!confirm('この' + (pdf ? 'PDF' : '画像') + 'を外しますか？\n（保存すると、ドライブのファイルはゴミ箱に移ります）')) return;
       images.splice(images.indexOf(im), 1); renderImages(); markDirty();
     };
     if (images.length > 1) {
@@ -1249,7 +1287,7 @@ function renderImages() {
     }
     box.appendChild(card);
   });
-  $('imgCount').textContent = images.length ? images.length + '枚（' + MAX_IMAGES + '枚まで）' : '';
+  $('imgCount').textContent = images.length ? images.length + 'こ（画像とPDFを合わせて' + MAX_IMAGES + 'こまで）' : '';
   $('imgAddBtn').classList.toggle('hidden', images.length >= MAX_IMAGES);
 }
 function moveImage(i, d) {
@@ -1268,10 +1306,11 @@ $('imgInput').addEventListener('change', function () {
   var files = Array.prototype.slice.call(this.files || []);
   this.value = '';
   var room = MAX_IMAGES - images.length;
-  if (files.length > room) { alert('画像は1つの記録に' + MAX_IMAGES + '枚までです。はじめの' + room + '枚だけ追加します。'); files = files.slice(0, room); }
+  if (files.length > room) { alert('画像・PDFは1つの記録に合わせて' + MAX_IMAGES + 'こまでです。はじめの' + room + 'こだけ追加します。'); files = files.slice(0, room); }
   files.reduce(function (p, file) { return p.then(function () { return addImageFile(file); }); }, Promise.resolve());
 });
 function addImageFile(file) {
+  if (isPdfFile(file)) return addPdfFile(file);
   var im = { id: '', caption: '', src: '', uploading: true };
   images.push(im); renderImages();
   return shrinkImage(file).then(function (dataUrl) {
@@ -1280,6 +1319,29 @@ function addImageFile(file) {
   }).then(function (r) {
     im.id = r.id; im.uploading = false;
     imageCache[r.id] = im.src;
+    renderImages(); markDirty();
+  }).catch(function (e) {
+    images.splice(images.indexOf(im), 1); renderImages();
+    alert('「' + file.name + '」を追加できませんでした。\n' + ((e && e.message) || ''));
+  });
+}
+// PDFはそのまま送る（10MBまで）。説明の欄には最初、ファイル名を入れておく
+function addPdfFile(file) {
+  if (file.size > MAX_PDF_BYTES) {
+    alert('「' + file.name + '」は大きすぎるので追加できません（' + (file.size / 1024 / 1024).toFixed(1) + 'MB）。\nPDFは1つ10MBまでです。');
+    return Promise.resolve();
+  }
+  var im = { id: '', caption: file.name.replace(/\.pdf$/i, ''), type: 'pdf', src: '', uploading: true };
+  images.push(im); renderImages();
+  return new Promise(function (resolve, reject) {
+    var fr = new FileReader();
+    fr.onload = function () { resolve(String(fr.result).split(',')[1]); };
+    fr.onerror = function () { reject(new Error('ファイルを読み込めませんでした。')); };
+    fr.readAsDataURL(file);
+  }).then(function (data) {
+    return call('uploadImage', { mime: 'application/pdf', data: data });
+  }).then(function (r) {
+    im.id = r.id; im.uploading = false;
     renderImages(); markDirty();
   }).catch(function (e) {
     images.splice(images.indexOf(im), 1); renderImages();
@@ -1319,7 +1381,11 @@ function collect() {
   ev.prep = collectPrep();
   ev.actions = collectActions();
   ev.comments = current.comments || [];
-  ev.images = images.filter(function (im) { return im.id; }).map(function (im) { return { id: im.id, caption: im.caption || '' }; });
+  ev.images = images.filter(function (im) { return im.id; }).map(function (im) {
+    var o = { id: im.id, caption: im.caption || '' };
+    if (isPdf(im)) o.type = 'pdf';
+    return o;
+  });
   ev.id = current.id; ev.grade = current.grade; ev.kind = current.kind || ''; ev.sourceId = current.sourceId || '';
   ev.baseUpdatedAt = current.updatedAt || '';
   ev.source = current.source;
@@ -1451,14 +1517,14 @@ function deleteCurrent() {
 // ===== 印刷（A4たて） =====
 function printCurrent() {
   var ev = Object.assign({}, current, collect());
-  ev.images = images.filter(function (im) { return im.src; }).map(function (im) { return { id: im.id, caption: im.caption, src: im.src }; });
+  ev.images = images.filter(function (im) { return im.src || (isPdf(im) && im.id); }).map(function (im) { return { id: im.id, caption: im.caption, src: im.src, type: im.type }; });
   printEvent(ev);
 }
 function printById(id) {
   busy(true);
   call('getEvent', id).then(function (ev) {
-    // 画像も読み込んでから印刷する
-    return Promise.all((ev.images || []).map(function (im) {
+    // 画像も読み込んでから印刷する（PDFは名前だけ印刷するので読み込まない）
+    return Promise.all((ev.images || []).filter(function (im) { return !isPdf(im); }).map(function (im) {
       return fetchImage(im.id).then(function (src) { im.src = src; }, function () {});
     })).then(function () { busy(false); printEvent(ev); });
   }).catch(function (e) { busy(false); showError(e); });
@@ -1535,11 +1601,16 @@ function printHtml(ev) {
     box('反省', ev.reflection) +
     box('次年度へ向けての課題', ev.nextIssues) +
     box('その他', ev.other);
-  var imgs = (ev.images || []).filter(function (im) { return im.src; });
+  var imgs = (ev.images || []).filter(function (im) { return im.src && !isPdf(im); });
+  var pdfs = (ev.images || []).filter(isPdf);
   if (imgs.length) {
     html += '<div class="p-imgs"><div class="h">画像</div><div class="g">' + imgs.map(function (im) {
       return '<div class="p-img"><img src="' + im.src + '" alt="">' + (im.caption ? '<div class="cap">' + esc(im.caption) + '</div>' : '') + '</div>';
     }).join('') + '</div></div>';
+  }
+  // PDFの中身は一緒に印刷できないので、名前だけ出す
+  if (pdfs.length) {
+    html += box('添付したPDF（中身は別に印刷してください）', pdfs.map(function (im, i) { return '📄 ' + (i + 1) + '. ' + (im.caption || 'PDF'); }).join('\n'));
   }
   var cms = ev.comments || [];
   if (cms.length) {
@@ -1589,10 +1660,11 @@ function runBulkPrint() {
   closeModal();
   busy(true); loadingText('記録を読み込んでいます…');
   call('getEvents', list.map(function (e) { return e.id; })).then(function (evs) {
-    if (!withImages) { evs.forEach(function (ev) { ev.images = []; }); return evs; }
+    // 画像を印刷しないときも、PDFの名前の一覧は残す
+    if (!withImages) { evs.forEach(function (ev) { ev.images = (ev.images || []).filter(isPdf); }); return evs; }
     // 画像を4枚ずつ読み込む
     var all = [];
-    evs.forEach(function (ev) { (ev.images || []).forEach(function (im) { all.push(im); }); });
+    evs.forEach(function (ev) { (ev.images || []).forEach(function (im) { if (!isPdf(im)) all.push(im); }); });
     var done = 0;
     var next = function () {
       var im = all.shift();
@@ -1727,7 +1799,7 @@ var demoApi = {
     ['grade', 'kind', 'date', 'name', 'place', 'time', 'aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other', 'status', 'author', 'sourceId'].forEach(function (k) { ev[k] = input[k] || ''; });
     if (ev.kind === FREE) ev.status = '';
     ev.schedule = (input.schedule || []).filter(function (r) { return (r.planTime + r.what + r.note + r.actualTime).trim(); });
-    ev.images = (input.images || []).map(function (im) { return { id: im.id, caption: im.caption || '' }; });
+    ev.images = (input.images || []).map(function (im) { var o = { id: im.id, caption: im.caption || '' }; if (im.type === 'pdf') o.type = 'pdf'; return o; });
     ev.prep = ev.kind === FREE ? [] : (input.prep || []).filter(function (x) { return x.text; });
     ev.actions = ev.kind === FREE ? [] : (input.actions || []).filter(function (x) { return x.what || x.who; });
     var i = -1;
