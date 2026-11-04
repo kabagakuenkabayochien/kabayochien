@@ -202,6 +202,26 @@ button { cursor: pointer; }
 .prep-row.done input[type=text] { color: var(--sub); text-decoration: line-through; background: #f7f7f5; }
 .prep-row .op { border: 1px solid var(--line); background: #fff; border-radius: 6px; width: 30px; height: 30px; padding: 0; color: var(--danger); flex: none; }
 
+/* アクションアイテム */
+.act-head, .act-row { display: grid; grid-template-columns: 26px 150px 140px 1fr 32px; gap: 8px; align-items: center; }
+.act-head { font-size: 13px; font-weight: bold; color: var(--sub); margin-bottom: 4px; }
+.act-row { margin-bottom: 6px; padding: 4px; border-radius: 8px; }
+.act-row input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--g); }
+.act-row input[type=date], .act-row input[type=text] { width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.act-row .op { border: 1px solid var(--line); background: #fff; border-radius: 6px; width: 30px; height: 30px; padding: 0; color: var(--danger); }
+.act-row.done input[type=text], .act-row.done input[type=date] { color: var(--sub); text-decoration: line-through; background: #f7f7f5; }
+.act-row.late { background: #fdecea; }
+.act-row.late input[type=date] { border-color: var(--danger); color: var(--danger); font-weight: bold; }
+.act-row .mlabel { display: none; }
+@media (max-width: 700px) {
+  .act-head { display: none; }
+  .act-row { grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 32px; border: 1px solid var(--line); background: #fcfbf8; padding: 8px; }
+  .act-row > div { min-width: 0; }
+  .act-row input[type=date] { padding: 7px 4px; font-size: 15px; }
+  .act-row .c-what { grid-column: 2 / 4; grid-row: 2; }
+  .act-row .mlabel { display: block; font-size: 12px; color: var(--sub); font-weight: bold; }
+}
+
 /* 確認・コメント */
 .cm-item { border-bottom: 1px solid var(--line); padding: 8px 0; display: flex; gap: 10px; align-items: flex-start; }
 .cm-item .ic { font-size: 18px; line-height: 1.4; }
@@ -454,16 +474,24 @@ button { cursor: pointer; }
     </div>
 
     <div class="section" id="secEnv">
-      <h3>環境構成</h3>
+      <h3>計画・環境構成など</h3>
       <div class="field"><textarea id="f_environment" rows="4"></textarea></div>
     </div>
     <div class="section" id="secCare">
-      <h3>配慮すること</h3>
+      <h3>内容など</h3>
       <div class="field"><textarea id="f_care" rows="4"></textarea></div>
     </div>
     <div class="section hidden" id="secRecord">
       <h3>記録すること</h3>
       <div class="field"><textarea id="f_record" rows="5"></textarea></div>
+    </div>
+    <div class="section" id="secActions">
+      <h3>アクションアイテム</h3>
+      <p class="hint">「いつまでに・だれが・何をするか」（準備や連絡など）を書きます。終わったらチェックを入れます。期限が過ぎて終わっていないものは赤くなります。</p>
+      <div class="act-head"><span></span><span>期限</span><span>担当</span><span>やること</span><span></span></div>
+      <div id="actionList"></div>
+      <button type="button" class="btn small" onclick="addActionItem(true)">＋ 追加</button>
+      <span class="img-count" id="actionCount"></span>
     </div>
     <div class="section" id="secReflection">
       <h3>反省</h3>
@@ -838,7 +866,7 @@ function openNewChooser() {
     '<button class="choice" onclick="closeModal();newEvent()"><b>📝 白紙から作る</b><span>何も入っていない記録を作ります。</span></button>' +
     '<button class="choice" onclick="closeModal();newEvent(FREE)"><b>🗒 自由記述の記録を作る</b><span>記録日・記録名・記入者・記録すること・次年度へ向けての課題・画像だけの記録です。</span></button>' +
     (past.length ? '<div style="font-weight:bold;margin:16px 0 4px">📋 前の記録をもとに作る</div>' +
-      '<div style="color:var(--sub);font-size:14px">ねらい・タイムスケジュール・環境構成・配慮などがコピーされます。実施日・反省・課題・実際の時刻はコピーしません。</div>' +
+      '<div style="color:var(--sub);font-size:14px">ねらい・タイムスケジュール・計画・環境構成・内容・準備物・アクションアイテム（担当とやることだけ）などがコピーされます。実施日・反省・課題・実際の時刻・期限はコピーしません。</div>' +
       '<div style="color:var(--sub);font-size:14px">画像はコピーしません。</div>' +
       '<div class="src-list">' + past.map(function (e) {
         return '<button class="src-item" onclick="closeModal();copyFrom(\'' + esc(e.id) + '\')"><span class="d">' +
@@ -852,7 +880,7 @@ function closeModal() { $('modal').classList.add('hidden'); }
 
 function blankEvent() {
   return { id: '', grade: grade, date: '', name: '', place: '', time: '', aim: '', environment: '', care: '', record: '', reflection: '',
-    nextIssues: '', other: '', status: '計画中', author: store('gyouji_author') || '', sourceId: '', updatedAt: '', images: [], prep: [], comments: [],
+    nextIssues: '', other: '', status: '計画中', author: store('gyouji_author') || '', sourceId: '', updatedAt: '', images: [], prep: [], actions: [], comments: [],
     schedule: [{ planTime: '', what: '', note: '', actualTime: '' }, { planTime: '', what: '', note: '', actualTime: '' }, { planTime: '', what: '', note: '', actualTime: '' }] };
 }
 function newEvent(kind) {
@@ -873,6 +901,8 @@ function copyFrom(id) {
     if (!ev.schedule.length) ev.schedule = blankEvent().schedule;
     // 準備物はチェックを外して引き継ぐ
     ev.prep = (src.prep || []).map(function (x) { return { text: x.text, done: false }; });
+    // アクションアイテムは「担当・やること」だけ引き継ぐ（期限は新しく入れ直す）
+    ev.actions = (src.actions || []).map(function (x) { return { due: '', who: x.who, what: x.what, done: false }; });
     // 画像はコピーしない（同じ画像を2つの記録で使うと、片方で外したときに消えてしまうため）
     ev.kind = src.kind || '';
     ev.sourceId = src.id;
@@ -925,8 +955,10 @@ function openEditor(fromDraft) {
   $('schedOpener').classList.toggle('hidden', showSched || free);
   $('schedClose').classList.toggle('hidden', !jimu);
   $('secPrep').classList.toggle('hidden', free);
+  $('secActions').classList.toggle('hidden', free);
   setImages(ev.images || []);
   setPrep(ev.prep || []);
+  setActions(ev.actions || []);
   $('secComments').classList.toggle('hidden', !ev.id);
   renderComments(ev.comments || []);
   $('cmText').value = '';
@@ -1073,6 +1105,62 @@ function updatePrepCount() {
   $('prepCount').textContent = list.length ? list.filter(function (x) { return x.done; }).length + ' / ' + list.length + ' 用意できました' : '';
 }
 $('prepList').addEventListener('input', updatePrepCount);
+
+// ===== アクションアイテム（いつまでに・だれが・何をする） =====
+function setActions(list) {
+  $('actionList').innerHTML = '';
+  (list || []).forEach(function (x) { addActionItem(false, x); });
+  if (!(list || []).length) addActionItem(false);
+  updateActionCount();
+}
+function addActionItem(focus, x) {
+  x = x || { due: '', who: '', what: '', done: false };
+  var row = document.createElement('div');
+  row.className = 'act-row';
+  row.innerHTML = '<input type="checkbox" title="終わった">' +
+    '<div><span class="mlabel">期限</span><input type="date" class="a-due"></div>' +
+    '<div><span class="mlabel">担当</span><input type="text" class="a-who" maxlength="100" list="teacherList" placeholder="例：山田"></div>' +
+    '<div class="c-what"><span class="mlabel">やること</span><input type="text" class="a-what" maxlength="500" placeholder="例：テント業者に連絡する"></div>' +
+    '<button type="button" class="op" title="消す">✕</button>';
+  var cb = row.querySelector('input[type=checkbox]');
+  cb.checked = !!x.done;
+  row.querySelector('.a-due').value = x.due || '';
+  row.querySelector('.a-who').value = x.who || '';
+  row.querySelector('.a-what').value = x.what || '';
+  row.querySelector('.a-what').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addActionItem(true); }
+  });
+  row.querySelector('.op').onclick = function () {
+    var filled = (row.querySelector('.a-who').value + row.querySelector('.a-what').value).trim();
+    if (filled && !confirm('このアクションアイテムを消しますか？')) return;
+    row.remove(); markDirty();
+    if (!$('actionList').children.length) addActionItem(false);
+    updateActionCount();
+  };
+  $('actionList').appendChild(row);
+  if (focus) { row.querySelector('.a-due').focus(); markDirty(); }
+  updateActionCount();
+}
+function collectActions() {
+  return Array.prototype.map.call($('actionList').children, function (row) {
+    return { due: row.querySelector('.a-due').value, who: row.querySelector('.a-who').value.trim(),
+      what: row.querySelector('.a-what').value.trim(), done: row.querySelector('input[type=checkbox]').checked };
+  }).filter(function (x) { return x.what || x.who; });
+}
+// 終わった数と、期限が過ぎた行の色
+function updateActionCount() {
+  var today = todayStr(), list = collectActions();
+  Array.prototype.forEach.call($('actionList').children, function (row) {
+    var done = row.querySelector('input[type=checkbox]').checked, due = row.querySelector('.a-due').value;
+    row.classList.toggle('done', done);
+    row.classList.toggle('late', !done && !!due && due < today);
+  });
+  var late = list.filter(function (x) { return !x.done && x.due && x.due < today; }).length;
+  $('actionCount').textContent = list.length ? list.filter(function (x) { return x.done; }).length + ' / ' + list.length + ' 終わりました' +
+    (late ? '　（期限が過ぎたもの ' + late + '件）' : '') : '';
+}
+$('actionList').addEventListener('input', updateActionCount);
+$('actionList').addEventListener('change', updateActionCount);
 
 // ===== 確認・コメント（保存ボタンとは別に、すぐ書き込む） =====
 function renderComments(list) {
@@ -1229,6 +1317,7 @@ function collect() {
   ev.status = getStatus();
   ev.schedule = collectSchedule();
   ev.prep = collectPrep();
+  ev.actions = collectActions();
   ev.comments = current.comments || [];
   ev.images = images.filter(function (im) { return im.id; }).map(function (im) { return { id: im.id, caption: im.caption || '' }; });
   ev.id = current.id; ev.grade = current.grade; ev.kind = current.kind || ''; ev.sourceId = current.sourceId || '';
@@ -1409,6 +1498,12 @@ function printHtml(ev) {
   var prep = (ev.prep || []).filter(function (x) { return x.text; });
   var prepBox = prep.length ? '<div class="p-box"><div class="h">準備物・持ち物</div><div class="b p-prep">' +
     prep.map(function (x) { return '<div>' + (x.done ? '☑' : '☐') + ' ' + esc(x.text) + '</div>'; }).join('') + '</div></div>' : '';
+  var acts = (ev.actions || []).filter(function (x) { return x.what || x.who; });
+  var actionTable = acts.length ?
+    '<table class="p-sched"><caption>アクションアイテム</caption><thead><tr><th style="width:9mm">済</th><th style="width:30mm">期限</th><th style="width:28mm">担当</th><th>やること</th></tr></thead><tbody>' +
+    acts.map(function (x) {
+      return '<tr><td class="tm" style="width:9mm">' + (x.done ? '☑' : '☐') + '</td><td>' + esc(x.due ? dateShort(x.due) : '') + '</td><td>' + esc(x.who) + '</td><td>' + esc(x.what) + '</td></tr>';
+    }).join('') + '</tbody></table>' : '';
   var html = isFree(ev) ?
     // 自由記述：記録日・記録名・記入者・記録すること・次年度へ向けての課題・画像
     head +
@@ -1435,7 +1530,8 @@ function printHtml(ev) {
       }).join('') : '<tr><td class="tm">&nbsp;</td><td></td><td></td><td class="tm"></td></tr>') +
     '</tbody></table>') +
     prepBox +
-    (jimu ? box('記録すること', ev.record) : box('環境構成', ev.environment) + box('配慮すること', ev.care)) +
+    (jimu ? box('記録すること', ev.record) : box('計画・環境構成など', ev.environment) + box('内容など', ev.care)) +
+    actionTable +
     box('反省', ev.reflection) +
     box('次年度へ向けての課題', ev.nextIssues) +
     box('その他', ev.other);
@@ -1545,7 +1641,8 @@ function demoDb() {
         { planTime: '10:30', what: 'リズム（ダンス）', note: '音響の確認', actualTime: '10:45' },
         { planTime: '11:20', what: '閉会式', note: '', actualTime: '11:35' }
       ],
-      prep: [{ text: 'ロープ（10m）2本', done: true }, { text: 'テント 2張り', done: true }, { text: 'スターターピストル', done: true }] }] };
+      prep: [{ text: 'ロープ（10m）2本', done: true }, { text: 'テント 2張り', done: true }, { text: 'スターターピストル', done: true }],
+      actions: [{ due: last + '-09-20', who: '山田', what: 'テント業者に連絡する', done: true }, { due: last + '-10-01', who: '佐藤', what: '保護者へのお知らせを配る', done: true }] }] };
     // お知らせの見本：去年の今ごろの行事と、反省がまだの行事（今日の日付から作る）
     var today = todayStr();
     db.events.push({ id: 'Edemo2', grade: '星組', date: addYears(addDays(today, 20), -1), name: 'もちつき大会', place: 'ホール', time: '10:00〜11:30',
@@ -1582,11 +1679,13 @@ var demoApi = {
     var words = q.replace(/　/g, ' ').split(' ').filter(String);
     return db.events.filter(function (e) {
       var all = [e.name, e.place, e.author, e.aim, e.environment, e.care, e.record, e.reflection, e.nextIssues, e.other].join('\n') +
-        (e.schedule || []).map(function (r) { return r.what + ' ' + r.note; }).join('\n') + (e.prep || []).map(function (x) { return x.text; }).join('\n');
+        (e.schedule || []).map(function (r) { return r.what + ' ' + r.note; }).join('\n') + (e.prep || []).map(function (x) { return x.text; }).join('\n') +
+        (e.actions || []).map(function (x) { return x.who + ' ' + x.what; }).join('\n');
       return words.every(function (w) { return all.indexOf(w) >= 0; });
     }).map(function (e) {
       var s = demoSummary(e, db);
-      var f = [['名前', e.name], ['活動のねらい', e.aim], ['配慮すること', e.care], ['反省', e.reflection], ['次年度へ向けての課題', e.nextIssues], ['記録すること', e.record]]
+      var f = [['名前', e.name], ['活動のねらい', e.aim], ['計画・環境構成など', e.environment], ['内容など', e.care],
+        ['アクションアイテム', (e.actions || []).map(function (x) { return x.who + ' ' + x.what; }).join(' ')], ['反省', e.reflection], ['次年度へ向けての課題', e.nextIssues], ['記録すること', e.record]]
         .filter(function (p) { return String(p[1] || '').indexOf(words[0]) >= 0; })[0];
       s.hit = f ? { label: f[0], text: String(f[1]).replace(/\n/g, ' ').slice(0, 70) } : null;
       return s;
@@ -1613,6 +1712,7 @@ var demoApi = {
     var o = JSON.parse(JSON.stringify(e));
     o.fiscalYear = fiscalYearOf(o.date);
     o.prep = o.prep || [];
+    o.actions = o.actions || [];
     o.comments = (db.comments || []).filter(function (c) { return c.eventId === id; });
     if (o.sourceId) {
       var s = db.events.filter(function (x) { return x.id === o.sourceId; })[0];
@@ -1629,6 +1729,7 @@ var demoApi = {
     ev.schedule = (input.schedule || []).filter(function (r) { return (r.planTime + r.what + r.note + r.actualTime).trim(); });
     ev.images = (input.images || []).map(function (im) { return { id: im.id, caption: im.caption || '' }; });
     ev.prep = ev.kind === FREE ? [] : (input.prep || []).filter(function (x) { return x.text; });
+    ev.actions = ev.kind === FREE ? [] : (input.actions || []).filter(function (x) { return x.what || x.who; });
     var i = -1;
     db.events.forEach(function (x, n) { if (x.id === input.id) i = n; });
     if (input.id) {
