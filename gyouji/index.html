@@ -153,6 +153,9 @@ button { cursor: pointer; }
 .status-toggle button.on.done { background: #3f9a5b; color: #fff; }
 .edit-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
 .edit-head h2 { margin: 0; font-size: 22px; flex: 1; min-width: 200px; }
+.year-badge { order: -1; flex-basis: 100%; }
+.year-badge span { display: inline-block; padding: 3px 14px; border-radius: 999px; font-weight: bold; font-size: 15px; background: var(--g); color: #fff; }
+.year-badge span.none { background: #eee; color: var(--sub); font-weight: normal; font-size: 14px; }
 
 .section > h3 .spacer { flex: 1; }
 .section > h3 .linkbtn { font-size: 13px; font-weight: normal; }
@@ -431,6 +434,7 @@ button { cursor: pointer; }
   <div id="vEdit" class="wrap hidden">
     <div class="edit-head">
       <h2 id="editTitle"></h2>
+      <span id="yearBadge" class="year-badge"></span>
       <div class="status-toggle" id="statusToggle">
         <button type="button" data-s="計画中" class="plan">計画中</button>
         <button type="button" data-s="実施済み" class="done">実施済み</button>
@@ -971,6 +975,7 @@ function openEditor(fromDraft) {
   $('backBtn').textContent = returnTo === 'search' ? '← 検索結果に戻る' : '← 一覧に戻る';
   $('editTitle').textContent = ev.id ? (ev.name || '（名前なし）') : free ? '新しい自由記述の記録' : '新しい記録';
   TEXT_FIELDS.forEach(function (k) { $('f_' + k).value = ev[k] || ''; });
+  updateYearBadge();
   var t = String(ev.time || '').split(/〜|~|～|-/);
   $('f_timeStart').value = toTimeValue(t[0]);
   $('f_timeEnd').value = toTimeValue(t[1]);
@@ -998,6 +1003,15 @@ function openEditor(fromDraft) {
   if (!fromDraft) checkDraft();
   else $('draftNotice').classList.add('hidden');
 }
+// 題名の上の「令和○年度」の札（実施日・記録日から決まる。4月始まり）
+function updateYearBadge() {
+  var fy = fiscalYearOf($('f_date').value);
+  $('yearBadge').innerHTML = fy ? '<span>📅 ' + esc(yearLabel(fy)) + 'の記録</span>' :
+    '<span class="none">' + (isFree() ? '記録日' : '実施日') + 'を入れると年度が決まります</span>';
+}
+$('f_date').addEventListener('input', updateYearBadge);
+$('f_date').addEventListener('change', updateYearBadge);
+
 function openSched() {
   $('schedOpener').classList.add('hidden');
   $('secSched').classList.remove('hidden');
