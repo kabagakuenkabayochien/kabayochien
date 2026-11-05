@@ -128,7 +128,7 @@ button { cursor: pointer; }
 /* 編集 */
 .notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 15px; }
 .notice.source { background: #fff8e1; border: 1px solid #f0d58a; }
-.notice.source .issues { white-space: pre-wrap; background: #fff; border-radius: 6px; padding: 8px 10px; margin-top: 6px; }
+.notice.source .issues { background: #fff; border-radius: 6px; padding: 8px 10px; margin-top: 6px; }
 .notice.draft { background: #e8f1fb; border: 1px solid #a9c8ea; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .notice.draft span { flex: 1; min-width: 200px; }
 .section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px 18px; margin-bottom: 16px; }
@@ -144,6 +144,28 @@ button { cursor: pointer; }
 }
 .field textarea { min-height: 88px; resize: vertical; line-height: 1.6; }
 .field input:focus, .field textarea:focus, .sched textarea:focus, .sched input:focus { outline: 2px solid var(--g); outline-offset: 0; border-color: var(--g); }
+/* 書式つきの欄（見出し・太字・表・チェックリスト） */
+.rt { border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.rt:focus-within { outline: 2px solid var(--g); border-color: var(--g); }
+.rt-bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px 6px; border-bottom: 1px solid var(--line); background: #faf8f3; border-radius: 8px 8px 0 0; }
+.rt-bar button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 3px 9px; font-size: 13px; line-height: 1.4; cursor: pointer; color: var(--ink); }
+.rt-bar button:hover { border-color: var(--g); }
+.rt-bar .sep { width: 1px; background: var(--line); margin: 2px 2px; }
+.rt-bar .tbl { display: none; gap: 4px; flex-wrap: wrap; }
+.rt.in-table .rt-bar .tbl { display: flex; }
+.rt-bar .tbl button { background: #eef5ff; }
+.rt-ed { min-height: 88px; padding: 9px 10px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; outline: none; }
+.rich-view h3, .rt-ed h3 { font-size: 1.25em; margin: .35em 0 .15em; line-height: 1.4; }
+.rich-view h3:first-child, .rt-ed h3:first-child { margin-top: 0; }
+.rich-view .ck, .rt-ed .ck { position: relative; padding-left: 1.6em; }
+.rich-view .ck::before, .rt-ed .ck::before { content: "☐"; position: absolute; left: 0; top: 0; }
+.rich-view .ck[data-done="1"]::before, .rt-ed .ck[data-done="1"]::before { content: "☑"; color: var(--g, #333); }
+.rt-ed .ck::before { cursor: pointer; font-size: 1.1em; }
+.rt-ed .ck[data-done="1"] { color: var(--sub); }
+.rich-view table, .rt-ed table { border-collapse: collapse; margin: 4px 0; max-width: 100%; }
+.rich-view td, .rt-ed td { border: 1px solid #999; padding: 3px 8px; min-width: 60px; vertical-align: top; white-space: pre-wrap; }
+.rt-ed td { min-width: 70px; height: 1.9em; }
+.rt-tablewrap { overflow-x: auto; }
 .time-range { display: flex; gap: 8px; align-items: center; }
 .time-range input { flex: 1; }
 .field + .field { margin-top: 12px; }
@@ -334,6 +356,12 @@ button { cursor: pointer; }
 .p-box { border: 1px solid #000; margin-bottom: 3.5mm; }
 .p-box .h { background: #eee; border-bottom: 1px solid #000; padding: 1mm 2.4mm; font-weight: bold; font-size: 10pt; break-after: avoid; page-break-after: avoid; }
 .p-box .b { padding: 2mm 2.4mm; white-space: pre-wrap; word-break: break-word; min-height: 12mm; font-size: 10pt; line-height: 1.55; }
+.p-box .b.rich-view h3 { font-size: 12.5pt; margin: 1.5mm 0 .5mm; }
+.p-box .b.rich-view h3:first-child { margin-top: 0; }
+.p-box .b.rich-view .ck::before { color: #000; }
+.p-box .b.rich-view table { margin: 1mm 0; }
+.p-box .b.rich-view td { border: 1px solid #000; padding: .8mm 2mm; font-size: 9.5pt; line-height: 1.45; }
+.p-box .b.rich-view tr { break-inside: avoid; page-break-inside: avoid; }
 .p-sched { width: 100%; border-collapse: collapse; margin-bottom: 3.5mm; }
 .p-sched caption { text-align: left; background: #eee; border: 1px solid #000; border-bottom: none; padding: 1mm 2.4mm; font-weight: bold; font-size: 10pt; }
 .p-sched th, .p-sched td { border: 1px solid #000; padding: 1.4mm 2mm; font-size: 9.5pt; vertical-align: top; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
@@ -458,7 +486,7 @@ button { cursor: pointer; }
 
     <div class="section" id="secAim">
       <h3>活動のねらい</h3>
-      <div class="field"><textarea id="f_aim" rows="3"></textarea></div>
+      <div class="field"><div class="rich" id="f_aim" data-rows="3"></div></div>
     </div>
 
     <div class="opener hidden" id="schedOpener">
@@ -484,15 +512,15 @@ button { cursor: pointer; }
 
     <div class="section" id="secEnv">
       <h3>計画・環境構成など</h3>
-      <div class="field"><textarea id="f_environment" rows="4"></textarea></div>
+      <div class="field"><div class="rich" id="f_environment" data-rows="4"></div></div>
     </div>
     <div class="section" id="secCare">
       <h3>内容など</h3>
-      <div class="field"><textarea id="f_care" rows="4"></textarea></div>
+      <div class="field"><div class="rich" id="f_care" data-rows="4"></div></div>
     </div>
     <div class="section hidden" id="secRecord">
       <h3>記録すること</h3>
-      <div class="field"><textarea id="f_record" rows="5"></textarea></div>
+      <div class="field"><div class="rich" id="f_record" data-rows="5"></div></div>
     </div>
     <div class="section" id="secActions">
       <h3>アクションアイテム</h3>
@@ -504,16 +532,16 @@ button { cursor: pointer; }
     </div>
     <div class="section" id="secReflection">
       <h3>反省</h3>
-      <div class="field"><textarea id="f_reflection" rows="5"></textarea></div>
+      <div class="field"><div class="rich" id="f_reflection" data-rows="5"></div></div>
     </div>
     <div class="section">
       <h3>次年度へ向けての課題</h3>
       <p class="hint">来年、この記録をもとに新しく作ると、ここに書いたことが画面の上に出ます。</p>
-      <div class="field"><textarea id="f_nextIssues" rows="4"></textarea></div>
+      <div class="field"><div class="rich" id="f_nextIssues" data-rows="4"></div></div>
     </div>
     <div class="section" id="secOther">
       <h3>その他</h3>
-      <div class="field"><textarea id="f_other" rows="3"></textarea></div>
+      <div class="field"><div class="rich" id="f_other" data-rows="3"></div></div>
     </div>
     <div class="section" id="secImages">
       <h3>画像・ファイル（写真・配置図・お便り・Word・Excel など）</h3>
@@ -868,7 +896,7 @@ function renderSearch() {
       '<div class="main" onclick="openEvent(\'' + esc(e.id) + '\', \'search\')">' +
         '<div class="name"><span class="grade-tag" style="color:' + gi.c + ';background:' + gi.soft + ';border-color:' + gi.c + '">' + gi.icon + ' ' + esc(e.grade) + '</span>' +
         esc(e.name) + (e.kind === FREE ? '<span class="badge free">🗒 自由記述</span>' : '') + '</div>' +
-        (e.hit ? '<div class="hit">' + esc(e.hit.label) + '：' + markWords(e.hit.text, q) + '</div>' : '') +
+        (e.hit ? '<div class="hit">' + esc(e.hit.label) + '：' + markWords(richPlain(e.hit.text), q) + '</div>' : '') +
         '<div class="meta">' + metaLine(e) + '</div>' +
       '</div>' +
       '<div class="acts"><button class="btn small" onclick="openEvent(\'' + esc(e.id) + '\', \'search\')">開く</button></div></div>';
@@ -941,6 +969,331 @@ function openEvent(id, from) {
   }).catch(function (e) { busy(false); showError(e); });
 }
 
+// ===== 書式つきの欄（見出し・太字・表・チェックリスト） =====
+// シートには、読んでもわかる文字で残す：
+//   ## 見出し　／　**太字**　／　☐ チェック・☑ 済み　／　| 表 | のセル |（セルの中の改行は <br>）
+var RICH_FIELDS = ['aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other'];
+var TABLE_LINE = /^\s*\|.*\|\s*$/;
+function richInline(s) {
+  return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+}
+// 文字 → 画面・印刷用のHTML
+function richHtml(text) {
+  var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  var html = '';
+  for (var i = 0; i < lines.length; i++) {
+    var ln = lines[i], m;
+    if (TABLE_LINE.test(ln)) {
+      var rows = [];
+      while (i < lines.length && TABLE_LINE.test(lines[i])) {
+        rows.push(lines[i].trim().slice(1, -1).split('|').map(function (c) { return c.trim(); }));
+        i++;
+      }
+      i--;
+      var cols = Math.max.apply(null, rows.map(function (r) { return r.length; }));
+      html += '<div class="rt-tablewrap"><table><tbody>' + rows.map(function (r) {
+        var tds = '';
+        for (var c = 0; c < cols; c++) tds += '<td>' + (richInline(r[c] || '').replace(/&lt;br&gt;/g, '<br>') || '<br>') + '</td>';
+        return '<tr>' + tds + '</tr>';
+      }).join('') + '</tbody></table></div>';
+    } else if ((m = /^## (.*)$/.exec(ln))) {
+      html += '<h3>' + (richInline(m[1].replace(/\*\*/g, '')) || '<br>') + '</h3>';
+    } else if ((m = /^([☐☑]) ?(.*)$/.exec(ln))) {
+      html += '<div class="ck" data-done="' + (m[1] === '☑' ? 1 : 0) + '">' + (richInline(m[2]) || '<br>') + '</div>';
+    } else {
+      html += '<div>' + (richInline(ln) || '<br>') + '</div>';
+    }
+  }
+  return html;
+}
+// 印刷・一覧などで、記号をのぞいた文字だけにする
+function richPlain(text) {
+  return String(text || '').replace(/\*\*/g, '').replace(/^## /gm, '').replace(/<br>/g, ' ');
+}
+function isBoldEl(el) {
+  var t = el.tagName;
+  if (t === 'B' || t === 'STRONG') return true;
+  var w = el.style && el.style.fontWeight;
+  return w === 'bold' || Number(w) >= 600;
+}
+// 画面の中身（HTML）→ 文字
+function richText(root) {
+  var lines = [], cur = null;
+  function push(t, b) { if (!t) return; (cur = cur || []).push({ t: t, b: b }); }
+  function endLine() {
+    var s = '', segs = cur || [];
+    // 同じ太さのものをつなげてから、太字に ** を付ける
+    var merged = [];
+    segs.forEach(function (g) { var last = merged[merged.length - 1]; if (last && last.b === g.b) last.t += g.t; else merged.push({ t: g.t, b: g.b }); });
+    merged.forEach(function (g) {
+      if (g.b && g.t.trim()) {
+        var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(g.t);
+        s += m[1] + '**' + m[2] + '**' + m[3];
+      } else s += g.t;
+    });
+    lines.push(s);
+    cur = null;
+  }
+  function flush() { if (cur !== null) endLine(); }
+  function cellText(td) {
+    var sub = richText(td).split('\n');
+    while (sub.length > 1 && sub[sub.length - 1] === '') sub.pop();
+    return sub.map(function (s) { return s.replace(/^## |^[☐☑] ?/, ''); }).join('<br>').replace(/\|/g, '｜');
+  }
+  function walk(node, bold) {
+    if (node.nodeType === 3) { push(node.nodeValue.replace(/ /g, ' ').replace(/\n/g, ''), bold); return; }
+    if (node.nodeType !== 1) return;
+    var tag = node.tagName;
+    if (tag === 'BR') { endLine(); return; }
+    if (tag === 'TABLE') {
+      flush();
+      Array.prototype.forEach.call(node.querySelectorAll('tr'), function (tr) {
+        var cells = Array.prototype.map.call(tr.children, cellText);
+        if (cells.length) lines.push('| ' + cells.map(function (c) { return c || ' '; }).join(' | ') + ' |');
+      });
+      return;
+    }
+    if (/^H[1-6]$/.test(tag)) {
+      flush();
+      var ht = node.textContent.replace(/ /g, ' ').replace(/\n/g, ' ');
+      lines.push(ht.trim() ? '## ' + ht : '');
+      return;
+    }
+    var block = /^(DIV|P|LI|UL|OL|BLOCKQUOTE|PRE|SECTION|ARTICLE|HEADER|FOOTER)$/.test(tag);
+    if (block) {
+      flush();
+      var start = lines.length;
+      var ck = node.classList && node.classList.contains('ck');
+      Array.prototype.forEach.call(node.childNodes, function (c) { walk(c, bold); });
+      flush();
+      if (ck) {
+        var mark = node.getAttribute('data-done') === '1' ? '☑ ' : '☐ ';
+        if (lines.length > start) lines[start] = mark + lines[start].replace(/^[☐☑] ?/, '');
+        else lines.push(mark);
+      }
+      return;
+    }
+    var b = bold || isBoldEl(node);
+    Array.prototype.forEach.call(node.childNodes, function (c) { walk(c, b); });
+  }
+  Array.prototype.forEach.call(root.childNodes, function (c) { walk(c, false); });
+  flush();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  return lines.join('\n');
+}
+
+var rtLastRange = null, rtLastEd = null;
+function rtBlockOf(ed, node) {
+  while (node && node !== ed && node.parentNode !== ed) node = node.parentNode;
+  return node && node !== ed ? node : null;
+}
+function rtCaretNode() {
+  var sel = window.getSelection();
+  return sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+}
+function rtRestore(ed) {
+  // いまの選択がこの欄の中なら、そのまま使う（スマホなどでボタンを押して外れたときだけ戻す）
+  var sel = window.getSelection();
+  if (document.activeElement === ed && sel.rangeCount && ed.contains(sel.getRangeAt(0).startContainer)) return;
+  ed.focus();
+  if (rtLastEd === ed && rtLastRange) {
+    var sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(rtLastRange);
+  }
+}
+function rtChanged(ed) {
+  ed.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function rtPlaceCaret(el, atEnd) {
+  var r = document.createRange();
+  r.selectNodeContents(el); r.collapse(!atEnd);
+  var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+function rtCell(ed) {
+  var n = rtCaretNode();
+  while (n && n !== ed) { if (n.tagName === 'TD' || n.tagName === 'TH') return n; n = n.parentNode; }
+  return null;
+}
+// 選んでいる行（ブロック）を全部集める。直接書いた文字はブロックにまとめてから
+function rtSelectedBlocks(ed) {
+  var sel = window.getSelection();
+  if (!sel.rangeCount) return [];
+  var has = Array.prototype.some.call(ed.childNodes, function (n) { return n.nodeType === 3 && n.nodeValue.trim() || n.tagName === 'B' || n.tagName === 'SPAN' || n.tagName === 'BR'; });
+  if (has) document.execCommand('formatBlock', false, 'div');
+  var r = sel.getRangeAt(0);
+  var list = Array.prototype.filter.call(ed.children, function (b) { return r.intersectsNode(b) && b.tagName !== 'TABLE' && !b.classList.contains('rt-tablewrap'); });
+  if (!list.length) { var b = rtBlockOf(ed, r.startContainer); if (b) list = [b]; }
+  return list;
+}
+function rtCmd(ed, cmd) {
+  rtRestore(ed);
+  var inCell = !!rtCell(ed);
+  if (cmd === 'bold') { document.execCommand('bold'); }
+  else if (cmd === 'big' || cmd === 'normal') {
+    if (inCell) { toast('表の中では文字の大きさは変えられません。'); return; }
+    document.execCommand('formatBlock', false, cmd === 'big' ? 'h3' : 'div');
+    // 見出しにはチェックを付けない
+    Array.prototype.forEach.call(ed.querySelectorAll('h3'), function (h) { h.removeAttribute('class'); h.removeAttribute('data-done'); });
+  } else if (cmd === 'check') {
+    if (inCell) { toast('表の中にはチェックリストは入れられません。'); return; }
+    var blocks = rtSelectedBlocks(ed);
+    var allCk = blocks.length && blocks.every(function (b) { return b.classList.contains('ck'); });
+    blocks.forEach(function (b) {
+      if (/^H[1-6]$/.test(b.tagName)) { var d = document.createElement('div'); while (b.firstChild) d.appendChild(b.firstChild); b.parentNode.replaceChild(d, b); b = d; }
+      if (allCk) { b.classList.remove('ck'); b.removeAttribute('data-done'); if (!b.className) b.removeAttribute('class'); }
+      else if (!b.classList.contains('ck')) { b.classList.add('ck'); b.setAttribute('data-done', '0'); }
+    });
+  } else if (cmd === 'table') {
+    if (inCell) { toast('表の中には表を入れられません。'); return; }
+    var row = '<tr><td><br></td><td><br></td><td><br></td></tr>';
+    var cur = rtBlockOf(ed, rtCaretNode());
+    var wrap = document.createElement('div');
+    wrap.className = 'rt-tablewrap';
+    wrap.innerHTML = '<table><tbody>' + row + row + row + '</tbody></table>';
+    var after = document.createElement('div'); after.innerHTML = '<br>';
+    if (cur && cur.textContent.trim() === '' && !cur.querySelector('table')) { ed.replaceChild(wrap, cur); }
+    else if (cur) { ed.insertBefore(wrap, cur.nextSibling); }
+    else ed.appendChild(wrap);
+    if (!wrap.nextSibling || wrap.nextSibling.tagName === 'TABLE' || (wrap.nextSibling.classList && wrap.nextSibling.classList.contains('rt-tablewrap'))) ed.insertBefore(after, wrap.nextSibling);
+    rtPlaceCaret(wrap.querySelector('td'));
+  } else {
+    var td = rtCell(ed);
+    if (!td) return;
+    var tr = td.parentNode, table = tr.closest('table'), idx = Array.prototype.indexOf.call(tr.children, td);
+    var rowsEl = table.querySelectorAll('tr');
+    if (cmd === 'rowAdd') {
+      var nr = document.createElement('tr');
+      for (var i = 0; i < tr.children.length; i++) nr.appendChild(Object.assign(document.createElement('td'), { innerHTML: '<br>' }));
+      tr.parentNode.insertBefore(nr, tr.nextSibling); rtPlaceCaret(nr.children[idx] || nr.children[0]);
+    } else if (cmd === 'colAdd') {
+      Array.prototype.forEach.call(rowsEl, function (r) { var c = document.createElement('td'); c.innerHTML = '<br>'; r.insertBefore(c, r.children[idx + 1] || null); });
+      rtPlaceCaret(tr.children[idx + 1]);
+    } else if (cmd === 'rowDel' || cmd === 'colDel' || cmd === 'tableDel') {
+      var whole = cmd === 'tableDel' || (cmd === 'rowDel' && rowsEl.length === 1) || (cmd === 'colDel' && tr.children.length === 1);
+      if (whole) {
+        if (!confirm('この表を消しますか？')) return;
+        var w = table.closest('.rt-tablewrap') || table;
+        var d = document.createElement('div'); d.innerHTML = '<br>';
+        w.parentNode.replaceChild(d, w); rtPlaceCaret(d);
+      } else if (cmd === 'rowDel') {
+        var next = tr.nextElementSibling || tr.previousElementSibling;
+        tr.remove(); rtPlaceCaret(next.children[Math.min(idx, next.children.length - 1)]);
+      } else {
+        Array.prototype.forEach.call(rowsEl, function (r) { if (r.children[idx]) r.children[idx].remove(); });
+        rtPlaceCaret(tr.children[Math.min(idx, tr.children.length - 1)]);
+      }
+    }
+  }
+  rtChanged(ed);
+  rtUpdateBar();
+}
+function rtUpdateBar() {
+  document.querySelectorAll('.rt').forEach(function (w) {
+    var ed = w.querySelector('.rt-ed');
+    w.classList.toggle('in-table', document.activeElement === ed && !!rtCell(ed));
+  });
+}
+document.addEventListener('selectionchange', function () {
+  var n = rtCaretNode();
+  var ed = n && (n.nodeType === 1 ? n : n.parentNode).closest && (n.nodeType === 1 ? n : n.parentNode).closest('.rt-ed');
+  if (ed) { rtLastEd = ed; rtLastRange = window.getSelection().getRangeAt(0).cloneRange(); }
+  rtUpdateBar();
+});
+function setupRich(holder) {
+  var id = holder.id, rows = Number(holder.getAttribute('data-rows')) || 3;
+  var wrap = document.createElement('div');
+  wrap.className = 'rt';
+  wrap.innerHTML = '<div class="rt-bar">' +
+      '<button type="button" data-c="big" title="選んだ行を大きい文字（見出し）にします">大きい文字</button>' +
+      '<button type="button" data-c="normal" title="選んだ行をふつうの大きさにもどします">ふつうの文字</button>' +
+      '<button type="button" data-c="bold" title="選んだ文字を太字にします（もう一度押すともどります）"><b>B</b> 太字</button>' +
+      '<span class="sep"></span>' +
+      '<button type="button" data-c="check" title="選んだ行をチェックリストにします（もう一度押すともどります）">☑ チェックリスト</button>' +
+      '<button type="button" data-c="table" title="3行×3列の表を入れます">▦ 表を入れる</button>' +
+      '<span class="tbl"><span class="sep"></span>' +
+        '<button type="button" data-c="rowAdd">＋行</button><button type="button" data-c="colAdd">＋列</button>' +
+        '<button type="button" data-c="rowDel">−行</button><button type="button" data-c="colDel">−列</button>' +
+        '<button type="button" data-c="tableDel">表を消す</button></span>' +
+    '</div>';
+  var ed = document.createElement('div');
+  ed.className = 'rt-ed';
+  ed.contentEditable = 'true';
+  ed.id = id;
+  ed.style.minHeight = (rows * 1.6 + 1.2) + 'em';
+  wrap.appendChild(ed);
+  holder.parentNode.replaceChild(wrap, holder);
+  Object.defineProperty(ed, 'value', {
+    get: function () { return richText(ed); },
+    set: function (v) { ed.innerHTML = richHtml(v) || '<div><br></div>'; }
+  });
+  ed.value = '';
+  wrap.querySelector('.rt-bar').addEventListener('mousedown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+  wrap.querySelectorAll('.rt-bar button').forEach(function (b) {
+    b.addEventListener('click', function () { rtCmd(ed, b.getAttribute('data-c')); });
+  });
+  // チェックの □ を押したら、済み／まだを切りかえる
+  ed.addEventListener('click', function (e) {
+    var ck = e.target.closest && e.target.closest('.ck');
+    if (!ck || !ed.contains(ck)) return;
+    var x = e.clientX - ck.getBoundingClientRect().left;
+    if (x < parseFloat(getComputedStyle(ck).paddingLeft)) {
+      ck.setAttribute('data-done', ck.getAttribute('data-done') === '1' ? '0' : '1');
+      rtChanged(ed);
+    }
+  });
+  ed.addEventListener('keydown', function (e) {
+    if (e.isComposing || e.keyCode === 229) return;
+    var td = rtCell(ed);
+    if (td && e.key === 'Tab') {
+      // 表の中では Tab で次のセルへ（最後のセルなら行を足す）
+      e.preventDefault();
+      var cells = Array.prototype.slice.call(td.closest('table').querySelectorAll('td,th'));
+      var k = cells.indexOf(td) + (e.shiftKey ? -1 : 1);
+      if (k >= cells.length) { rtCmd(ed, 'rowAdd'); return; }
+      if (k >= 0) rtPlaceCaret(cells[k]);
+      return;
+    }
+    if (e.key !== 'Enter') return;
+    if (td) { e.preventDefault(); if (!document.execCommand('insertLineBreak')) document.execCommand('insertHTML', false, '<br><br>'); return; }
+    var blk = rtBlockOf(ed, rtCaretNode());
+    if (blk && blk.classList && blk.classList.contains('ck')) {
+      if (!blk.textContent.trim()) {
+        // 空のチェックで Enter → チェックリストを終わる
+        e.preventDefault();
+        blk.classList.remove('ck'); blk.removeAttribute('data-done'); blk.removeAttribute('class');
+        rtChanged(ed);
+        return;
+      }
+      setTimeout(function () {
+        var nb = rtBlockOf(ed, rtCaretNode());
+        [nb, nb && nb.previousElementSibling].forEach(function (x) {
+          if (x && x.classList && x.classList.contains('ck') && !x.textContent.trim()) x.setAttribute('data-done', '0');
+        });
+      }, 0);
+    }
+  });
+  // 貼り付けは文字だけ（Excel からの表は表にする）
+  ed.addEventListener('paste', function (e) {
+    var cd = e.clipboardData || window.clipboardData;
+    if (!cd) return;
+    e.preventDefault();
+    var text = String(cd.getData('text/plain') || '').replace(/\r\n?/g, '\n').replace(/\n$/, '');
+    if (!text) return;
+    var ls = text.split('\n');
+    if (!rtCell(ed) && ls.length >= 1 && text.indexOf('\t') >= 0 && ls.every(function (l) { return l.indexOf('\t') >= 0 || !l.trim(); })) {
+      var tsv = ls.filter(function (l) { return l.trim(); }).map(function (l) {
+        return '| ' + l.split('\t').map(function (c) { return c.replace(/\|/g, '｜').replace(/^"|"$/g, '') || ' '; }).join(' | ') + ' |';
+      }).join('\n');
+      document.execCommand('insertHTML', false, richHtml(tsv) + '<div><br></div>');
+    } else {
+      document.execCommand('insertText', false, rtCell(ed) ? text.replace(/\n/g, ' ') : text);
+    }
+  });
+  ed.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) e.preventDefault(); });
+}
+try { document.execCommand('defaultParagraphSeparator', false, 'div'); document.execCommand('styleWithCSS', false, false); } catch (e) {}
+document.querySelectorAll('.rich').forEach(setupRich);
+
 // ===== 書く画面 =====
 var TEXT_FIELDS = ['date', 'name', 'place', 'author', 'aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other'];
 var JIMU = '事務分掌';
@@ -995,7 +1348,7 @@ function openEditor(fromDraft) {
   var src = ev.source;
   if (src && String(src.nextIssues || '').trim()) {
     $('sourceNotice').innerHTML = '💡 <b>' + esc(yearLabel(fiscalYearOf(src.date))) + '「' + esc(src.name) + '」の次年度へ向けての課題</b>' +
-      '<div class="issues">' + esc(src.nextIssues) + '</div>';
+      '<div class="issues rich-view">' + richHtml(src.nextIssues) + '</div>';
     $('sourceNotice').classList.remove('hidden');
   } else if (src) {
     $('sourceNotice').innerHTML = '📋 ' + esc(yearLabel(fiscalYearOf(src.date))) + '「' + esc(src.name) + '」をもとに作った記録です（課題は書かれていませんでした）。';
@@ -1614,8 +1967,11 @@ function doPrint(html, title) {
 // 1件分の印刷の中身
 function printHtml(ev) {
   var jimu = isJimu(ev);
-  var box = function (title, text) {
-    return '<div class="p-box"><div class="h">' + title + '</div><div class="b">' + esc(String(text || '').replace(/\s+$/, '')) + '</div></div>';
+  // 書く欄（見出し・太字・表・チェックリストを付けられる）はそのまま、ほかはふつうの文字で
+  var box = function (title, text, plain) {
+    var t = String(text || '').replace(/\s+$/, '');
+    return '<div class="p-box"><div class="h">' + title + '</div>' +
+      (plain || !t ? '<div class="b">' + esc(t) + '</div>' : '<div class="b rich-view">' + richHtml(t) + '</div>') + '</div>';
   };
   var rows = (ev.schedule || []).filter(function (r) { return (r.planTime + r.what + r.note + r.actualTime).trim(); });
   var fy = fiscalYearOf(ev.date);
@@ -1676,13 +2032,13 @@ function printHtml(ev) {
   }
   // PDF・Word・Excel の中身は一緒に印刷できないので、名前だけ出す
   if (pdfs.length) {
-    html += box('添付したファイル（中身は別に印刷してください）', pdfs.map(function (im, i) { var d = docInfo(im); return d.icon + ' ' + (i + 1) + '. ' + (im.caption || d.label) + '（' + d.label + '）'; }).join('\n'));
+    html += box('添付したファイル（中身は別に印刷してください）', pdfs.map(function (im, i) { var d = docInfo(im); return d.icon + ' ' + (i + 1) + '. ' + (im.caption || d.label) + '（' + d.label + '）'; }).join('\n'), true);
   }
   var cms = ev.comments || [];
   if (cms.length) {
     html += box('確認・コメント', cms.map(function (c) {
       return (c.type === '確認' ? '✔ ' + c.name + ' が確認しました' : '💬 ' + c.name) + '（' + shortAt(c.at) + '）' + (c.text ? '\n　' + c.text.replace(/\n/g, '\n　') : '');
-    }).join('\n'));
+    }).join('\n'), true);
   }
   return html;
 }
