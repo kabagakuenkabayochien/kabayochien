@@ -783,6 +783,13 @@ function renderList() {
     if (q && (e.name + ' ' + e.place + ' ' + e.author).indexOf(q) < 0) return false;
     return true;
   });
+  // 年度は新しい順、同じ年度の中は実施日（記録日）の早い順。日付が空のものは年度の最後
+  list.sort(function (a, b) {
+    var fa = Number(a.fiscalYear || fiscalYearOf(a.date)) || 0, fb = Number(b.fiscalYear || fiscalYearOf(b.date)) || 0;
+    if (fa !== fb) return fb - fa;
+    var da = a.date || '9999', db = b.date || '9999';
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
   if (!list.length) {
     $('listBody').innerHTML = '<div class="empty">' + (events.length ? '当てはまる記録はありません。' :
       'まだ記録がありません。<br>「＋ 新しい記録を作る」から書き始めてください。') + '</div>';
