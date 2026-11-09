@@ -418,16 +418,16 @@ button { cursor: pointer; }
     <span class="spacer"></span>
     <button id="searchBtn" class="btn small hidden" onclick="openSearchBox()">🔍<span class="hide-sp"> 全部から探す</span></button>
     <button id="toGradesBtn" class="btn small hidden" onclick="goGrades()">選び直す</button>
-    <button id="logoutBtn" class="linkbtn hidden" onclick="logout()">合言葉を入れ直す</button>
+    <button id="logoutBtn" class="linkbtn hidden" onclick="logout()">パスワードを入れ直す</button>
   </div>
 
-  <!-- 合言葉 -->
+  <!-- パスワード -->
   <div id="vLogin" class="hidden">
     <div class="login">
       <h1>📒 記録と反省</h1>
-      <p>先生用の画面です。園で決めた合言葉を入れてください。</p>
-      <input id="keyInput" type="password" autocomplete="current-password" placeholder="合言葉">
-      <label class="check"><input type="checkbox" id="keyRemember" checked> この端末で合言葉を覚えておく</label>
+      <p>先生用の画面です。園で決めたパスワードを入れてください。</p>
+      <input id="keyInput" type="password" autocomplete="current-password" placeholder="パスワード">
+      <label class="check"><input type="checkbox" id="keyRemember" checked> この端末でパスワードを覚えておく</label>
       <button class="btn primary" onclick="login()">入る</button>
       <div id="loginErr" class="err"></div>
     </div>
@@ -655,7 +655,7 @@ function call(fn) {
   }).then(function (r) { return r.json(); }, function () {
     throw new Error('通信できませんでした。インターネットにつながっているか確かめてください。');
   }).then(function (res) {
-    if (!res || !res.ok) throw new Error((res && res.error) || '時間をおいて、もう一度お試しください。');
+    if (!res || !res.ok) throw new Error(String((res && res.error) || '時間をおいて、もう一度お試しください。').replace(/合言葉/g, 'パスワード'));
     return res.result;
   });
 }
@@ -710,7 +710,7 @@ function sectionLabel(s) { return s ? s : '係なし'; }
 function placeLabel() { return grade + (grade === JIMU && section !== null ? '・' + sectionLabel(section) : ''); }
 function gradeText(ev) { return ev.grade + (ev.grade === JIMU && ev.section ? '（' + ev.section + '）' : ''); }
 
-// ===== 合言葉 =====
+// ===== パスワード =====
 function showLogin(msg) {
   show('vLogin');
   $('loginErr').textContent = msg || '';
@@ -719,7 +719,7 @@ function showLogin(msg) {
 }
 function login() {
   var k = $('keyInput').value.trim();
-  if (!k) { $('loginErr').textContent = '合言葉を入れてください。'; return; }
+  if (!k) { $('loginErr').textContent = 'パスワードを入れてください。'; return; }
   appKey = k;
   busy(true);
   call('hello').then(function (r) {
@@ -734,7 +734,7 @@ function login() {
 }
 $('keyInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
 function logout() {
-  if (dirty && !confirm('保存していない書きかけがあります。合言葉を入れ直しますか？')) return;
+  if (dirty && !confirm('保存していない書きかけがあります。パスワードを入れ直しますか？')) return;
   dirty = false;
   store(KEY_STORE, null); appKey = ''; showLogin('');
 }
