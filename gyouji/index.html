@@ -342,10 +342,14 @@ button { cursor: pointer; }
 /* 印刷用（画面では出さない） */
 #print { display: none; }
 @media print {
-  @page { size: A4 portrait; margin: 12mm 12mm 12mm 12mm; }
+  @page { size: A4 portrait; margin: 12mm 14mm 12mm 12mm; }
+  html, body { margin: 0; padding: 0; }
   body { background: #fff; font-size: 10pt; }
   #app, .toast, .loading, .modal-bg, .demo-band { display: none !important; }
-  #print { display: block; color: #000; }
+  /* 右端の罫線が紙の端で切れないよう、印刷する幅を少し狭くして右に余白をとる */
+  #print { display: block; color: #000; width: auto; padding: 0 1.5mm 0 0.5mm; overflow: visible; }
+  #print table, #print .p-box, #print .p-imgs, #print img { max-width: 100%; }
+  #print .p-box .b.rich-view td { min-width: 0; word-break: break-word; }
 }
 .p-head { display: flex; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 4mm; }
 .p-head .t { font-size: 17pt; font-weight: bold; flex: 1; }
@@ -563,7 +567,8 @@ button { cursor: pointer; }
         </div>
       </div>
     </div>
-    <div style="text-align:right">
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button id="moveBtn" class="btn small hidden" onclick="openMove()">↪ 別の組へ移す</button>
       <button id="deleteBtn" class="btn danger small hidden" onclick="deleteCurrent()">この記録を削除する</button>
     </div>
 
@@ -1344,6 +1349,7 @@ function openEditor(fromDraft) {
   (ev.schedule || []).forEach(function (r) { addSchedRow(false, r); });
   if (!(ev.schedule || []).length) addSchedRow(false);
   $('deleteBtn').classList.toggle('hidden', !ev.id);
+  $('moveBtn').classList.toggle('hidden', !ev.id);
   // もとにした記録の課題
   var src = ev.source;
   if (src && String(src.nextIssues || '').trim()) {
@@ -1486,9 +1492,28 @@ function updatePrepCount() {
 $('prepList').addEventListener('input', updatePrepCount);
 
 // ===== アクションアイテム（いつまでに・だれが・何をする） =====
+// 期限の早い順（期限なしは最後、同じ期限は入れた順のまま）
+function byDue(a, b) {
+  return (a.due ? 0 : 1) - (b.due ? 0 : 1) || (a.due < b.due ? -1 : a.due > b.due ? 1 : 0) || a._i - b._i;
+}
+function sortByDue(list) {
+  return (list || []).map(function (x, i) { return Object.assign({}, x, { _i: i }); }).sort(byDue)
+    .map(function (x) { delete x._i; return x; });
+}
+// 画面の行を期限順に並べかえる（期限を入れ終わったとき・開いたとき・保存のとき）
+function sortActionRows() {
+  var box = $('actionList');
+  var rows = Array.prototype.map.call(box.children, function (row, i) { return { row: row, due: row.querySelector('.a-due').value, _i: i }; });
+  var sorted = rows.slice().sort(byDue);
+  if (sorted.every(function (r, i) { return r === rows[i]; })) return;
+  sorted.forEach(function (r) { box.appendChild(r.row); });
+}
+$('actionList').addEventListener('focusout', function (e) {
+  if (e.target.classList && e.target.classList.contains('a-due')) setTimeout(sortActionRows, 0);
+});
 function setActions(list) {
   $('actionList').innerHTML = '';
-  (list || []).forEach(function (x) { addActionItem(false, x); });
+  sortByDue(list).forEach(function (x) { addActionItem(false, x); });
   if (!(list || []).length) addActionItem(false);
   updateActionCount();
 }
@@ -1893,6 +1918,8 @@ function saveCurrent(force) {
     alert(miss.map(function (m) { return m[0]; }).join('・') + 'を入れてください。');
     $(miss[0][1]).focus(); return;
   }
+  sortActionRows();
+  ev.actions = collectActions();
   var key = draftKey();
   $('saveBtn').disabled = true; busy(true);
   call('saveEvent', ev, !!force).then(function (saved) {
@@ -1903,6 +1930,7 @@ function saveCurrent(force) {
     current = saved; dirty = false;
     $('editTitle').textContent = saved.name;
     $('deleteBtn').classList.remove('hidden');
+    $('moveBtn').classList.remove('hidden');
     $('secComments').classList.remove('hidden');
     renderComments(saved.comments || []);
     updateSaveState();
@@ -1930,6 +1958,39 @@ function deleteCurrent() {
     busy(false); clearDraft(current.id); dirty = false; current = null;
     toast('削除しました');
     show('vList'); loadList(true);
+  }).catch(function (e) { busy(false); showError(e); });
+}
+
+// ===== 別の組へ移す（中身はそのまま、「学年」だけ変える） =====
+function openMove() {
+  if (!current || !current.id) return;
+  if (dirty) { alert('先に「保存する」を押して、書いた内容を保存してから移してください。'); return; }
+  var from = current.grade;
+  $('modalBody').innerHTML = '<h3>↪ 別の組へ移す</h3>' +
+    '<div style="margin-bottom:10px">「' + esc(current.name) + '」（今は <b>' + esc(from) + '</b>）を、どこへ移しますか？</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + GRADES.filter(function (g) { return g !== from; }).map(function (g) {
+      var gi = GRADE_INFO[g];
+      return '<button class="btn" style="border-color:' + gi.c + ';color:' + gi.c + '" onclick="doMove(\'' + g + '\')">' + gi.icon + ' ' + esc(g) + '</button>';
+    }).join('') + '</div>' +
+    '<div style="color:var(--sub);font-size:14px;margin-top:10px">書いた内容・タイムスケジュール・画像・ファイル・確認・コメントは、そのまま一緒に移ります。</div>' +
+    '<div style="text-align:right;margin-top:14px"><button class="btn" onclick="closeModal()">やめる</button></div>';
+  $('modal').classList.remove('hidden');
+}
+function doMove(to) {
+  var from = current.grade;
+  var note = (from === '事務分掌' || to === '事務分掌') && !isFree(current) ?
+    '\n\n※ 事務分掌と ほかの組では、画面に出る欄が少しちがいます。出ない欄の内容も消えずに残っています。' : '';
+  if (!confirm('「' + current.name + '」を ' + from + ' から ' + to + ' へ移しますか？' + note)) return;
+  closeModal(); busy(true);
+  call('moveEvent', current.id, to).then(function () {
+    busy(false); dirty = false; current = null;
+    toast(to + 'へ移しました');
+    setGrade(to);
+    returnTo = 'list';
+    show('vList');
+    $('listNotices').innerHTML = '';
+    $('listBody').innerHTML = '<div class="empty">読み込んでいます…</div>';
+    loadList();
   }).catch(function (e) { busy(false); showError(e); });
 }
 
@@ -1986,7 +2047,7 @@ function printHtml(ev) {
   var prep = (ev.prep || []).filter(function (x) { return x.text; });
   var prepBox = prep.length ? '<div class="p-box"><div class="h">準備物・持ち物</div><div class="b p-prep">' +
     prep.map(function (x) { return '<div>' + (x.done ? '☑' : '☐') + ' ' + esc(x.text) + '</div>'; }).join('') + '</div></div>' : '';
-  var acts = (ev.actions || []).filter(function (x) { return x.what || x.who; });
+  var acts = sortByDue((ev.actions || []).filter(function (x) { return x.what || x.who; }));
   var actionTable = acts.length ?
     '<table class="p-sched"><caption>アクションアイテム</caption><thead><tr><th style="width:9mm">済</th><th style="width:30mm">期限</th><th style="width:28mm">担当</th><th>やること</th></tr></thead><tbody>' +
     acts.map(function (x) {
@@ -2238,6 +2299,16 @@ var demoApi = {
     if (i >= 0) db.events[i] = ev; else db.events.push(ev);
     demoSave(db);
     return demoApi.getEvent(ev.id);
+  },
+  moveEvent: function (id, to) {
+    var db = demoDb();
+    var e = db.events.filter(function (x) { return x.id === id; })[0];
+    if (!e) throw new Error('この記録は見つかりません（削除された可能性があります）。');
+    if (GRADES.indexOf(to) < 0) throw new Error('移す先を選んでください。');
+    if (e.grade === to) throw new Error('もう' + to + 'の記録です。');
+    e.grade = to; e.updatedAt = demoNow();
+    demoSave(db);
+    return { id: id, grade: to };
   },
   deleteEvent: function (id) {
     var db = demoDb();
