@@ -380,6 +380,18 @@ button { cursor: pointer; }
 .p-page + .p-page { break-before: page; page-break-before: always; }
 .p-prep { columns: 2; column-gap: 8mm; }
 .p-prep div { break-inside: avoid; }
+/* 事務分掌の係 */
+.sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.sec-btn { background: #fff; border: 2px solid var(--g); border-radius: 12px; padding: 14px 10px; cursor: pointer; text-align: center; font: inherit; color: var(--g); }
+.sec-btn:hover { background: var(--g-soft); }
+.sec-btn .n { display: block; font-size: 20px; font-weight: bold; }
+.sec-btn .c { display: block; font-size: 13px; color: var(--sub); margin-top: 2px; }
+.sec-btn.other { border-style: dashed; }
+.sec-hint { color: var(--sub); font-size: 14px; margin: 14px 0 6px; }
+.sec-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.sec-row input { flex: 1; min-width: 0; }
+.sec-row .from { font-size: 12px; color: var(--sub); white-space: nowrap; }
+.sec-edit-list { max-height: 55vh; overflow: auto; margin: 8px 0; }
 .p-cover { padding-top: 40mm; text-align: center; }
 .p-cover .y { font-size: 16pt; }
 .p-cover .g { font-size: 26pt; font-weight: bold; margin: 6mm 0; }
@@ -432,6 +444,16 @@ button { cursor: pointer; }
     </div>
   </div>
 
+  <!-- 事務分掌の係を選ぶ -->
+  <div id="vSections" class="wrap hidden">
+    <div class="list-head">
+      <h2>📋 事務分掌　どの係の記録ですか？</h2>
+      <span class="spacer"></span>
+      <button class="btn" onclick="openSectionEditor()">✏ 係を追加・変更</button>
+    </div>
+    <div id="sectionButtons"></div>
+  </div>
+
   <!-- 全部から探した結果 -->
   <div id="vSearch" class="wrap hidden">
     <div class="list-head">
@@ -451,6 +473,7 @@ button { cursor: pointer; }
     <div class="list-head">
       <h2 id="listTitle"></h2>
       <span class="spacer"></span>
+      <button class="btn hidden" id="sectionBackBtn" onclick="openSections()">← 係を選ぶ</button>
       <button class="btn" onclick="openBulkPrint()">🖨 まとめて印刷</button>
       <button class="btn grade" onclick="openNewChooser()">＋ 新しい記録を作る</button>
     </div>
@@ -664,20 +687,28 @@ function nowHM() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + '
 
 // ===== 画面の切り替え =====
 function show(view) {
-  ['vLogin', 'vGrades', 'vList', 'vEdit', 'vSearch'].forEach(function (v) { $(v).classList.toggle('hidden', v !== view); });
+  ['vLogin', 'vGrades', 'vSections', 'vList', 'vEdit', 'vSearch'].forEach(function (v) { $(v).classList.toggle('hidden', v !== view); });
   var inside = view !== 'vLogin';
+  var inGrade = view === 'vList' || view === 'vEdit' || view === 'vSections';
   $('logoutBtn').classList.toggle('hidden', !inside || DEMO);
-  $('searchBtn').classList.toggle('hidden', !(view === 'vList' || view === 'vEdit'));
-  $('toGradesBtn').classList.toggle('hidden', !(view === 'vList' || view === 'vEdit'));
-  $('topGrade').classList.toggle('hidden', !(view === 'vList' || view === 'vEdit'));
+  $('searchBtn').classList.toggle('hidden', !inGrade);
+  $('toGradesBtn').classList.toggle('hidden', !inGrade);
+  $('topGrade').classList.toggle('hidden', !inGrade);
+  $('sectionBackBtn').classList.toggle('hidden', !(view === 'vList' && grade === JIMU));
   window.scrollTo(0, 0);
 }
 function setGradeColor(g) {
   var gi = GRADE_INFO[g];
   document.documentElement.style.setProperty('--g', gi ? gi.c : '#3d7a5a');
   document.documentElement.style.setProperty('--g-soft', gi ? gi.soft : '#e6f1eb');
-  $('topGrade').textContent = gi ? gi.icon + ' ' + g : '';
+  $('topGrade').textContent = gi ? gi.icon + ' ' + g + (g === JIMU && section !== null ? '・' + sectionLabel(section) : '') : '';
 }
+// 事務分掌の係（null は「まだ選んでいない」、'' は「係が決まっていない記録」）
+var section = null;
+function sectionLabel(s) { return s ? s : '係なし'; }
+// 一覧や印刷の見出しに使う名前（事務分掌は係も付ける）
+function placeLabel() { return grade + (grade === JIMU && section !== null ? '・' + sectionLabel(section) : ''); }
+function gradeText(ev) { return ev.grade + (ev.grade === JIMU && ev.section ? '（' + ev.section + '）' : ''); }
 
 // ===== 合言葉 =====
 function showLogin(msg) {
@@ -717,7 +748,7 @@ function afterHello(r) {
 // ===== 学年 =====
 function goGrades() {
   if (!confirmLeave()) return;
-  grade = ''; setGradeColor('');
+  grade = ''; section = null; setGradeColor('');
   $('gradeButtons').innerHTML = GRADES.map(function (g) {
     var gi = GRADE_INFO[g];
     return '<button class="grade-btn' + (gi.note ? ' wide' : '') + '" style="--c:' + gi.c + ';--soft:' + gi.soft + '" onclick="openGrade(\'' + g + '\')">' +
@@ -726,12 +757,15 @@ function goGrades() {
   }).join('');
   show('vGrades');
 }
-function setGrade(g) {
-  if (grade !== g) { events = []; $('searchInput').value = ''; $('yearFilter').innerHTML = ''; }
-  grade = g; store(GRADE_STORE, g); setGradeColor(g);
-  $('listTitle').textContent = GRADE_INFO[g].icon + ' ' + g + 'の記録と反省';
+function setGrade(g, sec) {
+  if (g !== JIMU) sec = null;
+  else if (sec === undefined) sec = section;
+  if (grade !== g || section !== sec) { events = []; $('searchInput').value = ''; $('yearFilter').innerHTML = ''; }
+  grade = g; section = sec; store(GRADE_STORE, g); setGradeColor(g);
+  $('listTitle').textContent = GRADE_INFO[g].icon + ' ' + placeLabel() + 'の記録と反省';
 }
 function openGrade(g) {
+  if (g === JIMU) { openSections(); return; }
   setGrade(g);
   $('searchInput').value = '';
   returnTo = 'list';
@@ -743,10 +777,109 @@ function openGrade(g) {
 function loadList(keepYear) {
   return call('listEvents', grade).then(function (list) {
     events = list || [];
+    // 事務分掌は、選んだ係の記録だけ
+    if (grade === JIMU && section !== null) events = events.filter(function (e) { return (e.section || '') === section; });
     fillYearFilter(keepYear);
     renderNotices();
     renderList();
   }).catch(showError);
+}
+
+// ===== 事務分掌の係を選ぶ =====
+var jimuAll = [];        // 事務分掌の記録（係ごとの件数を出すため）
+var sectionTargets = []; // ボタンに対応する係の名前
+function openSections() {
+  setGrade(JIMU, null);
+  returnTo = 'list';
+  show('vSections');
+  $('sectionButtons').innerHTML = '<div class="empty">読み込んでいます…</div>';
+  call('listEvents', JIMU).then(function (list) {
+    jimuAll = list || [];
+    renderSections();
+  }).catch(showError);
+}
+function renderSections() {
+  var count = {};
+  jimuAll.forEach(function (e) { var s = e.section || ''; count[s] = (count[s] || 0) + 1; });
+  var list = (info.sections || []).slice();
+  // 一覧にない係（名前を変える前の記録など）と、係が決まっていない記録
+  var others = Object.keys(count).filter(function (s) { return s && list.indexOf(s) < 0; }).sort();
+  sectionTargets = list.concat(others);
+  var btn = function (s, i, cls, note) {
+    return '<button class="sec-btn' + (cls ? ' ' + cls : '') + '" onclick="openSection(sectionTargets[' + i + '])">' +
+      '<span class="n">' + esc(sectionLabel(s)) + '</span><span class="c">' + (note ? note + '　' : '') + (count[s] ? count[s] + '件' : 'まだありません') + '</span></button>';
+  };
+  var html = sectionTargets.length ? '<div class="sections">' + sectionTargets.map(function (s, i) {
+      return btn(s, i, i >= list.length ? 'other' : '', i >= list.length ? '一覧にない係' : '');
+    }).join('') + '</div>' :
+    '<div class="empty">係がまだありません。「✏ 係を追加・変更」から足してください。</div>';
+  if (count['']) {
+    sectionTargets.push('');
+    html += '<div class="sec-hint">係が決まっていない記録があります（前から書いてあった記録など）。開いて「↪ 別の組へ移す」で係を選べます。</div>' +
+      '<div class="sections">' + btn('', sectionTargets.length - 1, 'other', '') + '</div>';
+  }
+  $('sectionButtons').innerHTML = html;
+}
+function openSection(s) {
+  setGrade(JIMU, s);
+  $('searchInput').value = '';
+  returnTo = 'list';
+  show('vList');
+  $('listNotices').innerHTML = '';
+  $('listBody').innerHTML = '<div class="empty">読み込んでいます…</div>';
+  loadList();
+}
+// 係の追加・名前の変更・削除・並べかえ
+function openSectionEditor() {
+  $('modalBody').innerHTML = '<h3>✏ 事務分掌の係を追加・変更</h3>' +
+    '<div style="color:var(--sub);font-size:14px">名前を変えると、その係の記録も新しい名前の係に入ります。係を消しても記録は消えません（「一覧にない係」として残ります）。</div>' +
+    '<div class="sec-edit-list" id="secEditList"></div>' +
+    '<button class="btn small" onclick="addSectionRow(\'\', \'\', true)">＋ 係を足す</button>' +
+    '<div style="text-align:right;margin-top:14px;display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="btn" onclick="closeModal()">やめる</button><button class="btn primary" onclick="saveSectionEditor()">保存する</button></div>';
+  (info.sections || []).forEach(function (s) { addSectionRow(s, s, false); });
+  $('modal').classList.remove('hidden');
+}
+function addSectionRow(from, name, focus) {
+  var row = document.createElement('div');
+  row.className = 'sec-row';
+  row.dataset.from = from;
+  row.innerHTML = '<input type="text" maxlength="30" placeholder="係の名前">' +
+    '<span class="from"></span>' +
+    '<button type="button" class="btn small" title="上へ">↑</button><button type="button" class="btn small" title="下へ">↓</button>' +
+    '<button type="button" class="btn small" title="消す">✕</button>';
+  var inp = row.querySelector('input');
+  inp.value = name;
+  var showFrom = function () { row.querySelector('.from').textContent = from && inp.value.trim() !== from ? '（前の名前：' + from + '）' : ''; };
+  inp.addEventListener('input', showFrom);
+  var b = row.querySelectorAll('button');
+  b[0].onclick = function () { if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling); };
+  b[1].onclick = function () { if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row); };
+  b[2].onclick = function () {
+    var n = from ? jimuAll.filter(function (e) { return e.section === from; }).length : 0;
+    if (n && !confirm('「' + from + '」の係には記録が ' + n + '件 あります。\n係を一覧から消しても、記録は消えずに「一覧にない係」として残ります。消しますか？')) return;
+    row.remove();
+  };
+  $('secEditList').appendChild(row);
+  if (focus) inp.focus();
+}
+function saveSectionEditor() {
+  var list = Array.prototype.map.call($('secEditList').children, function (row) {
+    return { from: row.dataset.from || '', name: row.querySelector('input').value.trim() };
+  }).filter(function (x) { return x.name; });
+  var seen = {};
+  for (var i = 0; i < list.length; i++) {
+    if (/[、,，]/.test(list[i].name)) { alert('係の名前に「、」は使えません（' + list[i].name + '）。'); return; }
+    if (seen[list[i].name]) { alert('「' + list[i].name + '」が2つあります。'); return; }
+    seen[list[i].name] = 1;
+  }
+  busy(true);
+  call('saveSections', list).then(function (names) {
+    busy(false); closeModal();
+    info.sections = names || [];
+    toast('係を保存しました');
+    openSections();
+  }).catch(function (e) { busy(false); showError(e); });
 }
 
 // ===== 一覧の上のお知らせ =====
@@ -899,7 +1032,7 @@ function renderSearch() {
     return '<div class="ev-card s" style="--c:' + gi.c + '">' +
       '<div class="date">' + esc(yearLabel(e.fiscalYear || fiscalYearOf(e.date))) + '<br>' + esc(dateShort(e.date)) + '</div>' +
       '<div class="main" onclick="openEvent(\'' + esc(e.id) + '\', \'search\')">' +
-        '<div class="name"><span class="grade-tag" style="color:' + gi.c + ';background:' + gi.soft + ';border-color:' + gi.c + '">' + gi.icon + ' ' + esc(e.grade) + '</span>' +
+        '<div class="name"><span class="grade-tag" style="color:' + gi.c + ';background:' + gi.soft + ';border-color:' + gi.c + '">' + gi.icon + ' ' + esc(gradeText(e)) + '</span>' +
         esc(e.name) + (e.kind === FREE ? '<span class="badge free">🗒 自由記述</span>' : '') + '</div>' +
         (e.hit ? '<div class="hit">' + esc(e.hit.label) + '：' + markWords(richPlain(e.hit.text), q) + '</div>' : '') +
         '<div class="meta">' + metaLine(e) + '</div>' +
@@ -911,7 +1044,7 @@ function renderSearch() {
 // ===== 新しく作る =====
 function openNewChooser() {
   var past = events.slice(0, 40);
-  $('modalBody').innerHTML = '<h3>新しい記録を作る（' + esc(grade) + '）</h3>' +
+  $('modalBody').innerHTML = '<h3>新しい記録を作る（' + esc(placeLabel()) + '）</h3>' +
     '<button class="choice" onclick="closeModal();newEvent()"><b>📝 白紙から作る</b><span>何も入っていない記録を作ります。</span></button>' +
     '<button class="choice" onclick="closeModal();newEvent(FREE)"><b>🗒 自由記述の記録を作る</b><span>記録日・記録名・記入者・記録すること・次年度へ向けての課題・画像だけの記録です。</span></button>' +
     (past.length ? '<div style="font-weight:bold;margin:16px 0 4px">📋 前の記録をもとに作る</div>' +
@@ -928,7 +1061,7 @@ function openNewChooser() {
 function closeModal() { $('modal').classList.add('hidden'); }
 
 function blankEvent() {
-  return { id: '', grade: grade, date: '', name: '', place: '', time: '', aim: '', environment: '', care: '', record: '', reflection: '',
+  return { id: '', grade: grade, section: grade === JIMU ? (section || '') : '', date: '', name: '', place: '', time: '', aim: '', environment: '', care: '', record: '', reflection: '',
     nextIssues: '', other: '', status: '計画中', author: store('gyouji_author') || '', sourceId: '', updatedAt: '', images: [], prep: [], actions: [], comments: [],
     schedule: [{ planTime: '', what: '', note: '', actualTime: '' }, { planTime: '', what: '', note: '', actualTime: '' }, { planTime: '', what: '', note: '', actualTime: '' }] };
 }
@@ -968,7 +1101,8 @@ function openEvent(id, from) {
     busy(false);
     returnTo = from === 'search' ? 'search' : 'list';
     // 検索から開いたときは、その記録の学年に切り替える
-    if (ev.grade !== grade) setGrade(ev.grade); else setGradeColor(grade);
+    if (ev.grade !== grade || (ev.grade === JIMU && (ev.section || '') !== section)) setGrade(ev.grade, ev.section || '');
+    else setGradeColor(grade);
     current = ev;
     openEditor();
   }).catch(function (e) { busy(false); showError(e); });
@@ -1830,7 +1964,7 @@ function collect() {
     if (isDoc(im)) o.type = im.type;
     return o;
   });
-  ev.id = current.id; ev.grade = current.grade; ev.kind = current.kind || ''; ev.sourceId = current.sourceId || '';
+  ev.id = current.id; ev.grade = current.grade; ev.section = current.section || ''; ev.kind = current.kind || ''; ev.sourceId = current.sourceId || '';
   ev.baseUpdatedAt = current.updatedAt || '';
   ev.source = current.source;
   ev.createdAt = current.createdAt; ev.updatedAt = current.updatedAt;
@@ -1839,7 +1973,7 @@ function collect() {
 
 // ===== 書きかけ（保存する前に、この端末に残しておく） =====
 var draftTimer;
-function draftKey() { return current ? (current.id || 'new:' + current.grade + (current.kind ? ':' + current.kind : '')) : ''; }
+function draftKey() { return current ? (current.id || 'new:' + current.grade + (current.section ? '/' + current.section : '') + (current.kind ? ':' + current.kind : '')) : ''; }
 function markDirty() {
   if (!current) return;
   dirty = true; updateSaveState();
@@ -1867,7 +2001,7 @@ function checkDraft() {
     '<button class="btn small primary" id="draftRestore">書きかけを戻す</button><button class="btn small" id="draftDiscard">捨てる</button>';
   box.classList.remove('hidden');
   $('draftRestore').onclick = function () {
-    var keep = { id: current.id, grade: current.grade, kind: current.kind, updatedAt: current.updatedAt, createdAt: current.createdAt, sourceId: current.sourceId, source: current.source, comments: current.comments };
+    var keep = { id: current.id, grade: current.grade, section: current.section, kind: current.kind, updatedAt: current.updatedAt, createdAt: current.createdAt, sourceId: current.sourceId, source: current.source, comments: current.comments };
     current = Object.assign({}, d.ev, keep);
     // 書きかけを始めたときの保存日時で比べる（その後にほかの人が保存していたら、保存のときに知らせる）
     if (current.id && d.ev.baseUpdatedAt) current.updatedAt = d.ev.baseUpdatedAt;
@@ -1965,27 +2099,53 @@ function deleteCurrent() {
 function openMove() {
   if (!current || !current.id) return;
   if (dirty) { alert('先に「保存する」を押して、書いた内容を保存してから移してください。'); return; }
-  var from = current.grade;
-  $('modalBody').innerHTML = '<h3>↪ 別の組へ移す</h3>' +
-    '<div style="margin-bottom:10px">「' + esc(current.name) + '」（今は <b>' + esc(from) + '</b>）を、どこへ移しますか？</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:8px">' + GRADES.filter(function (g) { return g !== from; }).map(function (g) {
-      var gi = GRADE_INFO[g];
-      return '<button class="btn" style="border-color:' + gi.c + ';color:' + gi.c + '" onclick="doMove(\'' + g + '\')">' + gi.icon + ' ' + esc(g) + '</button>';
-    }).join('') + '</div>' +
-    '<div style="color:var(--sub);font-size:14px;margin-top:10px">書いた内容・タイムスケジュール・画像・ファイル・確認・コメントは、そのまま一緒に移ります。</div>' +
-    '<div style="text-align:right;margin-top:14px"><button class="btn" onclick="closeModal()">やめる</button></div>';
+  renderMove(false);
   $('modal').classList.remove('hidden');
 }
-function doMove(to) {
+var moveTargets = [];
+// jimuStep：事務分掌の係を選ぶ段（ほかの組から事務分掌へ移すとき）
+function renderMove(jimuStep) {
+  var from = current.grade, fromSec = current.section || '';
+  var gi = GRADE_INFO[JIMU];
+  var btn = function (g, s, i) {
+    var c = GRADE_INFO[g];
+    return '<button class="btn" style="border-color:' + c.c + ';color:' + c.c + '" onclick="doMove(' + i + ')">' +
+      (g === JIMU && s !== null ? '📋 ' + esc(sectionLabel(s)) : c.icon + ' ' + esc(g)) + '</button>';
+  };
+  moveTargets = [];
+  var secs = (info.sections || []).filter(function (s) { return !(from === JIMU && s === fromSec); });
+  var secRow = '<div style="display:flex;flex-wrap:wrap;gap:8px">' + secs.map(function (s) {
+    moveTargets.push([JIMU, s]); return btn(JIMU, s, moveTargets.length - 1);
+  }).join('') + '</div>';
+  var html = '<h3>↪ 別の組へ移す</h3>' +
+    '<div style="margin-bottom:10px">「' + esc(current.name) + '」（今は <b>' + esc(gradeText(current)) + '</b>）を、どこへ移しますか？</div>';
+  if (jimuStep) {
+    html += '<div style="font-weight:bold;margin-bottom:6px">' + gi.icon + ' 事務分掌の どの係へ移しますか？</div>' + secRow +
+      '<div style="margin-top:10px"><button class="btn small" onclick="renderMove(false)">← もどる</button></div>';
+  } else {
+    if (from === JIMU && secs.length) html += '<div style="font-weight:bold;margin-bottom:6px">' + gi.icon + ' 事務分掌の別の係へ</div>' + secRow +
+      '<div style="font-weight:bold;margin:12px 0 6px">ほかの組へ</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px">' + GRADES.filter(function (g) { return g !== from; }).map(function (g) {
+      if (g === JIMU) return '<button class="btn" style="border-color:' + gi.c + ';color:' + gi.c + '" onclick="renderMove(true)">' + gi.icon + ' ' + esc(g) + ' →</button>';
+      moveTargets.push([g, null]); return btn(g, null, moveTargets.length - 1);
+    }).join('') + '</div>';
+  }
+  html += '<div style="color:var(--sub);font-size:14px;margin-top:10px">書いた内容・タイムスケジュール・画像・ファイル・確認・コメントは、そのまま一緒に移ります。</div>' +
+    '<div style="text-align:right;margin-top:14px"><button class="btn" onclick="closeModal()">やめる</button></div>';
+  $('modalBody').innerHTML = html;
+}
+function doMove(i) {
+  var to = moveTargets[i][0], sec = moveTargets[i][1];
   var from = current.grade;
-  var note = (from === '事務分掌' || to === '事務分掌') && !isFree(current) ?
+  var toText = to + (to === JIMU ? '（' + sec + '）' : '');
+  var note = (from === JIMU) !== (to === JIMU) && !isFree(current) ?
     '\n\n※ 事務分掌と ほかの組では、画面に出る欄が少しちがいます。出ない欄の内容も消えずに残っています。' : '';
-  if (!confirm('「' + current.name + '」を ' + from + ' から ' + to + ' へ移しますか？' + note)) return;
+  if (!confirm('「' + current.name + '」を ' + gradeText(current) + ' から ' + toText + ' へ移しますか？' + note)) return;
   closeModal(); busy(true);
-  call('moveEvent', current.id, to).then(function () {
+  call('moveEvent', current.id, to, sec || '').then(function () {
     busy(false); dirty = false; current = null;
-    toast(to + 'へ移しました');
-    setGrade(to);
+    toast(toText + 'へ移しました');
+    setGrade(to, to === JIMU ? sec : null);
     returnTo = 'list';
     show('vList');
     $('listNotices').innerHTML = '';
@@ -2057,7 +2217,7 @@ function printHtml(ev) {
     // 自由記述：記録日・記録名・記入者・記録すること・次年度へ向けての課題・画像
     head +
     '<table class="p-info">' +
-      '<tr><th>学年</th><td>' + esc(ev.grade) + '（自由記述）</td><th>記録日</th><td>' + esc(dateLong(ev.date)) + '</td></tr>' +
+      '<tr><th>学年</th><td>' + esc(gradeText(ev)) + '（自由記述）</td><th>記録日</th><td>' + esc(dateLong(ev.date)) + '</td></tr>' +
       '<tr><th>記録名</th><td>' + esc(ev.name) + '</td><th>記入者</th><td>' + esc(ev.author) + '</td></tr>' +
     '</table>' +
     box('記録すること', ev.record) +
@@ -2065,7 +2225,7 @@ function printHtml(ev) {
     :
     head +
     '<table class="p-info">' +
-      '<tr><th>学年</th><td>' + esc(ev.grade) + '</td><th>状態</th><td>' + esc(ev.status || '計画中') + '</td></tr>' +
+      '<tr><th>学年</th><td>' + esc(gradeText(ev)) + '</td><th>状態</th><td>' + esc(ev.status || '計画中') + '</td></tr>' +
       '<tr><th>実施日</th><td>' + esc(dateLong(ev.date)) + '</td><th>時間</th><td>' + esc(ev.time) + '</td></tr>' +
       '<tr><th>イベント名</th><td>' + esc(ev.name) + '</td><th>実施場所</th><td>' + esc(ev.place) + '</td></tr>' +
       '<tr><th>記入者</th><td colspan="3">' + esc(ev.author) + '</td></tr>' +
@@ -2112,7 +2272,7 @@ function openBulkPrint() {
   if (!ys.length) { alert('まだ記録がありません。'); return; }
   var sel = $('yearFilter').value;
   var def = sel !== 'all' && years[sel] ? Number(sel) : ys[0];
-  $('modalBody').innerHTML = '<h3>🖨 まとめて印刷（' + esc(grade) + '）</h3>' +
+  $('modalBody').innerHTML = '<h3>🖨 まとめて印刷（' + esc(placeLabel()) + '）</h3>' +
     '<div class="bp-row">年度：<select id="bpYear">' + ys.map(function (y) {
       return '<option value="' + y + '"' + (y === def ? ' selected' : '') + '>' + yearLabel(y) + '</option>';
     }).join('') + '</select></div>' +
@@ -2162,7 +2322,7 @@ function runBulkPrint() {
     busy(false); loadingText();
     var html = '';
     if (cover) {
-      html += '<div class="p-page p-cover"><div class="y">' + esc(yearLabel(y)) + '</div><div class="g">' + esc(grade) + '　記録と反省</div>' +
+      html += '<div class="p-page p-cover"><div class="y">' + esc(yearLabel(y)) + '</div><div class="g">' + esc(placeLabel()) + '　記録と反省</div>' +
         '<div class="k">' + esc(info.kindergarten || '') + '</div>' +
         '<table class="p-toc"><tr><th style="width:8mm">No.</th><th style="width:38mm">日付</th><th>名前</th><th style="width:22mm">記入者</th></tr>' +
         evs.map(function (ev, i) {
@@ -2170,7 +2330,7 @@ function runBulkPrint() {
         }).join('') + '</table></div>';
     }
     html += evs.map(function (ev) { return '<div class="p-page">' + printHtml(ev) + '</div>'; }).join('');
-    doPrint(html, '記録と反省_' + yearLabel(y) + '_' + grade);
+    doPrint(html, '記録と反省_' + yearLabel(y) + '_' + placeLabel());
   }).catch(function (e) { busy(false); loadingText(); showError(e); });
 }
 
@@ -2214,7 +2374,7 @@ function demoDb() {
 }
 function demoSummary(e, db) {
   var cs = (db.comments || []).filter(function (c) { return c.eventId === e.id; });
-  return { id: e.id, grade: e.grade, kind: e.kind || '', fiscalYear: fiscalYearOf(e.date), date: e.date, name: e.name, place: e.place, status: e.status, author: e.author,
+  return { id: e.id, grade: e.grade, section: e.grade === JIMU ? e.section || '' : '', kind: e.kind || '', fiscalYear: fiscalYearOf(e.date), date: e.date, name: e.name, place: e.place, status: e.status, author: e.author,
     updatedAt: e.updatedAt, sourceId: e.sourceId || '', hasReflection: !!String(e.reflection || '').trim(), imageCount: (e.images || []).length,
     confirmCount: cs.filter(function (c) { return c.type === '確認'; }).length, commentCount: cs.filter(function (c) { return c.type !== '確認'; }).length };
 }
@@ -2222,7 +2382,21 @@ function demoSave(db) { store(DEMO_STORE, JSON.stringify(db)); }
 function demoNow() { var d = new Date(); var p = function (n) { return ('0' + n).slice(-2); };
   return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()); }
 var demoApi = {
-  hello: function () { return { kindergarten: '蒲幼稚園（見本）', teachers: ['山田', '佐藤', '鈴木'], stamps: ['園長', '主任', '担任'], grades: GRADES }; },
+  hello: function () {
+    var secs; try { secs = JSON.parse(store('gyouji_demo_sections') || 'null'); } catch (e) { secs = null; }
+    return { kindergarten: '蒲幼稚園（見本）', teachers: ['山田', '佐藤', '鈴木'], stamps: ['園長', '主任', '担任'], grades: GRADES,
+      sections: secs || ['表現', '健康', '園庭', '学籍', 'ベルマーク', 'パソコン', '園内管理', '図書', '子育て支援', '防災', '給食', '衛生', '購買会計'] };
+  },
+  saveSections: function (list) {
+    var names = list.map(function (x) { return x.name; });
+    var db = demoDb();
+    list.forEach(function (x) {
+      if (x.from && x.from !== x.name) db.events.forEach(function (e) { if (e.grade === JIMU && e.section === x.from) e.section = x.name; });
+    });
+    demoSave(db);
+    store('gyouji_demo_sections', JSON.stringify(names));
+    return names;
+  },
   listEvents: function (g) {
     var db = demoDb();
     return db.events.filter(function (e) { return e.grade === g; }).map(function (e) { return demoSummary(e, db); })
@@ -2279,7 +2453,8 @@ var demoApi = {
     var db = demoDb();
     if (!input.date) throw new Error('実施日を入れてください。');
     var ev = {};
-    ['grade', 'kind', 'date', 'name', 'place', 'time', 'aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other', 'status', 'author', 'sourceId'].forEach(function (k) { ev[k] = input[k] || ''; });
+    ['grade', 'section', 'kind', 'date', 'name', 'place', 'time', 'aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other', 'status', 'author', 'sourceId'].forEach(function (k) { ev[k] = input[k] || ''; });
+    if (ev.grade !== JIMU) ev.section = '';
     if (ev.kind === FREE) ev.status = '';
     ev.schedule = (input.schedule || []).filter(function (r) { return (r.planTime + r.what + r.note + r.actualTime).trim(); });
     ev.images = (input.images || []).map(function (im) { var o = { id: im.id, caption: im.caption || '' }; if (DOC_TYPES[im.type]) o.type = im.type; return o; });
@@ -2300,15 +2475,16 @@ var demoApi = {
     demoSave(db);
     return demoApi.getEvent(ev.id);
   },
-  moveEvent: function (id, to) {
+  moveEvent: function (id, to, sec) {
     var db = demoDb();
     var e = db.events.filter(function (x) { return x.id === id; })[0];
     if (!e) throw new Error('この記録は見つかりません（削除された可能性があります）。');
     if (GRADES.indexOf(to) < 0) throw new Error('移す先を選んでください。');
-    if (e.grade === to) throw new Error('もう' + to + 'の記録です。');
-    e.grade = to; e.updatedAt = demoNow();
+    sec = to === JIMU ? sec || '' : '';
+    if (e.grade === to && (e.section || '') === sec) throw new Error('もう' + to + 'の記録です。');
+    e.grade = to; e.section = sec; e.updatedAt = demoNow();
     demoSave(db);
-    return { id: id, grade: to };
+    return { id: id, grade: to, section: sec };
   },
   deleteEvent: function (id) {
     var db = demoDb();
