@@ -84,7 +84,7 @@
   <!-- 変更用リンクから開いたとき：だれの申し込みか -->
   <div id="whoCard" class="card hidden">
     <div class="who" id="editWho"></div>
-    <div class="hint" style="margin-top: 4px;">お休みの連絡は、ここではなく、当日の９時までにれんらくアプリでお知らせください。</div>
+    <div class="hint" style="margin-top: 4px;">お休みの連絡は、ここではなく、当日の９時３０分までにれんらくアプリでお知らせください。</div>
   </div>
 
   <!-- 変更用リンクから開いたとき、締切のあと：申し込みの内容（見るだけ） -->
@@ -170,7 +170,7 @@
       <h2 id="doneTitle">申し込みを受け付けました</h2>
       <p>ありがとうございました。</p>
       <p id="doneMail"></p>
-      <p class="hint">内容を変えるときは、メールにあるリンクから行えます。お休みの連絡は、当日の９時までにれんらくアプリでお知らせください。</p>
+      <p class="hint">内容を変えるときは、メールにあるリンクから行えます。お休みの連絡は、当日の９時３０分までにれんらくアプリでお知らせください。</p>
       <button type="button" class="btn btn-sub" id="doneBtn" onclick="location.reload()">もう一人申し込む</button>
     </div>
   </div>
@@ -587,7 +587,7 @@
     el('allergyMeal').disabled = true;
     el('nameHint').textContent = 'クラスとお名前は変えられません。違うときは、園にお問い合わせください。';
     el('notice').textContent = '申し込みの締切を過ぎたため、変えられるのは来る時刻・帰る時刻だけです（その日の' + mine.cutoffText + 'まで）。'
-      + '利用する日を増やすことや、給食の注文を変えることはできません。お休みの連絡は、当日の９時までにれんらくアプリでお知らせください。';
+      + '利用する日を増やすことや、給食の注文を変えることはできません。お休みの連絡は、当日の９時３０分までにれんらくアプリでお知らせください。';
     el('notice').classList.remove('hidden');
   }
 
