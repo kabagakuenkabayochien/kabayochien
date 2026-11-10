@@ -72,16 +72,6 @@
   input[type=email] { width: 100%; font-size: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-family: inherit; }
   input:disabled, select:disabled { background: #f5efe6; color: var(--sub); }
   .who { font-size: 1.05rem; font-weight: bold; }
-  .absence { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); padding: 10px 0; }
-  .absence:last-child { border-bottom: none; }
-  .absence .when { font-weight: bold; }
-  .absence .when small { display: block; font-weight: normal; color: var(--sub); }
-  .absence.off .when { color: var(--sub); text-decoration: line-through; }
-  .absence button { flex: none; padding: 8px 12px; font-size: 0.9rem; font-weight: bold; border-radius: 8px; cursor: pointer; border: 1px solid var(--error); background: #fff; color: var(--error); }
-  .absence button.undo { border-color: var(--border); color: var(--text); }
-  .absence button:disabled { opacity: 0.5; cursor: wait; }
-  .tag { display: inline-block; font-size: 0.8rem; font-weight: bold; padding: 2px 8px; border-radius: 999px; background: var(--error-bg); color: var(--error); margin-left: 6px; }
-  .ok-msg { background: #e8f6ee; color: #15803d; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
 </style>
 </head>
 <body>
@@ -91,14 +81,10 @@
   <!-- 読み込み中・受付終了など -->
   <div id="statusBox" class="card center">読み込んでいます…</div>
 
-  <!-- 変更用リンクから開いたとき：欠席の連絡 -->
-  <div id="absenceCard" class="card hidden">
-    <h2>欠席の連絡</h2>
+  <!-- 変更用リンクから開いたとき：だれの申し込みか -->
+  <div id="whoCard" class="card hidden">
     <div class="who" id="editWho"></div>
-    <div class="hint" id="absenceHint" style="margin-bottom: 8px;"></div>
-    <div id="absenceList"></div>
-    <div id="absenceMsg" class="ok-msg hidden"></div>
-    <div id="absenceError" class="error"></div>
+    <div class="hint" style="margin-top: 4px;">お休みの連絡は、ここではなく、当日の９時までにれんらくアプリでお知らせください。</div>
   </div>
 
   <!-- 変更用リンクから開いたとき、締切のあと：申し込みの内容（見るだけ） -->
@@ -136,7 +122,7 @@
       <h2>連絡先など</h2>
       <label class="field" for="email">メールアドレス<span class="req">必須</span></label>
       <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="例：hidamari@example.jp">
-      <div class="hint">申し込みの内容と、<strong>受付用のQRコード</strong>をお送りします。メールのリンクから、変更や欠席の連絡ができます。</div>
+      <div class="hint">申し込みの内容と、<strong>受付用のQRコード</strong>をお送りします。メールのリンクから、申し込みの内容を変えられます。</div>
       <label class="field" for="contact1Tel">緊急連絡先①<span class="req">必須</span></label>
       <div class="contact-row">
         <input type="tel" id="contact1Tel" autocomplete="tel" placeholder="電話番号　例：090-1234-5678">
@@ -184,7 +170,7 @@
       <h2 id="doneTitle">申し込みを受け付けました</h2>
       <p>ありがとうございました。</p>
       <p id="doneMail"></p>
-      <p class="hint">内容を変えるときや、欠席の連絡は、メールにあるリンクから行えます。</p>
+      <p class="hint">内容を変えるときは、メールにあるリンクから行えます。お休みの連絡は、当日の９時までにれんらくアプリでお知らせください。</p>
       <button type="button" class="btn btn-sub" id="doneBtn" onclick="location.reload()">もう一人申し込む</button>
     </div>
   </div>
@@ -197,7 +183,7 @@
 
   var IN_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
   var CONFIG = null;
-  // メールの変更用リンク（URLの ?k=鍵）から開いたとき：申し込みの確認・変更・欠席の連絡
+  // メールの変更用リンク（URLの ?k=鍵）から開いたとき：申し込みの確認・変更
   var EDIT_KEY = (location.search.match(/[?&]k=([0-9a-fA-F]{64})(?:&|$)/) || [])[1] || '';
   var MINE = null; // 変更用リンクで読み込んだ申し込み
 
@@ -229,12 +215,12 @@
 
   function el(id) { return document.getElementById(id); }
 
-  // id：statusBox / stepInput / stepConfirm / stepDone、変更用リンクで締切のあとは viewOnly（内容と欠席の連絡だけ）
+  // id：statusBox / stepInput / stepConfirm / stepDone、変更用リンクで締切のあとは viewOnly（内容を見るだけ）
   function showStep(id) {
     ['statusBox', 'stepInput', 'stepConfirm', 'stepDone'].forEach(function (s) {
       el(s).classList.toggle('hidden', s !== id);
     });
-    el('absenceCard').classList.toggle('hidden', !(MINE && (id === 'stepInput' || id === 'viewOnly')));
+    el('whoCard').classList.toggle('hidden', !(MINE && (id === 'stepInput' || id === 'viewOnly')));
     el('viewCard').classList.toggle('hidden', !(MINE && id === 'viewOnly'));
     window.scrollTo(0, 0);
   }
@@ -544,7 +530,6 @@
   function buildEdit(mine) {
     MINE = mine;
     el('editWho').textContent = mine.className + '　' + mine.name + ' さん（ID：' + mine.displayId + '）';
-    renderAbsences();
     if (mine.open) {
       build({ title: mine.title, open: true, notice: '', dates: mine.dates, classes: mine.classes, times: mine.times });
       prefill(mine);
@@ -557,7 +542,7 @@
       return;
     }
     // 締切のあと：予約のある日の時刻だけ変えられる（その日の9:30まで）。変えられる日がなければ、内容を見るだけ
-    var changeable = (mine.absences || []).filter(function (a) { return a.canChange && mine.days[a.iso]; });
+    var changeable = (mine.dayRules || []).filter(function (a) { return a.canChange && mine.days[a.iso]; });
     if (changeable.length) {
       build({ title: mine.title, open: true, notice: '', dates: mine.dates, classes: mine.classes, times: mine.times });
       prefill(mine);
@@ -577,7 +562,7 @@
   }
 
   // 締切のあとの変更：予約のない日は出さない（日を増やせない）。予約のある日は「利用する」と給食を変えられないようにし、
-  // その日の9:30を過ぎた日は時刻も変えられないようにする。休む日は「欠席の連絡」から
+  // その日の9:30を過ぎた日は時刻も変えられないようにする。休む日は園に連絡してもらう
   function lockForLateChange(mine, changeable) {
     var canChange = {};
     changeable.forEach(function (a) { canChange[a.iso] = true; });
@@ -602,7 +587,7 @@
     el('allergyMeal').disabled = true;
     el('nameHint').textContent = 'クラスとお名前は変えられません。違うときは、園にお問い合わせください。';
     el('notice').textContent = '申し込みの締切を過ぎたため、変えられるのは来る時刻・帰る時刻だけです（その日の' + mine.cutoffText + 'まで）。'
-      + '利用する日を増やすことや、給食の注文を変えることはできません。休む日は、上の「欠席の連絡」から連絡してください。';
+      + '利用する日を増やすことや、給食の注文を変えることはできません。お休みの連絡は、当日の９時までにれんらくアプリでお知らせください。';
     el('notice').classList.remove('hidden');
   }
 
@@ -626,61 +611,6 @@
       day.querySelector('.start').value = v.start;
       day.querySelector('.end').value = v.end;
       day.querySelector('.lunch').checked = !!v.lunch;
-    });
-  }
-
-  // 欠席の連絡ができる日（予約があって、その日の朝の締切の前）の一覧
-  function renderAbsences() {
-    var list = el('absenceList');
-    list.innerHTML = '';
-    var items = (MINE.absences || []).filter(function (a) { return a.canChange; });
-    el('absenceHint').textContent = items.length
-      ? '休む日の「休みます」を押してください。連絡は、その日の' + MINE.cutoffText + 'までです（それより後は、園にお電話ください）。'
-      : '欠席の連絡ができる日はありません（その日の' + MINE.cutoffText + 'を過ぎた日は、園にお電話ください）。';
-    items.forEach(function (a) {
-      var row = document.createElement('div');
-      row.className = 'absence' + (a.absent ? ' off' : '');
-      var when = document.createElement('div');
-      when.className = 'when';
-      when.textContent = a.label;
-      if (a.absent) {
-        var tag = document.createElement('span');
-        tag.className = 'tag';
-        tag.textContent = '欠席';
-        when.appendChild(tag);
-      }
-      var small = document.createElement('small');
-      small.textContent = a.time;
-      when.appendChild(small);
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = a.absent ? '欠席を取り消す' : '休みます';
-      if (a.absent) btn.className = 'undo';
-      btn.addEventListener('click', function () { toggleAbsence(a, btn); });
-      row.appendChild(when);
-      row.appendChild(btn);
-      list.appendChild(row);
-    });
-  }
-
-  function toggleAbsence(a, btn) {
-    var wasAbsent = a.absent;
-    var ask = wasAbsent ? a.label + ' の欠席を取り消して、予約のとおり利用しますか？' : a.label + ' を欠席にしますか？';
-    if (!confirm(ask)) return;
-    var label = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '送信しています…';
-    setError('absenceError', '');
-    el('absenceMsg').classList.add('hidden');
-    callServer(wasAbsent ? 'cancelAbsence' : 'reportAbsence', { k: EDIT_KEY, date: a.iso }, function (res) {
-      MINE.absences = res.absences;
-      renderAbsences();
-      el('absenceMsg').textContent = a.label + (wasAbsent ? ' の欠席を取り消しました。' : ' の欠席を受け付けました。') + '確認のメールをお送りしました。';
-      el('absenceMsg').classList.remove('hidden');
-    }, function (err) {
-      btn.disabled = false;
-      btn.textContent = label;
-      setError('absenceError', '送信できませんでした：' + (err && err.message ? err.message : '時間をおいて、もう一度お試しください。'));
     });
   }
 
