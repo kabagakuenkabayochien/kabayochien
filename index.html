@@ -193,7 +193,7 @@
 <script>
   // GitHub Pages などGoogleの外に置くときは、ここにウェブアプリの「/exec」で終わるURLを書く。
   // （Apps Scriptのウェブアプリとして開いたときは使わない）
-  var API_URL = 'https://script.google.com/macros/s/AKfycbwA1K-HWFtn7lyE_tLFYaaouJFdbwtEOdwyKPwhLGj3msDnwzYkX-NkIfVevkG8DD0Q/exec';
+  var API_URL = '';
 
   var IN_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
   var CONFIG = null;
@@ -556,7 +556,14 @@
       el('notice').classList.remove('hidden');
       return;
     }
-    // 締切のあと：内容を見るだけ（欠席の連絡はできる）
+    // 締切のあと：予約のある日の時刻だけ変えられる（その日の9:30まで）。変えられる日がなければ、内容を見るだけ
+    var changeable = (mine.absences || []).filter(function (a) { return a.canChange && mine.days[a.iso]; });
+    if (changeable.length) {
+      build({ title: mine.title, open: true, notice: '', dates: mine.dates, classes: mine.classes, times: mine.times });
+      prefill(mine);
+      lockForLateChange(mine, changeable);
+      return;
+    }
     document.title = mine.title;
     el('title').textContent = mine.title;
     el('viewHint').textContent = '申し込みの締切を過ぎたため、利用する日・時刻は変えられません。';
@@ -567,6 +574,36 @@
     });
     fillTable(el('viewTable'), rows);
     showStep('viewOnly');
+  }
+
+  // 締切のあとの変更：予約のない日は出さない（日を増やせない）。予約のある日は「利用する」と給食を変えられないようにし、
+  // その日の9:30を過ぎた日は時刻も変えられないようにする。休む日は「欠席の連絡」から
+  function lockForLateChange(mine, changeable) {
+    var canChange = {};
+    changeable.forEach(function (a) { canChange[a.iso] = true; });
+    document.querySelectorAll('.day').forEach(function (day) {
+      var iso = day.dataset.iso;
+      if (!mine.days[iso]) { day.classList.add('hidden'); return; }
+      day.querySelector('.use').disabled = true;
+      day.querySelector('.lunch').disabled = true;
+      var copy = day.querySelector('.copy-btn');
+      if (copy) copy.classList.add('hidden');
+      if (!canChange[iso]) {
+        day.querySelector('.start').disabled = true;
+        day.querySelector('.end').disabled = true;
+        var note = document.createElement('div');
+        note.className = 'hint';
+        note.textContent = 'この日は' + mine.cutoffText + 'を過ぎたため、変えられません。';
+        day.appendChild(note);
+      }
+    });
+    el('className').disabled = true;
+    el('childName').disabled = true;
+    el('allergyMeal').disabled = true;
+    el('nameHint').textContent = 'クラスとお名前は変えられません。違うときは、園にお問い合わせください。';
+    el('notice').textContent = '申し込みの締切を過ぎたため、変えられるのは来る時刻・帰る時刻だけです（その日の' + mine.cutoffText + 'まで）。'
+      + '利用する日を増やすことや、給食の注文を変えることはできません。休む日は、上の「欠席の連絡」から連絡してください。';
+    el('notice').classList.remove('hidden');
   }
 
   function prefill(mine) {
