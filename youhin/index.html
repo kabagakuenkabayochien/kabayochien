@@ -167,6 +167,7 @@
 
   <!-- ① 入力 -->
   <div id="formArea" class="hidden">
+    <div id="deadlineNote" class="info hidden" style="margin-bottom:12px"></div>
     <div id="notice" class="notice hidden"></div>
     <div id="editHead" class="card edit-head hidden"></div>
 
@@ -278,7 +279,7 @@ var IN_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
 var DEMO = !IN_APPS_SCRIPT && location.protocol === 'file:';
 
 var DEMO_DATA = {
-  kindergarten: '○○幼稚園', title: '入園用品の注文', open: true,
+  kindergarten: '○○幼稚園', title: '入園用品の注文', open: true, deadline: '12月10日（木）17:00',
   notice: '入園する年齢を選ぶと、必ず購入する用品が1点ずつ入ります。\nほかに必要な用品があれば数を選んで、「確認へ進む」を押してください。',
   ages: ['3歳児', '4歳児', '5歳児'],
   ageColors: { '3歳児': '赤', '4歳児': '青', '5歳児': '緑' },
@@ -307,7 +308,7 @@ var DEMO_MY_ORDER = {
     { id: 4, category: '用品', name: 'クレヨン（16色）', size: '', qty: 1, price: 800, amount: 800, locked: false, lockReason: '' },
     { id: 6, category: '用品', name: 'のり', size: '', qty: 1, price: 150, amount: 150, locked: false, lockReason: '' }
   ],
-  total: 9650, editable: true, reason: '', cancellable: false, payNote: DEMO_PAY
+  total: 9650, editable: true, reason: '', cancellable: false, deadline: '12月10日（木）17:00', payNote: DEMO_PAY
 };
 
 // 確認メールのリンク（…/?k=変更用の鍵）から開いたときは「注文の確認・変更」になる
@@ -622,7 +623,11 @@ call('getFormData').then(function (d) {
   $('title').textContent = d.title || '用品の注文';
   document.title = d.title || '用品の注文';
   if (EDIT_KEY) return loadMyOrder();
-  if (!d.open) { $('statusBox').textContent = 'ただいま注文の受付を停止しています。'; return; }
+  if (!d.open) { $('statusBox').textContent = d.closedMsg || 'ただいま注文の受付を停止しています。'; return; }
+  if (d.deadline) {
+    $('deadlineNote').innerHTML = '⏰ ご注文・変更・取り消しの締切：<b>' + esc(d.deadline) + 'まで</b>';
+    show('deadlineNote', true);
+  }
   if (!d.products.length) { $('statusBox').textContent = '注文できる用品がありません。'; return; }
 
   if (d.notice) { $('notice').textContent = d.notice; show('notice', true); }
@@ -662,7 +667,8 @@ function loadMyOrder() {
     }
     $('editHead').innerHTML = head
       + '<p class="hint" style="margin-top:8px">数を変えたり、用品を足したりして、下の「変更内容を確認」を押してください。'
-      + '業者に発注済み・お渡し済みの用品は変えられません。</p>';
+      + '業者に発注済み・お渡し済みの用品は変えられません。</p>'
+      + (o.deadline ? '<div class="info" style="margin-top:8px">⏰ この画面から変更・取り消しができるのは <b>' + esc(o.deadline) + 'まで</b> です。</div>' : '');
     show('editHead', true);
     show('ageCard', false);
     show('personCard', false);
