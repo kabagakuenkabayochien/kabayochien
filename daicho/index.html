@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>園児台帳</title>
+<style id="pageStyle">@page { size: 182mm 257mm; margin: 0; }</style>
+<style>
+:root {
+  --main: #1f5f8b; --main-d: #164766; --main-l: #e6f0f7; --accent: #e07b39;
+  --ink: #222; --sub: #666; --line: #d5dde3; --bg: #f4f6f8; --card: #fff;
+  --ok: #2e7d4f; --ng: #c0392b; --warn-bg: #fff5d6;
+  --gothic: "BIZ UDPGothic", "BIZ UDGothic", "Yu Gothic UI", "Yu Gothic", YuGothic, Meiryo, sans-serif;
+  --mincho: "BIZ UDPMincho", "BIZ UDMincho", "Yu Mincho", YuMincho, "MS PMincho", serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--gothic); color: var(--ink); background: var(--bg); font-size: 15px; line-height: 1.6; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+.hidden { display: none !important; }
+
+/* 上の帯 */
+#top { position: sticky; top: 0; z-index: 20; background: var(--main); color: #fff; display: flex; align-items: center; gap: 10px; padding: 8px 14px; flex-wrap: wrap; }
+#top h1 { font-size: 18px; margin: 0; letter-spacing: 1px; white-space: nowrap; }
+#top .grow { flex: 1; }
+#top select { padding: 4px 6px; border-radius: 6px; border: 0; }
+#top .tbtn { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 5px 10px; white-space: nowrap; }
+#top .tbtn:hover { background: rgba(255,255,255,.28); }
+#top .tbtn.on { background: #fff; color: var(--main); font-weight: bold; }
+#who { font-size: 13px; opacity: .9; white-space: nowrap; }
+#demoBadge { background: var(--accent); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+h2 { font-size: 19px; margin: 0 0 12px; color: var(--main-d); }
+h3 { font-size: 16px; margin: 0 0 10px; color: var(--main-d); border-left: 5px solid var(--main); padding-left: 8px; }
+.btn { background: #fff; border: 1px solid #b8c4cc; color: var(--ink); border-radius: 8px; padding: 7px 14px; }
+.btn:hover { background: #f0f4f7; }
+.btn.main { background: var(--main); border-color: var(--main); color: #fff; font-weight: bold; }
+.btn.main:hover { background: var(--main-d); }
+.btn.danger { color: var(--ng); border-color: #e3b1aa; }
+.btn.small { padding: 3px 9px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--sub); font-size: 13px; }
+.msg { padding: 10px 12px; border-radius: 8px; margin: 8px 0; }
+.msg.err { background: #fdecea; color: var(--ng); }
+.msg.ok { background: #e7f5ec; color: var(--ok); }
+.msg.warn { background: var(--warn-bg); color: #7a5a00; }
+
+/* 入る画面 */
+#vLogin { max-width: 420px; margin: 60px auto; }
+#vLogin .logo { text-align: center; font-size: 26px; font-weight: bold; color: var(--main); margin-bottom: 4px; }
+#vLogin label { display: block; margin: 12px 0 4px; font-weight: bold; }
+#vLogin input { width: 100%; padding: 10px; border: 1px solid #b8c4cc; border-radius: 8px; font-size: 17px; }
+#vLogin .btn.main { width: 100%; margin-top: 18px; padding: 11px; font-size: 17px; }
+
+/* 一覧 */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.chip { border: 1px solid #b8c4cc; background: #fff; border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+.chip.on { background: var(--main); color: #fff; border-color: var(--main); font-weight: bold; }
+.chip small { opacity: .75; margin-left: 3px; }
+.listbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.listbar input[type=search] { flex: 1; min-width: 160px; padding: 8px 10px; border: 1px solid #b8c4cc; border-radius: 8px; }
+.tbl-wrap { overflow-x: auto; }
+table.list { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+table.list th { background: var(--main-l); color: var(--main-d); text-align: left; padding: 6px 8px; white-space: nowrap; font-size: 13px; border-bottom: 1px solid var(--line); }
+table.list td { padding: 6px 8px; border-bottom: 1px solid #edf0f2; vertical-align: middle; }
+table.list tr.kid { cursor: pointer; }
+table.list tr.kid:hover td { background: #f6fafc; }
+table.list tr.left td { color: #999; background: #fafafa; }
+table.list .kana { font-size: 11px; color: var(--sub); line-height: 1.2; }
+table.list .nm { font-weight: bold; }
+.badge { display: inline-block; font-size: 11px; border-radius: 4px; padding: 0 5px; margin-left: 4px; vertical-align: middle; }
+.badge.left { background: #888; color: #fff; }
+.badge.officer { background: #fde7cf; color: #9a4a00; }
+.sex-m { color: #1f5f8b; } .sex-f { color: #c2185b; }
+.empty { text-align: center; color: var(--sub); padding: 30px 10px; }
+
+/* 園児の画面 */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 14px; }
+.f label { display: block; font-size: 13px; color: var(--sub); margin-bottom: 2px; }
+.f input, .f select, .f textarea { width: 100%; padding: 7px 9px; border: 1px solid #b8c4cc; border-radius: 7px; background: #fff; }
+.f textarea { min-height: 64px; resize: vertical; }
+.f.wide { grid-column: 1 / -1; }
+.f .hint { font-size: 12px; color: var(--sub); }
+.f.req label::after { content: " 必須"; color: var(--ng); font-size: 11px; }
+.chk { display: flex; gap: 6px; align-items: center; font-size: 14px; padding-top: 22px; }
+.chk input { width: auto; }
+.stickybar { position: sticky; bottom: 0; background: rgba(244,246,248,.95); padding: 10px 0; display: flex; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); z-index: 5; }
+.history { font-size: 13px; }
+.history span { display: inline-block; background: var(--main-l); border-radius: 6px; padding: 2px 8px; margin: 2px 4px 2px 0; }
+
+/* 書類 */
+.doc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.doc-card { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: #fff; text-align: left; }
+.doc-card b { display: block; color: var(--main-d); }
+.doc-card span { font-size: 12px; color: var(--sub); }
+.doc-card.on { border: 2px solid var(--main); background: var(--main-l); padding: 8px 10px; }
+#docOpts { margin-top: 12px; }
+#docOpts .row { margin-bottom: 8px; }
+#docOpts input[type=text], #docOpts input[type=date], #docOpts select { padding: 6px 8px; border: 1px solid #b8c4cc; border-radius: 7px; }
+.hgt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 12px; margin-top: 6px; }
+.hgt-grid label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.hgt-grid input { width: 80px; padding: 4px 6px; border: 1px solid #b8c4cc; border-radius: 6px; }
+#preview { background: #8a959c; padding: 16px; border-radius: 10px; overflow: auto; max-height: 75vh; }
+#preview .page { margin: 0 auto 16px; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+/* 管理 */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid var(--main); }
+.tab { border: 1px solid var(--line); border-bottom: 0; background: #fff; border-radius: 8px 8px 0 0; padding: 6px 14px; }
+.tab.on { background: var(--main); color: #fff; border-color: var(--main); font-weight: bold; }
+table.edit { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.edit th { background: var(--main-l); padding: 5px 6px; text-align: left; font-size: 13px; }
+table.edit td { padding: 4px 4px; border-bottom: 1px solid #edf0f2; }
+table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px solid #b8c4cc; border-radius: 6px; }
+.log td { font-size: 13px; }
+
+/* 小さい画面 */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { background: #fff; border-radius: 12px; padding: 18px; width: 100%; max-width: 420px; }
+.modal label { display: block; margin: 10px 0 3px; font-size: 14px; }
+.modal input { width: 100%; padding: 8px; border: 1px solid #b8c4cc; border-radius: 7px; }
+#idleWarn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 60; background: #333; color: #fff; padding: 12px 16px; border-radius: 10px; display: flex; gap: 12px; align-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+#toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 70; background: var(--ok); color: #fff; padding: 9px 18px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+#busy { position: fixed; inset: 0; z-index: 80; background: rgba(255,255,255,.55); display: flex; align-items: center; justify-content: center; font-size: 17px; color: var(--main-d); font-weight: bold; }
+
+@media (max-width: 640px) {
+  main { padding: 10px; }
+  .card { padding: 12px; }
+  #top { gap: 6px; padding: 6px 10px; }
+  #top h1 { font-size: 15px; }
+  #top .tbtn { padding: 3px 7px; font-size: 13px; }
+  #who { display: none; }
+  .hide-sp { display: none; }
+}
+
+/* ===== 書類（印刷される紙） ===== */
+#print { display: none; }
+.page { background: #fff; color: #000; position: relative; overflow: hidden; font-family: var(--gothic); page-break-after: always; break-after: page; }
+.page:last-child { page-break-after: auto; break-after: auto; }
+.page.b5 { width: 182mm; height: 257mm; padding: 13mm 12mm; }
+.page.b5l { width: 257mm; height: 182mm; padding: 10mm 12mm; }
+.page.a4 { width: 210mm; height: 297mm; padding: 14mm 13mm; }
+.page table { border-collapse: collapse; }
+.page .t td, .page .t th { border: 1px solid #000; padding: 0 1.2mm; font-weight: normal; overflow: hidden; }
+.page .nw, .page .t tr.hd td { white-space: nowrap; }
+.page .thick { border: 2px solid #000 !important; }
+.pg-head { display: flex; justify-content: space-between; align-items: flex-end; font-size: 12pt; margin-bottom: 1.5mm; padding: 0 2mm; }
+.kn { font-size: 6pt; line-height: 1.1; letter-spacing: .3pt; white-space: nowrap; }
+.nmk { font-size: 10.5pt; line-height: 1.25; white-space: nowrap; }
+.c { text-align: center; }
+.r { text-align: right; }
+.mincho { font-family: var(--mincho); }
+
+@media print {
+  html, body { background: #fff; }
+  body > *:not(#print) { display: none !important; }
+  #print { display: block; }
+  .page { box-shadow: none; margin: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="top" class="hidden">
+  <h1>📘 園児台帳</h1>
+  <span id="demoBadge" class="hidden">見本</span>
+  <select id="yearSel" title="年度"></select>
+  <button class="tbtn" data-go="list">👧 園児</button>
+  <button class="tbtn" data-go="docs">🖨 書類</button>
+  <button class="tbtn" data-go="admin" id="adminBtn">⚙ 管理</button>
+  <span class="grow"></span>
+  <span id="who"></span>
+  <button class="tbtn" id="pwBtn" title="自分のパスワードを変える">🔑</button>
+  <button class="tbtn" id="logoutBtn">出る</button>
+</div>
+
+<main>
+  <!-- 入る -->
+  <section id="vLogin" class="card hidden">
+    <div class="logo">📘 園児台帳</div>
+    <p class="muted" style="text-align:center;margin:0">職員用（園児の情報が入っています）</p>
+    <div id="loginMsg"></div>
+    <form id="loginForm" autocomplete="on">
+      <label for="loginName">名前</label>
+      <input id="loginName" autocomplete="username" required>
+      <label for="loginPw">パスワード</label>
+      <input id="loginPw" type="password" autocomplete="current-password" required>
+      <button class="btn main" type="submit">入る</button>
+    </form>
+    <p class="muted" style="margin-top:14px">・パスワードは職員ひとりずつちがいます。人に教えないでください。<br>・使い終わったら「出る」を押してください。しばらく使わないと自動で閉じます。</p>
+  </section>
+
+  <!-- 一覧 -->
+  <section id="vList" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0" id="listTitle">園児の一覧</h2>
+        <button class="btn main" id="addKidBtn">＋ 園児を追加</button>
+      </div>
+      <div class="chips" id="clsChips"></div>
+      <div class="listbar">
+        <input type="search" id="q" placeholder="🔍 名前・ふりがな・保護者名・電話番号でさがす">
+        <label class="muted"><input type="checkbox" id="showLeft"> 退園した子も出す</label>
+        <button class="btn small" id="renumBtn" title="このクラスの番号をあいうえお順に付け直します">あいうえお順に番号を付け直す</button>
+      </div>
+      <div class="tbl-wrap"><table class="list" id="kidTable"></table></div>
+      <div id="listNote" class="muted" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- 園児 -->
+  <section id="vEdit" class="hidden">
+    <div class="card">
+      <h2 id="editTitle">園児</h2>
+      <div id="editMsg"></div>
+      <h3>園児</h3>
+      <div class="form-grid">
+        <div class="f req"><label>園児名（姓と名の間に空白）</label><input data-k="name" placeholder="例：山田　花子"></div>
+        <div class="f"><label>ふりがな</label><input data-k="kana" placeholder="例：やまだ　はなこ"></div>
+        <div class="f"><label>性別</label><select data-k="sex"><option value="">－</option><option>男</option><option>女</option></select></div>
+        <div class="f"><label>生年月日</label><input type="date" data-k="birth"><div class="hint" id="ageHint"></div></div>
+      </div>
+      <h3 style="margin-top:18px" id="enrollHead">クラス</h3>
+      <div class="form-grid">
+        <div class="f"><label>クラス</label><select id="enCls"></select></div>
+        <div class="f"><label>番号（空なら最後の番号）</label><input id="enNo" inputmode="numeric"></div>
+        <div class="f"><label>バス</label><input id="enBus" list="busList"></div>
+        <div class="chk"><label><input type="checkbox" id="enOfficer"> 役員</label></div>
+        <div class="f"><label>来年度のバス</label><input id="enNextBus" list="busList"></div>
+        <div class="chk"><label><input type="checkbox" id="enNextOfficer"> 来年度の役員</label></div>
+      </div>
+      <datalist id="busList"></datalist>
+      <div class="history" id="history" style="margin-top:8px"></div>
+
+      <h3 style="margin-top:18px">保護者・住所・連絡先</h3>
+      <div class="form-grid">
+        <div class="f"><label>保護者名（姓が同じなら名前だけ）</label><input data-k="parent"></div>
+        <div class="f"><label>保護者ふりがな</label><input data-k="parentKana"></div>
+        <div class="chk"><label><input type="checkbox" data-k="diffSurname" value="○"> 園児と保護者が別の姓</label></div>
+        <div class="f"><label>郵便番号</label><input data-k="zip" placeholder="例：435-0048"></div>
+        <div class="f wide"><label>住所</label><input data-k="address"></div>
+        <div class="chk"><label><input type="checkbox" data-k="diffAddress" value="○"> 園児と保護者が別の住所</label></div>
+        <div class="f"><label>電話番号</label><input data-k="tel" inputmode="tel"></div>
+        <div class="f"><label>連絡先①（例：母携帯）</label><input data-k="c1"></div>
+        <div class="f"><label>電話番号①</label><input data-k="t1" inputmode="tel"></div>
+        <div class="f"><label>連絡先②（例：父携帯）</label><input data-k="c2"></div>
+        <div class="f"><label>電話番号②</label><input data-k="t2" inputmode="tel"></div>
+        <div class="f"><label>兄弟関係</label><input data-k="siblings"></div>
+        <div class="f wide"><label>備考（電話台帳に出ます）</label><input data-k="memo"></div>
+      </div>
+
+      <h3 style="margin-top:18px">入園・退園</h3>
+      <div class="form-grid">
+        <div class="f"><label>入園年月日</label><input type="date" data-k="enterDate"></div>
+        <div class="f"><label>転入園年月日</label><input type="date" data-k="transferIn"></div>
+        <div class="f"><label>退園・転出の年月日</label><input type="date" data-k="leaveDate"><div class="hint">入れると一覧で「退園」になり、ふだんの名簿に出なくなります</div></div>
+        <div class="f"><label>退園・転園の理由など</label><input data-k="leaveNote"></div>
+        <div class="f wide"><label>入園前の状況</label><input data-k="beforeEnter"></div>
+      </div>
+
+      <h3 style="margin-top:18px">園で使うメモ</h3>
+      <div class="form-grid">
+        <div class="f"><label>進学先</label><input data-k="school"></div>
+        <div class="f"><label>療育</label><input data-k="therapy"></div>
+        <div class="f wide"><label>指導上注意が必要な点</label><textarea data-k="care"></textarea></div>
+        <div class="f wide"><label>学籍備考</label><textarea data-k="note"></textarea></div>
+      </div>
+      <p class="muted" id="updInfo"></p>
+    </div>
+    <div class="stickybar">
+      <button class="btn main" id="saveBtn">💾 保存する</button>
+      <button class="btn" id="backBtn">← 一覧にもどる</button>
+      <span class="grow" style="flex:1"></span>
+      <button class="btn danger" id="delBtn">削除</button>
+    </div>
+  </section>
+
+  <!-- 書類 -->
+  <section id="vDocs" class="hidden">
+    <div class="card">
+      <h2>🖨 書類を作る</h2>
+      <div class="doc-cards" id="docCards"></div>
+      <div id="docOpts"></div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn main" id="printBtn">🖨 印刷する</button>
+        <span class="muted" id="docInfo"></span>
+      </div>
+    </div>
+    <div id="preview"></div>
+  </section>
+
+  <!-- 管理 -->
+  <section id="vAdmin" class="hidden">
+    <div class="card">
+      <h2>⚙ 管理（管理者だけ）</h2>
+      <div class="tabs" id="adminTabs">
+        <button class="tab" data-tab="classes">クラス</button>
+        <button class="tab" data-tab="staff">職員</button>
+        <button class="tab" data-tab="settings">設定</button>
+        <button class="tab" data-tab="import">Excelから取り込む</button>
+        <button class="tab" data-tab="log">操作の記録</button>
+      </div>
+      <div id="adminBody"></div>
+    </div>
+  </section>
+</main>
+
+<div id="print"></div>
+<div id="idleWarn" class="hidden"><span>しばらく使っていないので、まもなく閉じます。</span><button class="btn small" id="idleKeep">続けて使う</button></div>
+<div id="toast" class="hidden"></div>
+<div id="busy" class="hidden">読み込んでいます…</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script>
+'use strict';
+// ===== つなぎ先 =====
+var API_URL = 'https://script.google.com/macros/s/AKfycbx5q5LSZwqelmeyeJvormIn6wO5eesbAbONEw-VkCXXHY-GOaSryvTcx2YnvEJ8EuUzfQ/exec';   // Apps Script の /exec の URL。空なら見本（にせのデータ）で動く
+var DEMO = !API_URL || /[?&]demo\b/.test(location.search);
+
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function show(id, on) { $(id).classList.toggle('hidden', !on); }
+function todayStr() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function pad(n) { return ('0' + n).slice(-2); }
+function toast(t) { var el = $('toast'); el.textContent = t; show('toast', true); clearTimeout(toast.t); toast.t = setTimeout(function () { show('toast', false); }, 2200); }
+function busy(on, text) { $('busy').textContent = text || '読み込んでいます…'; show('busy', on); }
+
+var GRADES = ['星', '花', '雪', '月'];
+var GRADE_NAMES = { '星': '満３歳児', '花': '３歳児', '雪': '４歳児', '月': '５歳児' };
+
+// ===== 状態 =====
+var S = {
+  token: '', me: null, settings: null, years: [], currentYear: '', year: '', classes: [],
+  roster: null, cls: '', view: '', edit: null, dirty: false, doc: 'classList', heights: {}
+};
+try { S.token = sessionStorage.getItem('daicho_token') || ''; } catch (e) {}
+
+// ===== サーバーとのやりとり =====
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  if (DEMO) return Demo.call(fn, args, S.token);
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: S.token, fn: fn, args: args }) })
+    .then(function (r) { return r.json(); })
+    .catch(function () { throw new Error('つながりませんでした。インターネットを確かめて、もう一度やってください。'); })
+    .then(handleResult);
+}
+function handleResult(r) {
+  if (r && r.ok) { touchIdle(); return r.result; }
+  var msg = (r && r.error) || 'うまくいきませんでした。';
+  if (msg.indexOf('AUTH|') === 0) { forceLogout(msg.slice(5)); throw new Error(msg.slice(5)); }
+  throw new Error(msg);
+}
+
+// ===== 入る・出る =====
+$('loginForm').addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  var name = $('loginName').value.trim(), pw = $('loginPw').value;
+  $('loginMsg').innerHTML = '';
+  busy(true, '確かめています…');
+  call('login', name, pw).then(function (r) {
+    S.token = r.token;
+    try { sessionStorage.setItem('daicho_token', r.token); } catch (e) {}
+    $('loginPw').value = '';
+    return start();
+  }).catch(function (e) { $('loginMsg').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; })
+    .then(function () { busy(false); });
+});
+
+function start() {
+  busy(true);
+  return call('hello').then(function (h) {
+    S.me = h.me; S.settings = h.settings; S.years = h.years; S.currentYear = h.currentYear; S.classes = h.classes;
+    if (!S.year || S.years.indexOf(S.year) < 0) S.year = S.currentYear;
+    idleLimit = (Number(S.me.idleMinutes) || 30) * 60 * 1000;
+    renderTop();
+    show('vLogin', false); show('top', true);
+    return loadRoster().then(function () { go('list'); });
+  }).catch(function (e) {
+    if (S.token) $('loginMsg').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>';
+    showLogin();
+  }).then(function () { busy(false); });
+}
+
+function showLogin(msg) {
+  ['vList', 'vEdit', 'vDocs', 'vAdmin', 'top'].forEach(function (id) { show(id, false); });
+  show('vLogin', true);
+  if (msg) $('loginMsg').innerHTML = '<div class="msg warn">' + esc(msg) + '</div>';
+  $('print').innerHTML = ''; $('preview').innerHTML = '';
+  setTimeout(function () { $('loginName').focus(); }, 50);
+}
+
+function clearAll() {
+  S.token = ''; S.me = null; S.roster = null; S.edit = null; S.dirty = false; S.heights = {};
+  try { sessionStorage.removeItem('daicho_token'); } catch (e) {}
+  $('kidTable').innerHTML = '';
+}
+function forceLogout(msg) { clearAll(); hideIdleWarn(); showLogin(msg); }
+
+$('logoutBtn').onclick = function () {
+  if (S.dirty && !confirm('保存していない変更があります。出ますか？')) return;
+  var t = S.token;
+  S.token = t; call('logout').catch(function () {});
+  clearAll(); showLogin('出ました。');
+};
+
+// 使わないと自動で閉じる
+var idleLimit = 30 * 60 * 1000, lastAct = Date.now(), lastPing = 0;
+function touchIdle() { lastAct = Date.now(); }
+['click', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(function (ev) {
+  document.addEventListener(ev, function () {
+    if (!S.token) return;
+    var now = Date.now();
+    lastAct = now;
+    hideIdleWarn();
+  }, { passive: true });
+});
+setInterval(function () {
+  if (!S.token || !S.me) return;
+  var idle = Date.now() - lastAct;
+  if (idle > idleLimit) { forceLogout('しばらく使わなかったので閉じました。もう一度入ってください。'); return; }
+  if (idle > idleLimit - 60000) show('idleWarn', true);
+  // 画面を使っている間は、サーバー側も延ばしておく（5分ごと）
+  if (idle < 60000 && Date.now() - lastPing > 5 * 60000) { lastPing = Date.now(); call('hello').catch(function () {}); }
+}, 5000);
+function hideIdleWarn() { show('idleWarn', false); }
+$('idleKeep').onclick = function () { touchIdle(); hideIdleWarn(); };
+
+// ===== 上の帯 =====
+function renderTop() {
+  show('demoBadge', DEMO);
+  $('who').textContent = S.me.name + (S.me.role === '管理者' ? '（管理者）' : '');
+  show('adminBtn', S.me.role === '管理者');
+  var ys = S.years.slice();
+  if (ys.indexOf(S.year) < 0) ys.unshift(S.year);
+  $('yearSel').innerHTML = ys.map(function (y) { return '<option value="' + y + '"' + (y === S.year ? ' selected' : '') + '>' + nendo(y) + '</option>'; }).join('');
+  $('busList').innerHTML = (S.settings.buses || []).map(function (b) { return '<option value="' + esc(b) + '">'; }).join('');
+}
+$('yearSel').onchange = function () {
+  if (S.dirty && !confirm('保存していない変更があります。年度を変えますか？')) { this.value = S.year; return; }
+  S.year = this.value; S.cls = ''; S.dirty = false;
+  loadRoster().then(function () { go(S.view === 'edit' ? 'list' : S.view); });
+};
+Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), function (b) {
+  b.onclick = function () { go(b.getAttribute('data-go')); };
+});
+
+function go(v) {
+  if (S.view === 'edit' && v !== 'edit' && S.dirty && !confirm('保存していない変更があります。保存しないで移りますか？')) return;
+  if (v !== 'edit') S.dirty = false;
+  S.view = v;
+  show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin');
+  Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), function (b) { b.classList.toggle('on', b.getAttribute('data-go') === v); });
+  if (v === 'list') renderList();
+  if (v === 'docs') renderDocs();
+  if (v === 'admin') renderAdmin();
+  window.scrollTo(0, 0);
+}
+
+// ===== 年・日付 =====
+function nendo(y) { y = Number(y); return y >= 2019 ? '令和' + (y - 2018 === 1 ? '元' : y - 2018) + '年度' : '平成' + (y - 1988) + '年度'; }
+function reiwaNum(y) { return Number(y) - 2018; }
+function parseD(s) { var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? { y: +m[1], m: +m[2], d: +m[3] } : null; }
+function eraOf(p) {
+  var n = p.y * 10000 + p.m * 100 + p.d;
+  if (n >= 20190501) return { s: 'R', k: '令和', y: p.y - 2018 };
+  if (n >= 19890108) return { s: 'H', k: '平成', y: p.y - 1988 };
+  return { s: 'S', k: '昭和', y: p.y - 1925 };
+}
+function wShort(s) { var p = parseD(s); if (!p) return ''; var e = eraOf(p); return e.s + e.y + '.' + p.m + '.' + p.d; }
+function wLong(s) { var p = parseD(s); if (!p) return ''; var e = eraOf(p); return e.k + (e.y === 1 ? '元' : e.y) + '年' + p.m + '月' + p.d + '日'; }
+function ageAt(birth, at) {
+  var b = parseD(birth), a = parseD(at); if (!b || !a) return '';
+  var age = a.y - b.y; if (a.m < b.m || (a.m === b.m && a.d < b.d)) age--; return age;
+}
+function isLeft(k, at) { return !!k.leaveDate && k.leaveDate <= (at || todayStr()); }
+
+// ===== 一覧 =====
+function loadRoster() {
+  busy(true);
+  return call('roster', S.year).then(function (r) {
+    S.roster = r;
+    // その年度のクラス（hello で読んだものを新しくする）
+    S.classes = S.classes.filter(function (c) { return c.year !== S.year; }).concat(r.classes);
+  }).catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+}
+function yearClasses() {
+  return S.classes.filter(function (c) { return c.year === S.year; }).sort(function (a, b) { return (a.order - b.order) || (GRADES.indexOf(a.grade) - GRADES.indexOf(b.grade)) || a.name.localeCompare(b.name, 'ja'); });
+}
+function classInfo(name) { return yearClasses().filter(function (c) { return c.name === name; })[0] || { name: name, teacher: '', grade: name.charAt(0) }; }
+function kidsOf(cls, includeLeft) {
+  var list = (S.roster ? S.roster.children : []).filter(function (k) { return (!cls || k.enroll.cls === cls) && (includeLeft || !isLeft(k)); });
+  return list.sort(byNo);
+}
+function byNo(a, b) {
+  var ca = classOrder(a.enroll.cls), cb = classOrder(b.enroll.cls);
+  if (ca !== cb) return ca - cb;
+  return (Number(a.enroll.no) || 999) - (Number(b.enroll.no) || 999) || String(a.kana).localeCompare(String(b.kana), 'ja');
+}
+function classOrder(name) { var i = yearClasses().map(function (c) { return c.name; }).indexOf(name); return i < 0 ? 99 : i; }
+
+function renderList() {
+  var classes = yearClasses();
+  var showLeft = $('showLeft').checked;
+  var all = S.roster ? S.roster.children : [];
+  var chips = '<button class="chip' + (!S.cls ? ' on' : '') + '" data-c="">全クラス<small>' + all.filter(function (k) { return !isLeft(k); }).length + '</small></button>';
+  classes.forEach(function (c) {
+    var n = all.filter(function (k) { return k.enroll.cls === c.name && !isLeft(k); }).length;
+    chips += '<button class="chip' + (S.cls === c.name ? ' on' : '') + '" data-c="' + esc(c.name) + '">' + esc(c.name) + '<small>' + n + '</small></button>';
+  });
+  // クラスの表にないクラス名（取り込み途中など）
+  var extra = {};
+  all.forEach(function (k) { if (k.enroll.cls && !classes.some(function (c) { return c.name === k.enroll.cls; })) extra[k.enroll.cls] = 1; });
+  Object.keys(extra).forEach(function (n) { chips += '<button class="chip' + (S.cls === n ? ' on' : '') + '" data-c="' + esc(n) + '">' + esc(n) + '？</button>'; });
+  $('clsChips').innerHTML = chips;
+  Array.prototype.forEach.call($('clsChips').children, function (b) { b.onclick = function () { S.cls = b.getAttribute('data-c'); renderList(); }; });
+
+  var ci = S.cls ? classInfo(S.cls) : null;
+  $('listTitle').textContent = nendo(S.year) + '　' + (S.cls ? S.cls + (ci.teacher ? '（担任 ' + ci.teacher + '）' : '') : '全クラス');
+  show('renumBtn', !!S.cls);
+
+  var q = $('q').value.trim().replace(/[\s　]+/g, '');
+  var list = kidsOf(S.cls, true).filter(function (k) {
+    if (!showLeft && isLeft(k)) return false;
+    if (!q) return true;
+    var hay = [k.name, k.kana, k.parent, k.parentKana, k.tel, k.t1, k.t2].join('|').replace(/[\s　]+/g, '');
+    return hay.indexOf(q) >= 0;
+  });
+  var h = '<tr><th>番号</th><th>園児名</th>' + (S.cls ? '' : '<th>クラス</th>') + '<th>性別</th><th>生年月日</th><th>バス</th><th class="hide-sp">保護者</th><th class="hide-sp">電話番号</th></tr>';
+  list.forEach(function (k) {
+    var left = isLeft(k);
+    h += '<tr class="kid' + (left ? ' left' : '') + '" data-id="' + esc(k.id) + '">' +
+      '<td class="c">' + esc(k.enroll.no) + '</td>' +
+      '<td><div class="kana">' + esc(k.kana) + '</div><span class="nm">' + esc(k.name) + '</span>' +
+        (left ? '<span class="badge left">退園</span>' : '') + (k.enroll.officer ? '<span class="badge officer">役員</span>' : '') + '</td>' +
+      (S.cls ? '' : '<td>' + esc(k.enroll.cls) + '</td>') +
+      '<td class="' + (k.sex === '男' ? 'sex-m' : k.sex === '女' ? 'sex-f' : '') + '">' + esc(k.sex) + '</td>' +
+      '<td>' + esc(wShort(k.birth)) + (k.birth ? ' <span class="muted">(' + ageAt(k.birth, todayStr()) + '歳)</span>' : '') + '</td>' +
+      '<td>' + esc(k.enroll.bus) + '</td>' +
+      '<td class="hide-sp">' + esc(k.parent) + '</td>' +
+      '<td class="hide-sp">' + esc(k.tel) + '</td></tr>';
+  });
+  if (!list.length) h += '<tr><td colspan="8" class="empty">' + (all.length ? '当てはまる園児はいません。' : 'この年度の園児はまだいません。「＋ 園児を追加」か、管理の「Excelから取り込む」で入れてください。') + '</td></tr>';
+  $('kidTable').innerHTML = h;
+  Array.prototype.forEach.call($('kidTable').querySelectorAll('tr.kid'), function (tr) { tr.onclick = function () { openKid(tr.getAttribute('data-id')); }; });
+  var leftN = kidsOf(S.cls, true).filter(function (k) { return isLeft(k); }).length;
+  $('listNote').textContent = list.length + '人' + (leftN && !showLeft ? '（退園した子 ' + leftN + '人は出していません）' : '');
+}
+$('q').oninput = renderList;
+$('showLeft').onchange = renderList;
+$('renumBtn').onclick = function () {
+  if (!S.cls) return;
+  if (!confirm(S.cls + ' の番号を、ふりがなの「あいうえお順」に付け直します。\n（退園した子も含めて並べます）\nよいですか？')) return;
+  busy(true, '付け直しています…');
+  call('renumber', S.year, S.cls).then(function (r) { S.roster = r; renderList(); toast('番号を付け直しました'); })
+    .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+};
+$('addKidBtn').onclick = function () { openKid(''); };
+
+// ===== 園児の画面 =====
+function openKid(id) {
+  if (!id) { fillEdit({ id: '', enrolls: [] }); go('edit'); return; }
+  busy(true);
+  call('getChild', id).then(function (c) { fillEdit(c); go('edit'); })
+    .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+}
+
+function fillEdit(c) {
+  S.edit = c;
+  $('editTitle').textContent = c.id ? '👧 ' + c.name : '＋ 新しい園児';
+  $('editMsg').innerHTML = '';
+  Array.prototype.forEach.call(document.querySelectorAll('#vEdit [data-k]'), function (el) {
+    var v = c[el.getAttribute('data-k')] || '';
+    if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
+  });
+  var en = (c.enrolls || []).filter(function (e) { return e.year === S.year; })[0] || { cls: c.id ? '' : S.cls };
+  $('enrollHead').textContent = nendo(S.year) + 'のクラス';
+  var opts = '<option value="">（この年度はクラスなし）</option>' + yearClasses().map(function (k) { return '<option>' + esc(k.name) + '</option>'; }).join('');
+  if (en.cls && !yearClasses().some(function (k) { return k.name === en.cls; })) opts += '<option>' + esc(en.cls) + '</option>';
+  $('enCls').innerHTML = opts;
+  $('enCls').value = en.cls || '';
+  $('enNo').value = en.no || '';
+  $('enBus').value = en.bus || '';
+  $('enOfficer').checked = !!en.officer;
+  $('enNextBus').value = en.nextBus || '';
+  $('enNextOfficer').checked = !!en.nextOfficer;
+  var hist = (c.enrolls || []).map(function (e) { return '<span>' + esc(nendo(e.year)) + '：' + esc(e.cls) + ' ' + esc(e.no) + '番</span>'; }).join('');
+  $('history').innerHTML = hist ? '今までのクラス：' + hist : '';
+  $('updInfo').textContent = c.updatedAt ? '最後に直した人：' + (c.updatedBy || '') + '（' + c.updatedAt + '）' : '';
+  show('delBtn', !!c.id && S.me.role === '管理者');
+  updateAge();
+  S.dirty = false;
+}
+function updateAge() {
+  var b = document.querySelector('#vEdit [data-k=birth]').value;
+  $('ageHint').textContent = b ? wLong(b) + '（いま ' + ageAt(b, todayStr()) + '歳、' + nendo(S.year) + '4月1日に ' + ageAt(b, S.year + '-04-01') + '歳）' : '';
+}
+document.querySelector('#vEdit [data-k=birth]').addEventListener('input', updateAge);
+$('vEdit').addEventListener('input', function () { S.dirty = true; });
+$('vEdit').addEventListener('change', function () { S.dirty = true; });
+
+function collectEdit() {
+  var c = { id: S.edit.id, updatedAt: S.edit.updatedAt || '' };
+  Array.prototype.forEach.call(document.querySelectorAll('#vEdit [data-k]'), function (el) {
+    var k = el.getAttribute('data-k');
+    c[k] = el.type === 'checkbox' ? (el.checked ? '○' : '') : el.value.trim();
+  });
+  c.enroll = { year: S.year, cls: $('enCls').value, no: $('enNo').value.trim(), bus: $('enBus').value.trim(),
+    officer: $('enOfficer').checked ? '役員' : '', nextBus: $('enNextBus').value.trim(), nextOfficer: $('enNextOfficer').checked ? '役員' : '' };
+  return c;
+}
+
+function saveKid(force) {
+  var c = collectEdit();
+  if (!c.name) { $('editMsg').innerHTML = '<div class="msg err">園児名を入れてください。</div>'; window.scrollTo(0, 0); return; }
+  busy(true, '保存しています…');
+  call('saveChild', c, !!force).then(function (r) {
+    S.dirty = false;
+    return loadRoster().then(function () { fillEdit(r); toast('保存しました'); });
+  }).catch(function (e) {
+    var m = e.message;
+    if (m.indexOf('CONFLICT|') === 0) {
+      busy(false);
+      if (confirm(m.slice(9) + '\n\n自分の内容で上書きしますか？\n（「キャンセル」で、先に直された内容を読み直します。自分の変更は消えます）')) return saveKid(true);
+      S.dirty = false; return openKid(c.id);
+    }
+    $('editMsg').innerHTML = '<div class="msg err">' + esc(m) + '</div>'; window.scrollTo(0, 0);
+  }).then(function () { busy(false); });
+}
+$('saveBtn').onclick = function () { saveKid(false); };
+$('backBtn').onclick = function () { go('list'); };
+$('delBtn').onclick = function () {
+  if (!S.edit || !S.edit.id) return;
+  if (!confirm('「' + S.edit.name + '」を台帳から削除します。\n（今までの年度のクラスや記録も消えます。控えは「削除した園児」シートに残ります）\n\n退園した子は、削除しないで「退園・転出の年月日」を入れてください。\n本当に削除しますか？')) return;
+  busy(true, '削除しています…');
+  call('deleteChild', S.edit.id).then(function () { S.dirty = false; return loadRoster(); })
+    .then(function () { toast('削除しました'); go('list'); })
+    .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+};
+window.addEventListener('beforeunload', function (e) { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// 自分のパスワード
+$('pwBtn').onclick = function () {
+  var bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = '<div class="modal"><h3>🔑 自分のパスワードを変える</h3><div id="pwMsg"></div>' +
+    '<label>今のパスワード</label><input type="password" id="pwOld" autocomplete="current-password">' +
+    '<label>新しいパスワード（8文字以上、英字と数字をまぜる）</label><input type="password" id="pwNew" autocomplete="new-password">' +
+    '<label>新しいパスワード（もう一度）</label><input type="password" id="pwNew2" autocomplete="new-password">' +
+    '<div class="row" style="margin-top:14px"><button class="btn main" id="pwOk">変える</button><button class="btn" id="pwCancel">やめる</button></div></div>';
+  document.body.appendChild(bg);
+  $('pwCancel').onclick = function () { bg.remove(); };
+  $('pwOk').onclick = function () {
+    var a = $('pwOld').value, b = $('pwNew').value, c = $('pwNew2').value;
+    if (b !== c) { $('pwMsg').innerHTML = '<div class="msg err">新しいパスワードが2回で合っていません。</div>'; return; }
+    call('changeMyPassword', a, b).then(function () { bg.remove(); toast('パスワードを変えました'); })
+      .catch(function (e) { $('pwMsg').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+  };
+};
+
+// ===== 書類 =====
+var DOCS = [
+  { id: 'classList', name: 'クラス名簿', note: 'B5・ふりがな付き・チェック欄', left: false },
+  { id: 'smallList', name: 'クラス名簿（小）', note: 'B5・1枚に2つ（回覧絵本など）', left: false },
+  { id: 'busList', name: 'バス名簿', note: 'B5・1枚に2つ・バスの色付き', left: false },
+  { id: 'telBook', name: '電話台帳', note: 'A4・2枚（住所・電話／連絡先）', left: false },
+  { id: 'register', name: '園児名簿（割印）', note: 'B5横・縦書き', left: true },
+  { id: 'pref', name: '県提出用名簿', note: 'A4・男女・4月現在の満年齢', left: true },
+  { id: 'nameTags', name: '絵画名札', note: 'B5・1枚に4人', left: false },
+  { id: 'height', name: '身長順並び表', note: 'B5・身長を入れて並べる', left: false },
+  { id: 'hensei', name: 'クラス編成用名簿', note: 'B5・来年度のバス・進学先など', left: false }
+];
+var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true };
+
+function renderDocs() {
+  $('docCards').innerHTML = DOCS.map(function (d) {
+    return '<button class="doc-card' + (S.doc === d.id ? ' on' : '') + '" data-d="' + d.id + '"><b>' + d.name + '</b><span>' + d.note + '</span></button>';
+  }).join('');
+  Array.prototype.forEach.call($('docCards').children, function (b) {
+    b.onclick = function () { S.doc = b.getAttribute('data-d'); docOpt.includeLeft = null; renderDocs(); };
+  });
+  var d = DOCS.filter(function (x) { return x.id === S.doc; })[0];
+  if (docOpt.includeLeft === null) docOpt.includeLeft = d.left;
+  if (!docOpt.cls || (docOpt.cls !== '*' && !yearClasses().some(function (c) { return c.name === docOpt.cls; }))) docOpt.cls = S.cls || (yearClasses()[0] || {}).name || '';
+  var h = '<div class="row"><b>クラス</b><select id="optCls">' + yearClasses().map(function (c) { return '<option' + (docOpt.cls === c.name ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
+    '<option value="*"' + (docOpt.cls === '*' ? ' selected' : '') + '>全クラス（クラスごとに次の紙へ）</option></select>' +
+    '<label><input type="checkbox" id="optLeft"' + (docOpt.includeLeft ? ' checked' : '') + '> 退園した子も入れる</label></div>';
+  if (S.doc === 'classList') {
+    h += '<div class="row"><b>チェック欄の数</b><select id="optBlanks">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) { return '<option' + (n === docOpt.blanks ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>';
+  }
+  if (S.doc === 'nameTags') {
+    if (!docOpt.tagDate) docOpt.tagDate = todayStr();
+    h += '<div class="row"><b>題名</b><input type="text" id="optTitle" value="' + esc(docOpt.tagTitle) + '" placeholder="例：おつきみ" style="width:200px">' +
+      '<b>日付</b><input type="date" id="optDate" value="' + esc(docOpt.tagDate) + '">' +
+      '<label><input type="radio" name="optKana" value="1"' + (docOpt.tagKana ? ' checked' : '') + '> ひらがな</label>' +
+      '<label><input type="radio" name="optKana" value="0"' + (!docOpt.tagKana ? ' checked' : '') + '> 漢字</label></div>';
+  }
+  if (S.doc === 'height') {
+    var kids = docKids(docOpt.cls === '*' ? '' : docOpt.cls);
+    h += '<div><b>身長（cm）を入れてください</b> <span class="muted">（ここで入れた身長は保存されません。印刷用です）</span></div><div class="hgt-grid">' +
+      kids.map(function (k) { return '<label><span style="width:2em;text-align:right">' + esc(k.enroll.no) + '</span><span style="flex:1">' + esc(k.name) + '</span><input inputmode="decimal" data-h="' + esc(k.id) + '" value="' + esc(S.heights[k.id] || '') + '"></label>'; }).join('') + '</div>';
+  }
+  $('docOpts').innerHTML = h;
+  $('optCls').onchange = function () { docOpt.cls = this.value; renderDocs(); };
+  $('optLeft').onchange = function () { docOpt.includeLeft = this.checked; renderDocs(); };
+  if ($('optBlanks')) $('optBlanks').onchange = function () { docOpt.blanks = Number(this.value); drawPreview(); };
+  if ($('optTitle')) {
+    $('optTitle').oninput = function () { docOpt.tagTitle = this.value; drawPreview(); };
+    $('optDate').onchange = function () { docOpt.tagDate = this.value; drawPreview(); };
+    Array.prototype.forEach.call(document.querySelectorAll('[name=optKana]'), function (r) { r.onchange = function () { docOpt.tagKana = this.value === '1'; drawPreview(); }; });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-h]'), function (inp) {
+    inp.oninput = function () { S.heights[inp.getAttribute('data-h')] = inp.value.trim(); clearTimeout(drawPreview.t); drawPreview.t = setTimeout(drawPreview, 300); };
+  });
+  drawPreview();
+}
+function docKids(cls) { return kidsOf(cls, docOpt.includeLeft); }
+
+function buildDoc() {
+  var d = DOCS.filter(function (x) { return x.id === S.doc; })[0];
+  var names = docOpt.cls === '*' ? yearClasses().map(function (c) { return c.name; }) : [docOpt.cls];
+  var pages = [], size = 'b5';
+  names.forEach(function (n) {
+    if (!n) return;
+    var r = DOC_MAKERS[S.doc](classInfo(n), docKids(n));
+    size = r.size; pages = pages.concat(r.pages);
+  });
+  return { doc: d, size: size, pages: pages, classes: names };
+}
+function drawPreview() {
+  var r = buildDoc();
+  $('preview').innerHTML = r.pages.join('') || '<div class="empty" style="color:#fff">クラスがありません。管理の「クラス」で作ってください。</div>';
+  $('docInfo').textContent = r.pages.length ? r.pages.length + '枚（' + ({ b5: 'B5たて', b5l: 'B5よこ', a4: 'A4たて' })[r.size] + '）' : '';
+}
+var PAGE_SIZES = { b5: '182mm 257mm', b5l: '257mm 182mm', a4: '210mm 297mm' };
+$('printBtn').onclick = function () {
+  var r = buildDoc();
+  if (!r.pages.length) return;
+  $('pageStyle').textContent = '@page { size: ' + PAGE_SIZES[r.size] + '; margin: 0; }';
+  $('print').innerHTML = r.pages.join('');
+  call('logPrint', r.doc.name + '：' + nendo(S.year) + ' ' + (docOpt.cls === '*' ? '全クラス' : docOpt.cls)).catch(function () {});
+  setTimeout(function () { window.print(); }, 100);
+};
+window.addEventListener('afterprint', function () { $('print').innerHTML = ''; });
+
+// --- 書類の部品 ---
+function kanaCell(k) { return k ? '<div class="kn">' + esc(k.kana) + '</div><div class="nmk">' + esc(k.name) + '</div>' : ''; }
+function chunk(list, n) { var out = []; for (var i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); if (!out.length) out.push([]); return out; }
+function slots(list, n) { var a = list.slice(0, n); while (a.length < n) a.push(null); return a; }
+function busColor(b) {
+  var c = String(b || '').charAt(0);
+  return { '青': '#00b0f0', '桃': '#ffccff', '黄': '#ffff00', '緑': '#92d050', '赤': '#ff9999', '橙': '#ffc000', '紫': '#cc99ff' }[c] || '';
+}
+function teacherText(ci) { return [ci.teacher, ci.sub1, ci.sub2].filter(String).join('・'); }
+function kg() { return S.settings.kindergarten || ''; }
+
+var DOC_MAKERS = {
+  // 1. クラス名簿：15人×2列
+  classList: function (ci, kids) {
+    var blanks = docOpt.blanks;
+    var pages = chunk(kids, 30).map(function (part) {
+      var all = slots(part, 30);
+      var table = function (rows) {
+        var h = '<table class="t thick" style="width:100%;table-layout:fixed"><colgroup><col style="width:9mm"><col style="width:' + (blanks ? '23mm' : 'auto') + '">' +
+          Array(blanks + 1).join('<col>') + '</colgroup><tr class="hd" style="height:8mm;font-size:9.5pt"><td class="c">番号</td><td>園児名</td>' + Array(blanks + 1).join('<td style="border-style:solid dotted"></td>') + '</tr>';
+        rows.forEach(function (k) {
+          h += '<tr style="height:12.3mm"><td class="c">' + (k ? esc(k.enroll.no) : '') + '</td><td>' + kanaCell(k) + '</td>' + Array(blanks + 1).join('<td style="border-style:solid dotted"></td>') + '</tr>';
+        });
+        return h + '</table>';
+      };
+      return '<div class="page b5"><div class="pg-head"><span>' + esc(ci.name) + '　　クラス名簿</span><span>担任：' + esc(ci.teacher) + '</span></div>' +
+        '<div style="display:flex;gap:4mm">' + table(all.slice(0, 15)) + table(all.slice(15, 30)) + '</div></div>';
+    });
+    return { size: 'b5', pages: pages };
+  },
+  // 2. クラス名簿（小）：8人×4列を、1枚に2つ
+  smallList: function (ci, kids) { return smallOrBus(ci, kids, false); },
+  // 3. バス名簿
+  busList: function (ci, kids) { return smallOrBus(ci, kids, true); },
+  // 4. 電話台帳（A4・2枚）
+  telBook: function (ci, kids) {
+    var pages = [];
+    chunk(kids, 30).forEach(function (part) {
+      var rows = slots(part, 30);
+      var h = '<div class="page a4 mincho"><div class="pg-head" style="font-size:11.5pt"><span>' + nendo(S.year) + '</span><span>' + esc(ci.name) + '</span><span>担任名：' + esc(ci.teacher) + '</span><span>' + esc(kg()) + '</span></div>' +
+        '<table class="t thick" style="width:100%;table-layout:fixed;font-size:10pt"><colgroup><col style="width:11mm"><col style="width:9mm"><col style="width:27mm"><col style="width:17mm"><col><col style="width:31mm"></colgroup>' +
+        '<tr class="hd" style="height:8.5mm;font-weight:bold;font-size:9.5pt"><td class="c">役員</td><td class="c">番号</td><td class="c">園児名</td><td class="c">保護者名</td><td class="c">住　　　所</td><td class="c">電話番号</td></tr>';
+      rows.forEach(function (k) {
+        h += '<tr class="nw" style="height:8.2mm">' + (k ? '<td class="c">' + (k.enroll.officer ? '役員' : '') + '</td><td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="' + fitStyle(k.name, 7) + '">' + esc(k.name) + '</td><td class="c" style="' + fitStyle(k.parent, 4) + '">' + esc(k.parent) + '</td>' +
+          '<td style="' + fitStyle(k.address, 30) + '">' + esc(k.address) + '</td><td class="c" style="' + fitStyle(k.tel, 11) + '">' + esc(k.tel) + '</td>' : '<td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
+      });
+      pages.push(h + '</table></div>');
+      var h2 = '<div class="page a4 mincho"><div class="pg-head" style="font-size:10.5pt;justify-content:flex-start;gap:6mm"><span>' + nendo(S.year).replace('年度', '') + '　' + esc(ci.name) + '</span></div>' +
+        '<table class="t thick" style="width:100%;table-layout:fixed;font-size:10pt"><colgroup><col style="width:9mm"><col style="width:18mm"><col style="width:16mm"><col style="width:30mm"><col style="width:16mm"><col style="width:30mm"><col style="width:22mm"><col></colgroup>' +
+        '<tr class="hd" style="height:8.5mm;font-weight:bold;font-size:9pt"><td class="c">番号</td><td class="c">生年月日</td><td class="c">連絡先</td><td class="c">連絡先電話番号</td><td class="c">連絡先</td><td class="c">連絡先電話番号</td><td class="c">兄弟関係</td><td class="c">備考</td></tr>';
+      rows.forEach(function (k) {
+        h2 += '<tr class="nw" style="height:8.2mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="font-size:9.5pt">' + esc(wShort(k.birth)) + '</td><td class="c" style="' + fitStyle(k.c1, 4) + '">' + esc(k.c1) + '</td><td class="c" style="' + fitStyle(k.t1, 11) + '">' + esc(k.t1) + '</td>' +
+          '<td class="c" style="' + fitStyle(k.c2, 4) + '">' + esc(k.c2) + '</td><td class="c" style="' + fitStyle(k.t2, 11) + '">' + esc(k.t2) + '</td><td style="' + fitStyle(k.siblings, 6) + '">' + esc(k.siblings) + '</td><td style="' + fitStyle(k.memo, 11) + '">' + esc(k.memo) + '</td>'
+          : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
+      });
+      pages.push(h2 + '</table></div>');
+    });
+    return { size: 'a4', pages: pages };
+  },
+  // 5. 園児名簿（B5横・縦書き・15人ずつ・少なくとも2枚）
+  register: function (ci, kids) {
+    var parts = chunk(kids, 15);
+    if (parts.length < 2) parts.push([]);
+    var pages = parts.map(function (part, pi) {
+      var rows = slots(part, 15);
+      var h = '<div class="page b5l mincho"><div style="writing-mode:vertical-rl;height:100%;display:flex;flex-direction:column;gap:3mm">';
+      h += '<div style="display:flex;justify-content:space-between;font-size:12pt;inline-size:100%;padding:0 2mm">' +
+        (pi === 0 ? '<span>' + esc(ci.name.replace(/^(.)(.*)$/, '$1　$2')) + '　　　園児名簿</span><span style="font-size:10pt">（' + nendo(S.year) + '）</span>' : '<span></span>') + '</div>';
+      h += '<table class="t thick" style="font-size:10pt;inline-size:100%;table-layout:fixed">';
+      var head = '<tr style="block-size:11mm;font-size:8.5pt"><td class="c" style="inline-size:12mm">割印</td><td class="c" style="inline-size:13mm">番号</td><td class="c" style="inline-size:25mm">園児氏名</td><td class="c" style="inline-size:13mm">保護者名</td><td class="c" style="inline-size:15mm">生年月日</td><td class="c">住　　所</td><td class="c" style="inline-size:24mm">入園年月日</td></tr>';
+      h += head;
+      rows.forEach(function (k) {
+        h += '<tr style="block-size:13.5mm">' + (k ? '<td></td><td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="font-size:11pt">' + esc(k.name) + '</td><td class="c" style="' + fitStyle(k.parent, 5) + '">' + esc(k.parent) + '</td>' +
+          '<td class="c" style="font-size:8.5pt">' + esc(wShort(k.birth)) + '</td><td style="' + fitStyle(k.address, 22, 9.5) + '">' + esc(k.address) + '</td><td class="c" style="font-size:8.5pt">' + esc(wLong(k.transferIn || k.enterDate)) + '</td>'
+          : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
+      });
+      return h + '</table></div></div>';
+    });
+    return { size: 'b5l', pages: pages };
+  },
+  // 6. 県提出用名簿（A4・36人ずつ）
+  pref: function (ci, kids) {
+    var parts = chunk(kids, 35);
+    var pages = parts.map(function (part, pi) {
+      var rows = slots(part, 35);
+      var h = '<div class="page a4"><div style="font-size:9.5pt;padding-left:2mm">' + nendo(S.year).replace('令和', '令和 ').replace('年度', ' 年度') + '</div>' +
+        '<div class="pg-head" style="font-size:11.5pt"><span style="padding-left:4mm">' + esc(kg()) + '　園児名簿</span><span style="display:flex;gap:6mm;align-items:flex-end"><span><small style="font-size:9pt;display:block">クラス</small>' + esc(ci.name) + '</span><span><small style="font-size:9pt;display:block">担任名</small>' + esc(ci.teacher) + '</span></span></div>' +
+        '<table class="t thick" style="width:100%;table-layout:fixed;font-size:8.5pt"><colgroup><col style="width:10mm"><col style="width:39mm"><col style="width:11mm"><col style="width:11mm"><col style="width:20mm"><col style="width:12mm"><col></colgroup>' +
+        '<tr style="height:7mm"><td class="c" rowspan="2">番号</td><td class="c" rowspan="2">氏　　　　名</td><td class="c" colspan="2">男女別</td><td class="c" rowspan="2">生年月日</td><td class="c" style="font-size:6.5pt">４月現在</td><td class="c" rowspan="2">住　　　　　　　　所</td></tr>' +
+        '<tr style="height:6mm"><td class="c">男</td><td class="c">女</td><td class="c" style="font-size:6.5pt">満年齢</td></tr>';
+      rows.forEach(function (k) {
+        h += '<tr style="height:6.55mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="c">' + esc(k.name) + '</td><td class="c">' + (k.sex === '男' ? '〇' : '') + '</td><td class="c">' + (k.sex === '女' ? '〇' : '') + '</td>' +
+          '<td class="c">' + esc(wShort(k.birth)) + '</td><td class="c">' + esc(ageAt(k.birth, S.year + '-04-01')) + '</td><td style="' + fitStyle(k.address, 40, 8.5) + '">' + esc(k.address) + '</td>'
+          : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
+      });
+      if (pi === parts.length - 1) h += '<tr style="height:6.55mm"><td></td><td class="r">合計</td><td class="c">' + kids.length + '</td><td>名</td><td></td><td></td><td></td></tr>';
+      return h + '</table></div>';
+    });
+    return { size: 'a4', pages: pages };
+  },
+  // 7. 絵画名札（B5・4人ずつ）
+  nameTags: function (ci, kids) {
+    var pages = chunk(kids, 4).map(function (part) {
+      var h = '<div class="page b5" style="padding:12mm 10mm">';
+      part.forEach(function (k) {
+        var nm = docOpt.tagKana ? (k.kana || k.name) : k.name;
+        var len = nm.replace(/[\s　]/g, '').length + 1;
+        var fs = Math.min(26, Math.floor(150 / Math.max(len, 1)));
+        h += '<div style="height:58mm;border-bottom:1px solid #000;padding:6mm 3mm 0;position:relative">' +
+          '<div style="display:flex;justify-content:space-between;font-size:13pt"><span style="color:#e00">' + esc(docOpt.tagTitle) + '</span><span>' + esc(wLong(docOpt.tagDate)) + '</span></div>' +
+          '<div style="text-align:center;font-size:' + fs + 'mm;line-height:1.4;margin-top:3mm;white-space:nowrap">' + esc(nm) + '</div></div>';
+      });
+      return h + '</div>';
+    });
+    if (!kids.length) pages = [];
+    return { size: 'b5', pages: pages };
+  },
+  // 8. 身長順並び表
+  height: function (ci, kids) {
+    var list = kids.map(function (k) { return { k: k, h: parseFloat(String(S.heights[k.id] || '').replace(/[^\d.]/g, '')) }; });
+    var withH = list.filter(function (x) { return !isNaN(x.h); });
+    var asc = function (a, b) { return a.h - b.h; };
+    var all = withH.slice().sort(asc);
+    var boys = withH.filter(function (x) { return x.k.sex === '男'; }).sort(asc);
+    var girls = withH.filter(function (x) { return x.k.sex !== '男'; }).sort(asc);
+    var bySex = boys.concat(girls);
+    var col = function (k) { return k ? (k.sex === '男' ? '#bdd7ee' : k.sex === '女' ? '#ffccff' : '') : ''; };
+    var cell = function (x, i, showNo) {
+      var k = x ? x.k : null;
+      return '<td class="c" style="background:#ccffcc">' + (x ? (showNo ? esc(k.enroll.no) : i + 1) : '') + '</td><td style="background:' + col(k) + '">' + (k ? esc(k.name) : '') + '</td><td class="c">' + (x && !isNaN(x.h) ? x.h : '') + '</td>';
+    };
+    var parts = chunk(list, 30);
+    var pages = parts.map(function (part, pi) {
+      var off = pi * 30;
+      var h = '<div class="page b5" style="padding-top:12mm"><div class="c mincho" style="font-size:16pt;margin-bottom:8mm">身長順並び表　<span style="font-size:11pt">' + esc(ci.name) + '</span></div><table style="width:100%;table-layout:fixed;font-size:9.5pt" class="t mincho">' +
+        '<colgroup><col style="width:7mm"><col style="width:25mm"><col style="width:17mm"><col style="width:4mm"><col style="width:7mm"><col style="width:25mm"><col style="width:17mm"><col style="width:4mm"><col style="width:7mm"><col style="width:25mm"><col style="width:17mm"></colgroup>' +
+        '<tr style="height:6mm"><td class="c" style="background:#ccffcc;font-size:7pt">番号</td><td class="c" style="background:#ccffcc">園児名</td><td class="c" style="background:#ccffcc">身長</td><td style="border:0"></td>' +
+        '<td colspan="3" style="border:0;border-bottom:1px solid #000">【全体】</td><td style="border:0"></td><td colspan="3" style="border:0;border-bottom:1px solid #000">【男女別】</td></tr>';
+      for (var i = 0; i < 30; i++) {
+        h += '<tr style="height:6.2mm">' + cell(part[i] || null, off + i, true) + '<td style="border:0"></td>' + cell(all[off + i] || null, off + i, false) + '<td style="border:0"></td>' + cell(bySex[off + i] || null, off + i, false) + '</tr>';
+      }
+      h += '</table><div class="r mincho" style="font-size:9.5pt;margin-top:2mm">' + todayStr().replace(/-/g, '/') + ' 現在</div></div>';
+      return h;
+    });
+    return { size: 'b5', pages: pages };
+  },
+  // 9. クラス編成用名簿（17人ずつ）
+  hensei: function (ci, kids) {
+    var label = S.settings.schoolLabel || '';
+    var pages = chunk(kids, 17).map(function (part) {
+      var rows = slots(part, 17);
+      var h = '<div class="page b5"><div class="pg-head" style="font-size:10pt"><span>' + esc(ci.name) + '　クラス編成用名簿（' + nendo(S.year) + '）</span><span>担任：' + esc(ci.teacher) + '</span></div>' +
+        '<table class="t thick" style="width:100%;table-layout:fixed;font-size:9pt"><colgroup><col style="width:8mm"><col style="width:27mm"><col style="width:10mm"><col style="width:14mm"><col style="width:14mm"><col><col style="width:' + Math.max(9, label.length * 3.5 + 3) + 'mm"></colgroup>' +
+        '<tr class="hd" style="height:6mm;font-size:8pt"><td class="c">番号</td><td>園児名</td><td class="c">バス</td><td class="c">進学先</td><td class="c">療育</td><td class="c">指導上注意が必要な点</td><td class="c">' + esc(label) + '</td></tr>';
+      rows.forEach(function (k) {
+        h += '<tr style="height:12.6mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="nw" style="' + fitStyle(k.kana || k.name, 9, 8.5) + '">' + esc(k.kana || k.name) + '</td><td class="c nw" style="border-style:solid dashed">' + esc(k.enroll.nextBus) + '</td>' +
+          '<td class="c nw" style="border-style:solid dashed;' + fitStyle(k.school, 3, 9) + '">' + esc(k.school) + '</td><td class="c" style="border-style:solid dashed;' + fitStyle(k.therapy, 4, 8) + '">' + esc(k.therapy) + '</td>' +
+          '<td style="border-style:solid dashed;' + fitStyle(k.care, 60, 8) + '">' + esc(k.care) + '</td><td></td>'
+          : '<td></td><td></td><td style="border-style:solid dashed"></td><td style="border-style:solid dashed"></td><td style="border-style:solid dashed"></td><td style="border-style:solid dashed"></td><td></td>') + '</tr>';
+      });
+      return h + '</table></div>';
+    });
+    return { size: 'b5', pages: pages };
+  }
+};
+
+// 文字が多いときは小さくする（max 文字までは base pt のまま）
+function fitStyle(text, max, base) {
+  base = base || 10;
+  var n = String(text || '').length;
+  if (n <= max) return 'font-size:' + base + 'pt';
+  return 'font-size:' + Math.max(5.5, Math.round(base * max / n * 10) / 10) + 'pt;line-height:1.15';
+}
+
+function smallOrBus(ci, kids, bus) {
+  var block = function (part) {
+    var rows = slots(part, 32);
+    var h = '<div style="padding-left:6mm;font-size:11pt">' + esc(ci.name) + '</div><div style="display:flex;justify-content:center;gap:4mm;margin-bottom:9mm">';
+    for (var c = 0; c < 4; c++) {
+      h += '<table class="t thick" style="table-layout:fixed;width:' + (bus ? '33mm' : '32mm') + '"><colgroup><col><col style="width:' + (bus ? '10mm' : '7mm') + '"></colgroup>' +
+        '<tr style="height:6.5mm"><td class="c" style="font-size:9.5pt">園児名</td><td class="c" style="font-size:8.5pt">' + (bus ? 'バス' : '') + '</td></tr>';
+      rows.slice(c * 8, c * 8 + 8).forEach(function (k) {
+        var b = k ? k.enroll.bus : '';
+        h += '<tr style="height:12mm"><td style="padding:0 .8mm">' + kanaCell(k).replace('class="nmk"', 'class="nmk" style="font-size:9.5pt"') + '</td><td class="c" style="font-size:9.5pt;padding:0;' + (bus && busColor(b) ? 'background:' + busColor(b) : '') + '">' + (bus ? esc(b) : '') + '</td></tr>';
+      });
+      h += '</table>';
+    }
+    return h + '</div>';
+  };
+  var pages = chunk(kids, 32).map(function (part) {
+    return '<div class="page b5" style="padding-top:14mm">' + block(part) + block(part) + '</div>';
+  });
+  return { size: 'b5', pages: pages };
+}
+
+// ===== 管理 =====
+var adminTab = 'classes';
+Array.prototype.forEach.call(document.querySelectorAll('#adminTabs .tab'), function (b) {
+  b.onclick = function () { adminTab = b.getAttribute('data-tab'); renderAdmin(); };
+});
+function renderAdmin() {
+  if (S.me.role !== '管理者') { $('adminBody').innerHTML = '<p>管理者だけが使えます。</p>'; return; }
+  Array.prototype.forEach.call(document.querySelectorAll('#adminTabs .tab'), function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === adminTab); });
+  ({ classes: adminClasses, staff: adminStaff, settings: adminSettings, import: adminImport, log: adminLog })[adminTab]();
+}
+
+// クラス
+var clsYear = '';
+function adminClasses() {
+  if (!clsYear) clsYear = S.year;
+  var ys = S.years.slice(); var next = String(Number(S.currentYear) + 1);
+  if (ys.indexOf(next) < 0) ys.unshift(next);
+  if (ys.indexOf(clsYear) < 0) ys.unshift(clsYear);
+  var list = S.classes.filter(function (c) { return c.year === clsYear; }).sort(function (a, b) { return a.order - b.order; })
+    .map(function (c) { return { name: c.name, from: c.name, teacher: c.teacher, sub1: c.sub1, sub2: c.sub2 }; });
+  var h = '<div class="row" style="margin-bottom:10px"><b>年度</b><select id="clsYear">' + ys.map(function (y) { return '<option value="' + y + '"' + (y === clsYear ? ' selected' : '') + '>' + nendo(y) + '</option>'; }).join('') + '</select>' +
+    '<button class="btn small" id="clsCopy">前の年度のクラスをうつす</button></div>' +
+    '<p class="muted">クラス名は「星・花・雪・月」のどれかで始めてください（例：花１組）。その字で学年が決まります。上から順に、一覧や「全クラス」の印刷に並びます。</p>' +
+    '<div class="tbl-wrap"><table class="edit" id="clsTable"><tr><th style="width:110px">クラス名</th><th>担任</th><th>副担任①</th><th>副担任②</th><th style="width:120px"></th></tr></table></div>' +
+    '<div class="row" style="margin-top:10px"><button class="btn" id="clsAdd">＋ クラスを足す</button><button class="btn main" id="clsSave">💾 クラスを保存する</button></div>';
+  $('adminBody').innerHTML = h;
+  var tbl = $('clsTable');
+  var addRow = function (c) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><input data-f="name" value="' + esc(c.name) + '"></td><td><input data-f="teacher" value="' + esc(c.teacher) + '"></td><td><input data-f="sub1" value="' + esc(c.sub1) + '"></td><td><input data-f="sub2" value="' + esc(c.sub2) + '"></td>' +
+      '<td><button class="btn small" data-a="up">↑</button> <button class="btn small" data-a="down">↓</button> <button class="btn small danger" data-a="del">✕</button></td>';
+    tr.setAttribute('data-from', c.from || '');
+    tr.querySelector('[data-a=up]').onclick = function () { if (tr.previousElementSibling && tr.previousElementSibling.querySelector('input')) tbl.tBodies[0].insertBefore(tr, tr.previousElementSibling); };
+    tr.querySelector('[data-a=down]').onclick = function () { if (tr.nextElementSibling) tbl.tBodies[0].insertBefore(tr.nextElementSibling, tr); };
+    tr.querySelector('[data-a=del]').onclick = function () {
+      var n = (S.roster && clsYear === S.year) ? S.roster.children.filter(function (k) { return k.enroll.cls === c.from; }).length : 0;
+      if (n && !confirm('「' + c.from + '」には ' + n + ' 人います。クラスの表から消しても、園児のクラス名は残ります。消しますか？')) return;
+      tr.remove();
+    };
+    tbl.tBodies[0].appendChild(tr);
+  };
+  list.forEach(addRow);
+  if (!list.length) addRow({ name: '', teacher: '', sub1: '', sub2: '' });
+  $('clsYear').onchange = function () { clsYear = this.value; adminClasses(); };
+  $('clsAdd').onclick = function () { addRow({ name: '', teacher: '', sub1: '', sub2: '' }); };
+  $('clsCopy').onclick = function () {
+    var prev = String(Number(clsYear) - 1);
+    var src = S.classes.filter(function (c) { return c.year === prev; }).sort(function (a, b) { return a.order - b.order; });
+    if (!src.length) { alert(nendo(prev) + 'のクラスはありません。'); return; }
+    Array.prototype.slice.call(tbl.querySelectorAll('tr')).slice(1).forEach(function (tr) { tr.remove(); });
+    src.forEach(function (c) { addRow({ name: c.name, teacher: '', sub1: '', sub2: '' }); });
+    toast('クラス名をうつしました。担任を入れて保存してください');
+  };
+  $('clsSave').onclick = function () {
+    var rows = Array.prototype.slice.call(tbl.querySelectorAll('tr')).slice(1).map(function (tr) {
+      var o = { from: tr.getAttribute('data-from') };
+      Array.prototype.forEach.call(tr.querySelectorAll('[data-f]'), function (i) { o[i.getAttribute('data-f')] = i.value.trim(); });
+      return o;
+    }).filter(function (o) { return o.name || o.teacher; });
+    busy(true, '保存しています…');
+    call('saveClasses', clsYear, rows).then(function (h) {
+      S.years = h.years; S.classes = h.classes;
+      renderTop();
+      return loadRoster();
+    }).then(function () { toast('クラスを保存しました'); adminClasses(); })
+      .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+  };
+}
+
+// 職員
+function adminStaff() {
+  $('adminBody').innerHTML = '<p class="muted">読み込んでいます…</p>';
+  call('listStaff').then(drawStaff).catch(function (e) { $('adminBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+}
+function drawStaff(list) {
+  var h = '<p class="muted">職員ひとりずつに名前とパスワードを作ります。やめた人は「停止」にすると、すぐ入れなくなります（記録は残ります）。</p>' +
+    '<div class="tbl-wrap"><table class="edit"><tr><th>名前</th><th style="width:110px">権限</th><th style="width:100px">状態</th><th>最後に入った日時</th><th></th></tr>';
+  list.forEach(function (s, i) {
+    h += '<tr><td>' + esc(s.name) + '</td><td><select data-i="' + i + '" data-f="role"><option' + (s.role === '職員' ? ' selected' : '') + '>職員</option><option' + (s.role === '管理者' ? ' selected' : '') + '>管理者</option></select></td>' +
+      '<td><select data-i="' + i + '" data-f="state"><option' + (s.state === '使える' ? ' selected' : '') + '>使える</option><option' + (s.state === '停止' ? ' selected' : '') + '>停止</option></select></td>' +
+      '<td class="muted">' + esc(s.lastLogin || '－') + '</td><td><button class="btn small" data-pw="' + i + '">パスワードを付け直す</button></td></tr>';
+  });
+  h += '</table></div><h3 style="margin-top:18px">＋ 職員を登録する</h3><div class="row"><input id="nsName" placeholder="名前（例：山田 花子）" style="padding:7px;border:1px solid #b8c4cc;border-radius:7px">' +
+    '<select id="nsRole" style="padding:7px"><option>職員</option><option>管理者</option></select>' +
+    '<input id="nsPw" placeholder="はじめのパスワード" style="padding:7px;border:1px solid #b8c4cc;border-radius:7px"><button class="btn main" id="nsAdd">登録する</button></div>' +
+    '<p class="muted">はじめのパスワードは本人に直接伝え、入ったら「🔑」で自分のパスワードに変えてもらってください。8文字以上で、英字と数字をまぜます。</p>';
+  $('adminBody').innerHTML = h;
+  Array.prototype.forEach.call(document.querySelectorAll('#adminBody select[data-i]'), function (sel) {
+    sel.onchange = function () {
+      var s = list[+sel.getAttribute('data-i')];
+      var role = document.querySelector('select[data-i="' + sel.getAttribute('data-i') + '"][data-f=role]').value;
+      var state = document.querySelector('select[data-i="' + sel.getAttribute('data-i') + '"][data-f=state]').value;
+      call('updateStaff', s.name, role, state).then(function (l) { toast('変えました'); drawStaff(l); }).catch(function (e) { alert(e.message); adminStaff(); });
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-pw]'), function (b) {
+    b.onclick = function () {
+      var s = list[+b.getAttribute('data-pw')];
+      var pw = prompt(s.name + ' さんの新しいパスワード（8文字以上、英字と数字をまぜる）');
+      if (!pw) return;
+      call('resetPassword', s.name, pw).then(function () { toast('付け直しました'); }).catch(function (e) { alert(e.message); });
+    };
+  });
+  $('nsPw').value = suggestPw();
+  $('nsAdd').onclick = function () {
+    call('addStaff', $('nsName').value, $('nsRole').value, $('nsPw').value).then(function (l) { toast('登録しました'); drawStaff(l); }).catch(function (e) { alert(e.message); });
+  };
+}
+function suggestPw() {
+  var a = 'abcdefghjkmnpqrstuvwxyz', d = '23456789', out = '';
+  var r = new Uint32Array(10); (window.crypto || window.msCrypto).getRandomValues(r);
+  for (var i = 0; i < 10; i++) out += (i % 3 === 2 ? d : a).charAt(r[i] % (i % 3 === 2 ? d.length : a.length));
+  return out;
+}
+
+// 設定
+function adminSettings() {
+  var s = S.settings;
+  $('adminBody').innerHTML = '<div class="form-grid">' +
+    '<div class="f"><label>園名</label><input id="stKg" value="' + esc(s.kindergarten) + '"></div>' +
+    '<div class="f wide"><label>バスコース（、で区切る。最初の字が「青・桃・黄・緑」ならバス名簿に色が付きます）</label><input id="stBus" value="' + esc((s.buses || []).join('、')) + '"></div>' +
+    '<div class="f"><label>クラス編成用名簿のいちばん右の列の名前</label><input id="stLabel" value="' + esc(s.schoolLabel) + '"></div>' +
+    '<div class="f"><label>使わないと自動で閉じるまでの時間（分）</label><input id="stIdle" inputmode="numeric" value="' + esc(s.idleMinutes) + '"></div>' +
+    '</div><div class="row" style="margin-top:12px"><button class="btn main" id="stSave">💾 保存する</button></div>';
+  $('stSave').onclick = function () {
+    call('saveSettings', { kindergarten: $('stKg').value, buses: $('stBus').value, schoolLabel: $('stLabel').value, idleMinutes: $('stIdle').value })
+      .then(function (h) { S.settings = h.settings; renderTop(); toast('保存しました（自動で閉じる時間は、次に入ったときから）'); })
+      .catch(function (e) { alert(e.message); });
+  };
+}
+
+// 操作の記録
+function adminLog() {
+  $('adminBody').innerHTML = '<p class="muted">読み込んでいます…</p>';
+  call('readLog', 300).then(function (rows) {
+    var h = '<p class="muted">新しい順に300件。だれが・いつ・何をしたかの記録です（入れなかったときも残ります）。</p><div class="tbl-wrap"><table class="list log"><tr><th>日時</th><th>名前</th><th>操作</th><th>内容</th></tr>';
+    rows.forEach(function (r) { h += '<tr' + (r[2] === '入れなかった' ? ' style="background:#fdecea"' : '') + '><td style="white-space:nowrap">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td><td>' + esc(r[3]) + '</td></tr>'; });
+    $('adminBody').innerHTML = h + '</table></div>';
+  }).catch(function (e) { $('adminBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+}
+
+// ===== Excel（クラス運営）から取り込む =====
+var importQueue = [];
+function adminImport() {
+  $('adminBody').innerHTML = '<p>今まで使っていた、クラスごとの Excel（クラス運営 Ver7.9 など）から園児のデータを取り込みます。</p>' +
+    '<ul class="muted"><li>ファイルの中身は、このパソコンの中で読みます。マクロは動きません。</li>' +
+    '<li>取り込むもの：園児の情報・クラス・番号・バス・役員、春の陽・要録・体力測定の文（第3段階で使います）。出席簿は取り込みません。</li>' +
+    '<li>同じ子（ふりがなと生年月日が同じ）がもういるときは、Excel に入っている項目で上書きします。何回取り込んでも、同じ子が2人にはなりません。</li></ul>' +
+    '<div class="row"><input type="file" id="impFile" accept=".xlsm,.xlsx,.xls" multiple></div><div id="impList" style="margin-top:12px"></div>';
+  $('impFile').onchange = function () {
+    var files = Array.prototype.slice.call(this.files);
+    if (!files.length) return;
+    if (!window.XLSX) { alert('Excel を読む部品がまだ読み込めていません。少し待ってからもう一度選んでください。'); return; }
+    importQueue = [];
+    $('impList').innerHTML = '<p class="muted">読んでいます…</p>';
+    var p = Promise.resolve();
+    files.forEach(function (f) {
+      p = p.then(function () { return f.arrayBuffer(); }).then(function (buf) {
+        try { importQueue.push(parseClassBook(buf, f.name)); }
+        catch (e) { importQueue.push({ fileName: f.name, error: e.message }); }
+      });
+    });
+    p.then(drawImport);
+  };
+}
+function drawImport() {
+  var h = '<table class="list"><tr><th>ファイル</th><th>年度</th><th>クラス</th><th>担任</th><th>園児</th><th>状態</th></tr>';
+  importQueue.forEach(function (q) {
+    h += '<tr><td>' + esc(q.fileName) + '</td>' + (q.error ? '<td colspan="4" style="color:#c0392b">' + esc(q.error) + '</td><td></td>' :
+      '<td>' + nendo(q.year) + '</td><td>' + esc(q.cls) + '</td><td>' + esc(q.teacher) + '</td><td>' + q.rows.length + '人</td><td>' + esc(q.status || '取り込む前') + '</td>') + '</tr>';
+  });
+  h += '</table>';
+  var ok = importQueue.filter(function (q) { return !q.error && !q.done; });
+  if (ok.length) h += '<div class="row" style="margin-top:10px"><button class="btn main" id="impGo">' + ok.length + 'つのファイルを取り込む</button></div>';
+  $('impList').innerHTML = h;
+  if ($('impGo')) $('impGo').onclick = runImport;
+}
+function runImport() {
+  var p = Promise.resolve();
+  busy(true, '取り込んでいます…');
+  importQueue.forEach(function (q) {
+    if (q.error || q.done) return;
+    p = p.then(function () {
+      q.status = '取り込み中…'; drawImport();
+      return call('importRows', q.rows, q.fileName).then(function (r) { q.done = true; q.status = '✔ 新しく ' + r.added + '人・上書き ' + r.updated + '人'; })
+        .catch(function (e) { q.status = '✖ ' + e.message; });
+    });
+  });
+  p.then(function () { return call('hello'); }).then(function (h) { S.years = h.years; S.classes = h.classes; renderTop(); return loadRoster(); })
+    .then(function () { busy(false); drawImport(); toast('取り込みが終わりました'); })
+    .catch(function (e) { busy(false); alert(e.message); });
+}
+
+// クラス運営の「データシート」を読む
+function parseClassBook(buf, fileName) {
+  var wb = XLSX.read(buf, { type: 'array', sheets: ['データシート'], cellFormula: false, cellHTML: false, cellStyles: false });
+  var ws = wb.Sheets['データシート'];
+  if (!ws) throw new Error('「データシート」がありません。クラス運営のファイルを選んでください。');
+  var get = function (addr) { var c = ws[addr]; return c ? c.v : ''; };
+  var txt = function (v) { return String(v == null ? '' : v).replace(/_x000D_/g, '').replace(/\r/g, '').trim(); };
+  var yRaw = Number(get('D4'));
+  if (!yRaw) throw new Error('年度（D4）が読めません。');
+  var year = yRaw > 1000 ? yRaw : 2018 + yRaw;
+  var cls = txt(get('D5')).replace(/[\s　]/g, '');
+  var grade = cls.charAt(0);
+  if (GRADES.indexOf(grade) < 0) throw new Error('クラス名（D5）が「星・花・雪・月」で始まっていません：' + cls);
+  var teacher = txt(get('D6')), sub1 = txt(get('E6')), sub2 = txt(get('F6'));
+  // 見出し（8行目）から列を探す
+  var range = XLSX.utils.decode_range(ws['!ref']);
+  var col = {};
+  for (var c = 0; c <= range.e.c; c++) {
+    var hv = txt(get(XLSX.utils.encode_cell({ r: 7, c: c })));
+    if (hv && col[hv] === undefined) col[hv] = c;
+  }
+  if (col['園児名'] === undefined || col['ふりがな'] === undefined) throw new Error('8行目に「園児名」「ふりがな」の見出しがありません。');
+  var cellAt = function (r, name) { var c = col[name]; if (c === undefined) return ''; var cell = ws[XLSX.utils.encode_cell({ r: r, c: c })]; return cell ? cell : null; };
+  var val = function (r, name) { var cell = cellAt(r, name); if (!cell) return ''; var v = txt(cell.v); return v === '---' ? '' : v; };
+  var date = function (r, name) {
+    var cell = cellAt(r, name); if (!cell || cell.v === '' || cell.v == null) return '';
+    if (typeof cell.v === 'number') { var d = XLSX.SSF.parse_date_code(cell.v); return d ? d.y + '-' + pad(d.m) + '-' + pad(d.d) : ''; }
+    var m = String(cell.v).match(/(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/); return m ? m[1] + '-' + pad(m[2]) + '-' + pad(m[3]) : '';
+  };
+  var zip = function (v) { v = String(v || '').replace(/[^\d]/g, ''); return v.length === 7 ? v.slice(0, 3) + '-' + v.slice(3) : v; };
+  var gi = GRADES.indexOf(grade);
+  var rows = [];
+  for (var r = 8; r <= Math.min(range.e.r, 120); r++) {
+    var name = val(r, '園児名');
+    if (!name) continue;
+    var child = {
+      name: name, kana: val(r, 'ふりがな'), sex: val(r, '性別'), birth: date(r, '生年月日'), zip: zip(val(r, '郵便番号')), address: val(r, '住所'),
+      parent: val(r, '保護者名'), parentKana: val(r, '保護者ふりがな'), tel: val(r, '電話番号'), c1: val(r, '連絡先①'), t1: val(r, '電話番号①'),
+      c2: val(r, '連絡先②'), t2: val(r, '電話番号②'), siblings: val(r, '兄弟関係'), enterDate: date(r, '入園年月日'), transferIn: date(r, '転入園年月日'),
+      leaveDate: date(r, '転出園年月日'), leaveNote: val(r, '退園・転園') || val(r, '退園'), beforeEnter: val(r, '入園前の状況'), school: val(r, '進学先'),
+      therapy: val(r, '療育'), care: val(r, '指導上注意が必要な点'), diffSurname: val(r, '園児と保護者が別の姓') ? '○' : '', diffAddress: val(r, '園児と保護者が別の住所') ? '○' : '',
+      note: val(r, '学籍備考')
+    };
+    var enroll = { no: val(r, '番号'), bus: val(r, 'バス'), officer: val(r, '役員') ? '役員' : '', nextBus: val(r, '来年度バス'), nextOfficer: val(r, '来年度役員') ? '役員' : '' };
+    var growth = [];
+    GRADES.forEach(function (g, i) {
+      if (i > gi) return;
+      var focusHead = g === '雪' && col['個人の重点_雪'] === undefined ? '個人の重点_花2' : '個人の重点_' + g;
+      growth.push({
+        grade: g, year: String(year - (gi - i)),
+        harunohi1: val(r, '春の陽' + g + '①'), harunohi2: val(r, '春の陽' + g + '②'), harunohi3: val(r, '春の陽' + g + '③'),
+        focus: val(r, focusHead), guidance: val(r, '指導上参考になる事項_' + g), remarks: val(r, '備考_' + g),
+        eduDays: val(r, '教育日数_' + g), attendDays: val(r, '出席日数_' + g),
+        kenken: val(r, 'けんけんとび_' + g), tachihaba: val(r, '立ち幅跳び_' + g), kataashi: val(r, '片足立ち_' + g),
+        maritsuki: val(r, 'まりつき_' + g), nawatobi: val(r, 'なわとび_' + g), tamanage: val(r, '球投げ_' + g),
+        personal: val(r, '個人記録_' + g)
+      });
+    });
+    rows.push({ year: year, cls: cls, teacher: teacher, sub1: sub1, sub2: sub2, child: child, enroll: enroll, growth: growth });
+  }
+  if (!rows.length) throw new Error('園児が1人も見つかりません。');
+  return { fileName: fileName, year: String(year), cls: cls, teacher: teacher, rows: rows };
+}
+
+// ===== 見本（にせのデータで動く。本物のデータは入っていません） =====
+var Demo = (function () {
+  var db = null;
+  var KEY = 'daicho_demo_v1';
+  var sur = [['青木', 'あおき'], ['石川', 'いしかわ'], ['上田', 'うえだ'], ['遠藤', 'えんどう'], ['大野', 'おおの'], ['加藤', 'かとう'], ['木村', 'きむら'], ['工藤', 'くどう'], ['小林', 'こばやし'], ['佐々木', 'ささき'], ['清水', 'しみず'], ['杉山', 'すぎやま'], ['関口', 'せきぐち'], ['高田', 'たかだ'], ['千葉', 'ちば'], ['土屋', 'つちや'], ['中村', 'なかむら'], ['西川', 'にしかわ'], ['野口', 'のぐち'], ['橋本', 'はしもと'], ['平野', 'ひらの'], ['藤田', 'ふじた'], ['星野', 'ほしの'], ['松本', 'まつもと'], ['宮田', 'みやた'], ['森', 'もり'], ['山口', 'やまぐち'], ['横山', 'よこやま'], ['渡辺', 'わたなべ']];
+  var boy = [['陽太', 'ひなた'], ['蓮', 'れん'], ['湊', 'みなと'], ['悠真', 'ゆうま'], ['大和', 'やまと'], ['蒼', 'あお'], ['律', 'りつ'], ['朝陽', 'あさひ'], ['樹', 'いつき'], ['陸', 'りく']];
+  var girl = [['陽葵', 'ひまり'], ['凛', 'りん'], ['結菜', 'ゆいな'], ['芽依', 'めい'], ['紬', 'つむぎ'], ['葵', 'あおい'], ['澪', 'みお'], ['杏', 'あん'], ['咲良', 'さくら'], ['心春', 'こはる']];
+  var dad = ['健太', '大輔', '翔', '拓也', '直樹', '亮', '誠', '浩二'];
+  var town = ['見本町', '見本台', 'ためし町', 'みほん通り'];
+  function seed() {
+    var y = fy();
+    var classes = [['星組', '星野 ひかり'], ['花１組', '花田 みどり'], ['雪１組', '雪村 しずか'], ['月１組', '月岡 あかね']];
+    var d = { children: [], enrolls: [], classes: [], staff: [{ name: '見本 管理者', role: '管理者', state: '使える', pw: 'demo1234', lastLogin: '' }, { name: '見本 先生', role: '職員', state: '使える', pw: 'demo1234', lastLogin: '' }],
+      log: [], settings: { kindergarten: '見本幼稚園', buses: ['青１', '青２', '桃１', '桃２', '黄１', '歩き'], schoolLabel: '和蒲', idleMinutes: '30' } };
+    var n = 0;
+    classes.forEach(function (c, ci) {
+      d.classes.push({ year: String(y), name: c[0], grade: c[0].charAt(0), teacher: c[1], sub1: '', sub2: '', order: ci + 1 });
+      var count = 12 + ci * 2;
+      var kids = [];
+      for (var i = 0; i < count; i++) {
+        n++;
+        var s = sur[(n * 7) % sur.length], isB = n % 2 === 0, g = (isB ? boy : girl)[(n * 3) % 10];
+        var by = y - 3 - ci, bm = 4 + (n % 12), bd = 1 + (n * 5) % 27;
+        var bY = bm > 12 ? by + 1 : by; bm = bm > 12 ? bm - 12 : bm;
+        kids.push({ id: 'D' + n, name: s[0] + '　' + g[0], kana: s[1] + '　' + g[1], sex: isB ? '男' : '女', birth: bY + '-' + pad(bm) + '-' + pad(bd),
+          zip: '000-00' + pad(n % 100), address: '見本市' + town[n % 4] + (n * 13 % 900 + 10) + '-' + (n % 9 + 1), parent: dad[n % dad.length], parentKana: '', tel: '090-0000-' + ('000' + n).slice(-4),
+          c1: '母携帯', t1: '080-0000-' + ('000' + n).slice(-4), c2: '父携帯', t2: '070-0000-' + ('000' + n).slice(-4), siblings: n % 5 === 0 ? '兄（月組）' : '',
+          enterDate: (y - ci) + '-04-01', transferIn: '', leaveDate: n === 9 ? y + '-10-31' : '', leaveNote: n === 9 ? '転居のため' : '', beforeEnter: '', school: ['見本小', 'ためし小'][n % 2],
+          therapy: n % 11 === 0 ? 'みほん教室' : '', care: n % 7 === 0 ? '食物アレルギー（卵）。給食は除去食。' : '', diffSurname: '', diffAddress: '', note: '', memo: '',
+          createdAt: '', updatedAt: '2026-04-01 09:00:00', updatedBy: '見本' });
+      }
+      kids.sort(function (a, b) { return a.kana.localeCompare(b.kana, 'ja'); });
+      kids.forEach(function (k, i) {
+        d.children.push(k);
+        d.enrolls.push({ year: String(y), childId: k.id, cls: c[0], no: String(i + 1), bus: d.settings.buses[(i * 3) % 6], officer: i % 6 === 2 ? '役員' : '', nextBus: '', nextOfficer: '' });
+      });
+    });
+    return d;
+  }
+  function fy() { var t = new Date(); return t.getMonth() >= 3 ? t.getFullYear() : t.getFullYear() - 1; }
+  function load() { if (db) return db; try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {} if (!db) { db = seed(); keep(); } return db; }
+  function keep() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
+  function now() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+  function log(n, w, t) { db.log.push([now(), n, w, t || '']); }
+  var sessions = {};
+  function me(token) { var m = sessions[token] || (token === 'demo-token' ? { name: '見本 管理者', role: '管理者' } : null); if (!m) throw new Error('AUTH|もう一度入ってください。'); return m; }
+  function hello(m) {
+    var ys = {}; db.classes.forEach(function (c) { ys[c.year] = 1; }); db.enrolls.forEach(function (e) { ys[e.year] = 1; }); ys[String(fy())] = 1;
+    return { me: { name: m.name, role: m.role, idleMinutes: Number(db.settings.idleMinutes) || 30 }, settings: db.settings, years: Object.keys(ys).sort().reverse(), currentYear: String(fy()), classes: JSON.parse(JSON.stringify(db.classes)) };
+  }
+  function roster(y) {
+    var byId = {}; db.children.forEach(function (c) { byId[c.id] = c; });
+    return { year: y, classes: db.classes.filter(function (c) { return c.year === y; }), children: db.enrolls.filter(function (e) { return e.year === y && byId[e.childId]; }).map(function (e) { var o = JSON.parse(JSON.stringify(byId[e.childId])); o.enroll = JSON.parse(JSON.stringify(e)); return o; }) };
+  }
+  function getChild(id) {
+    var c = db.children.filter(function (x) { return x.id === id; })[0]; if (!c) throw new Error('この園児は見つかりません。');
+    var o = JSON.parse(JSON.stringify(c)); o.enrolls = db.enrolls.filter(function (e) { return e.childId === id; }); return o;
+  }
+  var api = {
+    hello: hello,
+    roster: function (m, y) { return roster(y); },
+    getChild: function (m, id) { return getChild(id); },
+    saveChild: function (m, c, force) {
+      var cur = c.id ? db.children.filter(function (x) { return x.id === c.id; })[0] : null;
+      if (cur && !force && c.updatedAt && cur.updatedAt !== c.updatedAt) throw new Error('CONFLICT|' + cur.updatedBy + ' さんが ' + cur.updatedAt + ' に先に直しています。');
+      if (!c.name) throw new Error('園児名を入れてください。');
+      var o = cur || { id: 'D' + Date.now(), createdAt: now() };
+      Object.keys(c).forEach(function (k) { if (k !== 'enroll' && k !== 'id' && k !== 'updatedAt') o[k] = c[k]; });
+      o.name = o.name.replace(/ /g, '　'); o.kana = (o.kana || '').replace(/ /g, '　');
+      o.updatedAt = now(); o.updatedBy = m.name;
+      if (!cur) db.children.push(o);
+      var en = c.enroll;
+      if (en && en.year) {
+        var e = db.enrolls.filter(function (x) { return x.year === en.year && x.childId === o.id; })[0];
+        if (e || en.cls) {
+          if (!e) { e = { year: en.year, childId: o.id }; db.enrolls.push(e); }
+          var no = en.no;
+          if (!no && en.cls) { var mx = 0; db.enrolls.forEach(function (x) { if (x.year === en.year && x.cls === en.cls && x.childId !== o.id) mx = Math.max(mx, Number(x.no) || 0); }); no = String(mx + 1); }
+          e.cls = en.cls; e.no = no; e.bus = en.bus; e.officer = en.officer; e.nextBus = en.nextBus; e.nextOfficer = en.nextOfficer;
+        }
+      }
+      log(m.name, cur ? '園児を直す' : '園児を追加', o.name); keep();
+      return getChild(o.id);
+    },
+    renumber: function (m, y, cls) {
+      var byId = {}; db.children.forEach(function (c) { byId[c.id] = c; });
+      db.enrolls.filter(function (e) { return e.year === y && e.cls === cls; }).sort(function (a, b) { return byId[a.childId].kana.localeCompare(byId[b.childId].kana, 'ja'); })
+        .forEach(function (e, i) { e.no = String(i + 1); });
+      log(m.name, '番号を付け直す', cls); keep(); return roster(y);
+    },
+    logPrint: function (m, w) { log(m.name, '書類', w); keep(); return true; },
+    changeMyPassword: function (m, a, b) {
+      var s = db.staff.filter(function (x) { return x.name === m.name; })[0];
+      if (!s || s.pw !== a) throw new Error('今のパスワードがちがいます。');
+      if (String(b).length < 8 || !/[A-Za-z]/.test(b) || !/\d/.test(b)) throw new Error('パスワードは8文字以上で、英字と数字の両方を入れてください。');
+      s.pw = b; keep(); return true;
+    },
+    deleteChild: function (m, id) { var c = getChild(id); db.children = db.children.filter(function (x) { return x.id !== id; }); db.enrolls = db.enrolls.filter(function (x) { return x.childId !== id; }); log(m.name, '園児を削除', c.name); keep(); return true; },
+    saveClasses: function (m, y, list) {
+      var ren = {}; list.forEach(function (c) { if (c.from && c.from !== c.name) ren[c.from] = c.name; });
+      list.forEach(function (c) { if (['星', '花', '雪', '月'].indexOf(c.name.charAt(0)) < 0) throw new Error('「' + c.name + '」の学年が分かりません。クラス名は 星・花・雪・月 のどれかで始めてください。'); });
+      db.classes = db.classes.filter(function (c) { return c.year !== y; }).concat(list.map(function (c, i) { return { year: y, name: c.name, grade: c.name.charAt(0), teacher: c.teacher, sub1: c.sub1, sub2: c.sub2, order: i + 1 }; }));
+      db.enrolls.forEach(function (e) { if (e.year === y && ren[e.cls]) e.cls = ren[e.cls]; });
+      log(m.name, 'クラスを直す', y); keep(); return hello(m);
+    },
+    saveSettings: function (m, s) { db.settings.kindergarten = s.kindergarten; db.settings.buses = String(s.buses).split(/[、,]/).map(function (x) { return x.trim(); }).filter(String); db.settings.schoolLabel = s.schoolLabel; db.settings.idleMinutes = s.idleMinutes; keep(); return hello(m); },
+    listStaff: function () { return db.staff.map(function (s) { return { name: s.name, role: s.role, state: s.state, lastLogin: s.lastLogin }; }); },
+    addStaff: function (m, n, r, pw) { if (!n.trim()) throw new Error('名前を入れてください。'); db.staff.push({ name: n.trim(), role: r, state: '使える', pw: pw, lastLogin: '' }); keep(); return api.listStaff(); },
+    updateStaff: function (m, n, r, st) { var s = db.staff.filter(function (x) { return x.name === n; })[0]; s.role = r; s.state = st; keep(); return api.listStaff(); },
+    resetPassword: function (m, n, pw) { db.staff.filter(function (x) { return x.name === n; })[0].pw = pw; keep(); return true; },
+    importRows: function (m, rows) { return { added: rows.length, updated: 0 }; },
+    readLog: function () { return db.log.slice().reverse().slice(0, 300); }
+  };
+  var ADMIN = ['deleteChild', 'saveClasses', 'saveSettings', 'listStaff', 'addStaff', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
+  return {
+    call: function (fn, args, token) {
+      load();
+      return new Promise(function (res) { setTimeout(res, 120); }).then(function () {
+        if (fn === 'login') {
+          var s = db.staff.filter(function (x) { return x.name.replace(/\s/g, '') === String(args[0]).replace(/\s/g, ''); })[0];
+          if (!s || s.pw !== args[1]) { log(String(args[0]), '入れなかった', ''); keep(); throw new Error('名前かパスワードがちがいます。（見本：「見本 管理者」／ demo1234）'); }
+          if (s.state === '停止') throw new Error('この名前は、今は使えないようになっています。');
+          var t = 'T' + Math.random().toString(36).slice(2);
+          sessions[t] = { name: s.name, role: s.role }; s.lastLogin = now(); log(s.name, '入った', ''); keep();
+          return { token: t, name: s.name, role: s.role, idleMinutes: 30 };
+        }
+        if (fn === 'logout') { delete sessions[token]; return true; }
+        var m = me(token);
+        if (ADMIN.indexOf(fn) >= 0 && m.role !== '管理者') throw new Error('この操作は管理者だけができます。');
+        if (!api[fn]) throw new Error('この操作はできません。');
+        return api[fn].apply(null, [m].concat(args));
+      }).then(function (r) { touchIdle(); return r; }, function (e) {
+        if (e.message.indexOf('AUTH|') === 0) { forceLogout(e.message.slice(5)); throw new Error(e.message.slice(5)); }
+        throw e;
+      });
+    },
+    reset: function () { localStorage.removeItem(KEY); db = null; }
+  };
+})();
+
+// ===== はじめ =====
+if (DEMO) {
+  $('loginMsg').innerHTML = '<div class="msg warn">見本で動いています（にせのデータです）。名前「見本 管理者」、パスワード「demo1234」で入れます。</div>';
+}
+if (S.token && !DEMO) start(); else showLogin();
+</script>
+</body>
+</html>
