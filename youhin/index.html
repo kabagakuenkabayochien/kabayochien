@@ -147,6 +147,16 @@
   .staff-who { background: #fff; color: var(--text); border-radius: 10px; padding: 10px; font-size: 1.3rem; font-weight: bold; line-height: 1.4; word-break: break-all; }
   .staff-when { font-size: 1rem; margin-top: 8px; }
   .staff-home { font-size: 0.85rem; margin-top: 8px; }
+  .staff-event { border-radius: 10px; padding: 12px 10px; margin-top: 12px; font-weight: bold; line-height: 1.5; }
+  .staff-event .ev-label { font-size: 0.95rem; }
+  .staff-event .ev-state { font-size: 1.35rem; }
+  .staff-event.on { background: #fff; color: #1f6f4a; }
+  .staff-event.off { background: #fff3c4; color: #8a3a00; border: 3px solid #ffb300; }
+  .staff-event .ev-btn { display: block; width: 100%; margin-top: 10px; padding: 14px 8px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 10px; background: #e86a1a; color: #fff; cursor: pointer; }
+  .staff-event .ev-btn:disabled { opacity: 0.6; }
+  .staff-event .ev-note { font-size: 0.85rem; font-weight: normal; margin-top: 6px; }
+  .staff-event .ev-undo { background: none; border: none; color: #1f6f4a; text-decoration: underline; font-size: 0.85rem; margin-top: 4px; cursor: pointer; }
+  .staff-event .ev-err { color: #c0392b; font-size: 0.9rem; margin-top: 6px; white-space: pre-wrap; }
   /* 注文の確認・変更（確認メールのリンクから開いたとき） */
   .edit-head p { margin: 0 0 6px; }
   .edit-head .who { font-size: 1.15rem; font-weight: bold; }
@@ -244,6 +254,7 @@
       <div class="staff-big">この画面を<br>職員へ<br>見せてください</div>
       <div class="staff-who" id="staffWho"></div>
       <div class="staff-when" id="staffWhen"></div>
+      <div class="staff-event" id="staffEvent"></div>
       <div class="staff-home">ご自宅などで注文された方は、見せなくてもかまいません。</div>
     </div>
     <div class="card center">
@@ -324,7 +335,8 @@ function call(fn, arg) {
         if (fn === 'getFormData') resolve(DEMO_DATA);
         else if (fn === 'getMyOrder') resolve(DEMO_MY_ORDER);
         else if (fn === 'cancelMyOrder') resolve({ mailSent: true });
-        else resolve({ orderNo: 'No.0001', child: arg.child, total: totalOf(chosenItems()) + lockedSum(), payNote: DEMO_PAY, mailSent: true });
+        else if (fn === 'setMyEvent') resolve({ event: arg.on === true });
+        else resolve({ orderNo: 'No.0001', child: arg.child, total: totalOf(chosenItems()) + lockedSum(), payNote: DEMO_PAY, mailSent: true, event: arg.event === true, key: 'demo' });
       }, 400);
       return;
     }
@@ -986,6 +998,41 @@ $('backBtn').addEventListener('click', function () {
   window.scrollTo(0, 0);
 });
 
+// ===== 注文完了の画面の「用品販売の日に購入する」 =====
+// 職員が見て、チェックが入っていなければ、ここで「購入する」に直せる（注文をやり直さなくてよい）
+var doneKey = '';         // いま注文した分の鍵（確認メールのリンクと同じ）
+var eventChanged = false; // 完了の画面で変えたか
+function renderStaffEvent(on) {
+  var box = $('staffEvent');
+  box.className = 'staff-event ' + (on ? 'on' : 'off');
+  var html = '<div class="ev-label">🛍 用品販売の日に購入する</div>'
+    + '<div class="ev-state">' + (on ? '✔ チェックあり（購入する）' : '✖ チェックなし（購入しない）') + '</div>';
+  if (!on && doneKey) {
+    html += '<button type="button" class="ev-btn" id="evOnBtn">✔「用品販売の日に購入する」にする</button>'
+      + '<div class="ev-note">用品販売の日に購入する場合は、このボタンを押してください。注文をやり直す必要はありません。</div>';
+  }
+  if (on && eventChanged) {
+    html += '<div class="ev-note">「購入する」に変えました。<br>（確認のメールには「購入しない」と書かれていますが、変更済みです）</div>'
+      + '<button type="button" class="ev-undo" id="evOffBtn">まちがえたときは、元に戻す（購入しない）</button>';
+  }
+  html += '<div class="ev-err" id="evErr"></div>';
+  box.innerHTML = html;
+  if ($('evOnBtn')) $('evOnBtn').onclick = function () { setStaffEvent(true, this); };
+  if ($('evOffBtn')) $('evOffBtn').onclick = function () { setStaffEvent(false, this); };
+}
+function setStaffEvent(on, btn) {
+  btn.disabled = true;
+  if (on) btn.textContent = '送信しています…';
+  call('setMyEvent', { action: 'setMyEvent', key: doneKey, on: on }).then(function (r) {
+    eventChanged = on;
+    renderStaffEvent(r.event === true);
+  }).catch(function (e) {
+    btn.disabled = false;
+    if (on) btn.textContent = '✔「用品販売の日に購入する」にする';
+    $('evErr').textContent = '変えられませんでした。\n' + errMsg(e);
+  });
+}
+
 // ===== 送信 =====
 
 $('sendBtn').addEventListener('click', function () {
@@ -1010,6 +1057,9 @@ $('sendBtn').addEventListener('click', function () {
       var now = new Date();
       $('staffWho').textContent = f.child + ' さん（' + f.age + '）';
       $('staffWhen').textContent = '注文日時　' + (now.getMonth() + 1) + '月' + now.getDate() + '日 ' + now.getHours() + '時' + ('0' + now.getMinutes()).slice(-2) + '分';
+      doneKey = r.key || '';
+      eventChanged = false;
+      renderStaffEvent(r.event === undefined ? f.event : r.event === true);
     }
     if (myOrder) {
       $('doneTitle').textContent = 'ご注文を変更しました';
