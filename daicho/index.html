@@ -153,6 +153,8 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
 .kn { font-size: 6pt; line-height: 1.1; letter-spacing: .3pt; white-space: nowrap; }
 .nmk { font-size: 10.5pt; line-height: 1.25; white-space: nowrap; }
 .fi { display: inline-block; white-space: nowrap; }
+.tcy { text-combine-upright: all; }
+.up { text-orientation: upright; }
 .page .kn, .page .nmk { overflow: visible; }
 .c { text-align: center; }
 .r { text-align: right; }
@@ -759,6 +761,14 @@ window.addEventListener('afterprint', function () { $('print').innerHTML = ''; }
 function kanaCell(k) { return k ? '<div class="kn">' + fi(k.kana) + '</div><div class="nmk">' + fi(k.name) + '</div>' : ''; }
 // 枠に入りきらない文字（長い名前など）を、1行のまま枠に合わせて縮める
 function fi(text) { return '<span class="fi">' + esc(text) + '</span>'; }
+// 縦書きで数字・英字を立てる（2けたまでは1マスに横並び、3けた以上と英字は1字ずつ立てる）
+function tate(text) {
+  return String(text || '').replace(/[0-9]+|[A-Za-z]+|[^0-9A-Za-z]+/g, function (m) {
+    if (/^[0-9]/.test(m)) return '<span class="' + (m.length <= 2 ? 'tcy' : 'up') + '">' + m + '</span>';
+    if (/^[A-Za-z]/.test(m)) return '<span class="up">' + m + '</span>';
+    return esc(m);
+  });
+}
 function fitAll(root) {
   Array.prototype.forEach.call(root.querySelectorAll('.fi'), function (s) {
     s.style.cssText = '';
@@ -850,8 +860,8 @@ var DOC_MAKERS = {
       var head = '<tr style="block-size:8.8mm;font-size:8.5pt"><td class="c" style="inline-size:14mm">割印</td><td class="c" style="inline-size:15mm">番号</td><td class="c" style="inline-size:30mm">園児氏名</td><td class="c" style="inline-size:16mm">保護者名</td><td class="c" style="inline-size:17mm">生年月日</td><td class="c">住　　　所</td><td class="c" style="inline-size:26mm">入園年月日</td></tr>';
       h += head;
       rows.forEach(function (k) {
-        h += '<tr style="block-size:8.8mm">' + (k ? '<td></td><td class="c"><span style="text-combine-upright:all">' + esc(k.enroll.no) + '</span></td><td class="c" style="font-size:11pt">' + fi(k.name) + '</td><td class="c">' + fi(k.parent) + '</td>' +
-          '<td class="c" style="font-size:8.5pt">' + esc(wShort(k.birth)) + '</td><td style="font-size:9.5pt">' + fi(k.address) + '</td><td class="c" style="font-size:8.5pt">' + esc(wLong(k.transferIn || k.enterDate)) + '</td>'
+        h += '<tr style="block-size:8.8mm">' + (k ? '<td></td><td class="c">' + tate(k.enroll.no) + '</td><td class="c" style="font-size:11pt">' + fi(k.name) + '</td><td class="c">' + fi(k.parent) + '</td>' +
+          '<td class="c" style="font-size:8.5pt">' + tate(wShort(k.birth)) + '</td><td style="font-size:9.5pt"><span class="fi">' + tate(k.address) + '</span></td><td class="c" style="font-size:8.5pt">' + tate(wLong(k.transferIn || k.enterDate)) + '</td>'
           : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
       });
       return h + '</table></div></div>';
