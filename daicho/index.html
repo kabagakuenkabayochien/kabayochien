@@ -152,6 +152,8 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
 .pg-head { display: flex; justify-content: space-between; align-items: flex-end; font-size: 12pt; margin-bottom: 1.5mm; padding: 0 2mm; }
 .kn { font-size: 6pt; line-height: 1.1; letter-spacing: .3pt; white-space: nowrap; }
 .nmk { font-size: 10.5pt; line-height: 1.25; white-space: nowrap; }
+.fi { display: inline-block; white-space: nowrap; }
+.page .kn, .page .nmk { overflow: visible; }
 .c { text-align: center; }
 .r { text-align: right; }
 .mincho { font-family: var(--mincho); }
@@ -734,6 +736,8 @@ function buildDoc() {
 function drawPreview() {
   var r = buildDoc();
   $('preview').innerHTML = r.pages.join('') || '<div class="empty" style="color:#fff">クラスがありません。管理の「クラス」で作ってください。</div>';
+  fitAll($('preview'));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fitAll($('preview')); });
   $('docInfo').textContent = r.pages.length ? r.pages.length + '枚（' + ({ b5: 'B5たて', b5l: 'B5よこ', a4: 'A4たて' })[r.size] + '）' : '';
 }
 var PAGE_SIZES = { b5: '182mm 257mm', b5l: '257mm 182mm', a4: '210mm 297mm' };
@@ -741,14 +745,41 @@ $('printBtn').onclick = function () {
   var r = buildDoc();
   if (!r.pages.length) return;
   $('pageStyle').textContent = '@page { size: ' + PAGE_SIZES[r.size] + '; margin: 0; }';
-  $('print').innerHTML = r.pages.join('');
+  drawPreview();
   call('logPrint', r.doc.name + '：' + nendo(S.year) + ' ' + (docOpt.cls === '*' ? '全クラス' : docOpt.cls)).catch(function () {});
-  setTimeout(function () { window.print(); }, 100);
+  setTimeout(function () {
+    fitAll($('preview'));
+    $('print').innerHTML = $('preview').innerHTML;   // 見本の画面で枠に合わせた形のまま印刷する
+    window.print();
+  }, 300);
 };
 window.addEventListener('afterprint', function () { $('print').innerHTML = ''; });
 
 // --- 書類の部品 ---
-function kanaCell(k) { return k ? '<div class="kn">' + esc(k.kana) + '</div><div class="nmk">' + esc(k.name) + '</div>' : ''; }
+function kanaCell(k) { return k ? '<div class="kn">' + fi(k.kana) + '</div><div class="nmk">' + fi(k.name) + '</div>' : ''; }
+// 枠に入りきらない文字（長い名前など）を、1行のまま枠に合わせて縮める
+function fi(text) { return '<span class="fi">' + esc(text) + '</span>'; }
+function fitAll(root) {
+  Array.prototype.forEach.call(root.querySelectorAll('.fi'), function (s) {
+    s.style.cssText = '';
+    var box = s.parentElement, cs = getComputedStyle(box);
+    var vert = cs.writingMode.indexOf('vertical') === 0;
+    var avail = vert ? box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+                     : box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var len = function () { return vert ? s.offsetHeight : s.offsetWidth; };
+    var w = len();
+    if (!w || avail <= 0 || w <= avail) return;
+    var base = parseFloat(getComputedStyle(s).fontSize);
+    var size = Math.max(base * 0.6, base * avail / w * 0.98);
+    s.style.fontSize = size + 'px';
+    w = len();
+    if (w > avail) {   // まだ長いときは、字の高さはそのままで横だけ詰める
+      s.style.marginInlineEnd = -(w - avail) + 'px';
+      s.style.transformOrigin = vert ? 'top' : 'left';
+      s.style.transform = (vert ? 'scaleY(' : 'scaleX(') + (avail / w) + ')';
+    }
+  });
+}
 function chunk(list, n) { var out = []; for (var i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); if (!out.length) out.push([]); return out; }
 function slots(list, n) { var a = list.slice(0, n); while (a.length < n) a.push(null); return a; }
 function busColor(b) {
@@ -790,7 +821,7 @@ var DOC_MAKERS = {
         '<table class="t thick" style="width:100%;table-layout:fixed;font-size:10pt"><colgroup><col style="width:11mm"><col style="width:9mm"><col style="width:27mm"><col style="width:17mm"><col><col style="width:31mm"></colgroup>' +
         '<tr class="hd" style="height:8.5mm;font-weight:bold;font-size:9.5pt"><td class="c">役員</td><td class="c">番号</td><td class="c">園児名</td><td class="c">保護者名</td><td class="c">住　　　所</td><td class="c">電話番号</td></tr>';
       rows.forEach(function (k) {
-        h += '<tr class="nw" style="height:8.2mm">' + (k ? '<td class="c">' + (k.enroll.officer ? '役員' : '') + '</td><td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="' + fitStyle(k.name, 7) + '">' + esc(k.name) + '</td><td class="c" style="' + fitStyle(k.parent, 4) + '">' + esc(k.parent) + '</td>' +
+        h += '<tr class="nw" style="height:8.2mm">' + (k ? '<td class="c">' + (k.enroll.officer ? '役員' : '') + '</td><td class="c">' + esc(k.enroll.no) + '</td><td class="c">' + fi(k.name) + '</td><td class="c">' + fi(k.parent) + '</td>' +
           '<td style="' + fitStyle(k.address, 30) + '">' + esc(k.address) + '</td><td class="c" style="' + fitStyle(k.tel, 11) + '">' + esc(k.tel) + '</td>' : '<td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
       });
       pages.push(h + '</table></div>');
@@ -819,7 +850,7 @@ var DOC_MAKERS = {
       var head = '<tr style="block-size:11mm;font-size:8.5pt"><td class="c" style="inline-size:12mm">割印</td><td class="c" style="inline-size:13mm">番号</td><td class="c" style="inline-size:25mm">園児氏名</td><td class="c" style="inline-size:13mm">保護者名</td><td class="c" style="inline-size:15mm">生年月日</td><td class="c">住　　所</td><td class="c" style="inline-size:24mm">入園年月日</td></tr>';
       h += head;
       rows.forEach(function (k) {
-        h += '<tr style="block-size:13.5mm">' + (k ? '<td></td><td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="font-size:11pt">' + esc(k.name) + '</td><td class="c" style="' + fitStyle(k.parent, 5) + '">' + esc(k.parent) + '</td>' +
+        h += '<tr style="block-size:13.5mm">' + (k ? '<td></td><td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="font-size:11pt">' + fi(k.name) + '</td><td class="c">' + fi(k.parent) + '</td>' +
           '<td class="c" style="font-size:8.5pt">' + esc(wShort(k.birth)) + '</td><td style="' + fitStyle(k.address, 22, 9.5) + '">' + esc(k.address) + '</td><td class="c" style="font-size:8.5pt">' + esc(wLong(k.transferIn || k.enterDate)) + '</td>'
           : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
       });
@@ -838,7 +869,7 @@ var DOC_MAKERS = {
         '<tr style="height:7mm"><td class="c" rowspan="2">番号</td><td class="c" rowspan="2">氏　　　　名</td><td class="c" colspan="2">男女別</td><td class="c" rowspan="2">生年月日</td><td class="c" style="font-size:6.5pt">４月現在</td><td class="c" rowspan="2">住　　　　　　　　所</td></tr>' +
         '<tr style="height:6mm"><td class="c">男</td><td class="c">女</td><td class="c" style="font-size:6.5pt">満年齢</td></tr>';
       rows.forEach(function (k) {
-        h += '<tr style="height:6.55mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="c">' + esc(k.name) + '</td><td class="c">' + (k.sex === '男' ? '〇' : '') + '</td><td class="c">' + (k.sex === '女' ? '〇' : '') + '</td>' +
+        h += '<tr style="height:6.55mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="c">' + fi(k.name) + '</td><td class="c">' + (k.sex === '男' ? '〇' : '') + '</td><td class="c">' + (k.sex === '女' ? '〇' : '') + '</td>' +
           '<td class="c">' + esc(wShort(k.birth)) + '</td><td class="c">' + esc(ageAt(k.birth, S.year + '-04-01')) + '</td><td style="' + fitStyle(k.address, 40, 8.5) + '">' + esc(k.address) + '</td>'
           : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
       });
@@ -857,7 +888,7 @@ var DOC_MAKERS = {
         var fs = Math.min(26, Math.floor(150 / Math.max(len, 1)));
         h += '<div style="height:58mm;border-bottom:1px solid #000;padding:6mm 3mm 0;position:relative">' +
           '<div style="display:flex;justify-content:space-between;font-size:13pt"><span style="color:#e00">' + esc(docOpt.tagTitle) + '</span><span>' + esc(wLong(docOpt.tagDate)) + '</span></div>' +
-          '<div style="text-align:center;font-size:' + fs + 'mm;line-height:1.4;margin-top:3mm;white-space:nowrap">' + esc(nm) + '</div></div>';
+          '<div style="text-align:center;font-size:' + fs + 'mm;line-height:1.4;margin-top:3mm;white-space:nowrap">' + fi(nm) + '</div></div>';
       });
       return h + '</div>';
     });
@@ -876,7 +907,7 @@ var DOC_MAKERS = {
     var col = function (k) { return k ? (k.sex === '男' ? '#bdd7ee' : k.sex === '女' ? '#ffccff' : '') : ''; };
     var cell = function (x, i, showNo) {
       var k = x ? x.k : null;
-      return '<td class="c" style="background:#ccffcc">' + (x ? (showNo ? esc(k.enroll.no) : i + 1) : '') + '</td><td style="background:' + col(k) + '">' + (k ? esc(k.name) : '') + '</td><td class="c">' + (x && !isNaN(x.h) ? x.h : '') + '</td>';
+      return '<td class="c" style="background:#ccffcc">' + (x ? (showNo ? esc(k.enroll.no) : i + 1) : '') + '</td><td style="background:' + col(k) + '">' + (k ? fi(k.name) : '') + '</td><td class="c">' + (x && !isNaN(x.h) ? x.h : '') + '</td>';
     };
     var parts = chunk(list, 30);
     var pages = parts.map(function (part, pi) {
@@ -902,7 +933,7 @@ var DOC_MAKERS = {
         '<table class="t thick" style="width:100%;table-layout:fixed;font-size:9pt"><colgroup><col style="width:8mm"><col style="width:27mm"><col style="width:10mm"><col style="width:14mm"><col style="width:14mm"><col><col style="width:' + Math.max(9, label.length * 3.5 + 3) + 'mm"></colgroup>' +
         '<tr class="hd" style="height:6mm;font-size:8pt"><td class="c">番号</td><td>園児名</td><td class="c">バス</td><td class="c">進学先</td><td class="c">療育</td><td class="c">指導上注意が必要な点</td><td class="c">' + esc(label) + '</td></tr>';
       rows.forEach(function (k) {
-        h += '<tr style="height:12.6mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="nw" style="' + fitStyle(k.kana || k.name, 9, 8.5) + '">' + esc(k.kana || k.name) + '</td><td class="c nw" style="border-style:solid dashed">' + esc(k.enroll.nextBus) + '</td>' +
+        h += '<tr style="height:12.6mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="nw" style="font-size:8.5pt">' + fi(k.kana || k.name) + '</td><td class="c nw" style="border-style:solid dashed">' + esc(k.enroll.nextBus) + '</td>' +
           '<td class="c nw" style="border-style:solid dashed;' + fitStyle(k.school, 3, 9) + '">' + esc(k.school) + '</td><td class="c" style="border-style:solid dashed;' + fitStyle(k.therapy, 4, 8) + '">' + esc(k.therapy) + '</td>' +
           '<td style="border-style:solid dashed;' + fitStyle(k.care, 60, 8) + '">' + esc(k.care) + '</td><td></td>'
           : '<td></td><td></td><td style="border-style:solid dashed"></td><td style="border-style:solid dashed"></td><td style="border-style:solid dashed"></td><td style="border-style:solid dashed"></td><td></td>') + '</tr>';
