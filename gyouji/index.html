@@ -514,7 +514,7 @@ button { cursor: pointer; }
 
     <details class="use-items" id="useItems">
       <summary>📋 この記録で使う項目を選ぶ<span class="n" id="useItemsCount"></span></summary>
-      <p class="hint">使わない項目のチェックを外すと、その欄は画面に出なくなり、印刷もされません。書いてあった内容は消えずに残ります（もう一度チェックすると戻ります）。<br>実施日・イベント名・記入者は必ず使います。</p>
+      <p class="hint">必要な項目にチェックを入れると、その欄が出ます。チェックのない項目は画面に出ず、印刷もされません。チェックを外しても、書いてあった内容は消えずに残ります（もう一度チェックすると戻ります）。<br>実施日・イベント名・記入者・実施場所・時間・活動のねらい・計画・環境構成など・反省・次年度へ向けての課題は、いつも出ます（事務分掌・自由記述では、その分類にある欄だけ）。</p>
       <div class="chips" id="useItemsChips"></div>
       <button type="button" class="linkbtn all" onclick="setAllItems(true)">すべて使う</button>
     </details>
@@ -910,9 +910,7 @@ function addYears(s, n) { var d = parseDate(s); return (d.getFullYear() + n) + s
 function pendingEvents() {
   var today = todayStr();
   return events.filter(function (e) {
-    // 「反省」を使わない項目にした記録は、反省が空でも知らせない
-    var noRef = String(e.hidden || '').split(',').indexOf('reflection') >= 0;
-    return e.kind !== FREE && e.date && e.date < today && (e.status !== '実施済み' || (!noRef && !e.hasReflection));
+    return e.kind !== FREE && e.date && e.date < today && (e.status !== '実施済み' || !e.hasReflection);
   }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 // 去年の今ごろ（1週間前〜2か月先）の記録。今年度にもう作ってあるものはのぞく
@@ -1097,6 +1095,8 @@ function newEvent(kind) {
   returnTo = 'list';
   current = blankEvent();
   current.kind = kind || '';
+  // 白紙から作るときは、選べる項目のチェックを全部外しておく（使うときにチェックを入れる）
+  if (current.kind !== FREE) current.hidden = itemsFor(current).map(function (d) { return d[0]; }).join(',');
   openEditor();
 }
 function copyFrom(id) {
@@ -1545,14 +1545,18 @@ var ITEM_DEFS = [
   ['nextIssues', '次年度へ向けての課題', 'secNext'], ['other', 'その他', 'secOther'], ['images', '画像・ファイル', 'secImages']
 ];
 var hiddenItems = [];
-function parseHidden(s) { return String(s || '').split(',').filter(String); }
+// いつも出す項目（原則として書く。チェックで消すことはできない）
+var MANDATORY_ITEMS = ['place', 'time', 'aim', 'environment', 'reflection', 'nextIssues'];
+function parseHidden(s) {
+  return String(s || '').split(',').filter(function (k) { return k && MANDATORY_ITEMS.indexOf(k) < 0; });
+}
 function isHidden(ev, key) { return parseHidden(ev.hidden).indexOf(key) >= 0; }
-// この分類で選べる項目（事務分掌のタイムスケジュールは「入力する」ボタンで出すので、ここには出さない）
+// この分類で選べる項目（いつも出す項目と、事務分掌のタイムスケジュール＝「入力する」ボタンで出す、はのぞく）
 function itemsFor(ev) {
   var jimu = isJimu(ev), free = isFree(ev);
-  var keys = free ? ['record', 'nextIssues', 'images'] :
-    jimu ? ['place', 'time', 'prep', 'record', 'actions', 'reflection', 'nextIssues', 'other', 'images'] :
-    ['place', 'time', 'aim', 'sched', 'prep', 'environment', 'care', 'actions', 'reflection', 'nextIssues', 'other', 'images'];
+  var keys = free ? ['record', 'images'] :
+    jimu ? ['prep', 'record', 'actions', 'other', 'images'] :
+    ['sched', 'prep', 'care', 'actions', 'other', 'images'];
   return ITEM_DEFS.filter(function (d) { return keys.indexOf(d[0]) >= 0; });
 }
 function renderUseItems() {
