@@ -190,10 +190,11 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
     <p class="muted" style="text-align:center;margin:0">職員用（園児の情報が入っています）</p>
     <div id="loginMsg"></div>
     <form id="loginForm" autocomplete="on">
-      <label for="loginName">名前</label>
-      <input id="loginName" autocomplete="username" required>
+      <label for="loginName">ID（名前でも入れます）</label>
+      <input id="loginName" autocomplete="username" autocapitalize="off" spellcheck="false" required>
       <label for="loginPw">パスワード</label>
       <input id="loginPw" type="password" autocomplete="current-password" required>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-top:10px"><input type="checkbox" id="loginKeep" style="width:auto;margin:0">このパソコン（スマホ）でIDを覚える</label>
       <button class="btn main" type="submit">入る</button>
     </form>
     <p class="muted" style="margin-top:14px">・パスワードは職員ひとりずつちがいます。人に教えないでください。<br>・使い終わったら「出る」を押してください。しばらく使わないと自動で閉じます。</p>
@@ -369,6 +370,7 @@ $('loginForm').addEventListener('submit', function (ev) {
   call('login', name, pw).then(function (r) {
     S.token = r.token;
     try { sessionStorage.setItem('daicho_token', r.token); } catch (e) {}
+    try { if ($('loginKeep').checked) localStorage.setItem('daicho_id', name); else localStorage.removeItem('daicho_id'); } catch (e) {}
     $('loginPw').value = '';
     return start();
   }).catch(function (e) { $('loginMsg').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; })
@@ -395,7 +397,10 @@ function showLogin(msg) {
   show('vLogin', true);
   if (msg) $('loginMsg').innerHTML = '<div class="msg warn">' + esc(msg) + '</div>';
   $('print').innerHTML = ''; $('preview').innerHTML = '';
-  setTimeout(function () { $('loginName').focus(); }, 50);
+  var kept = ''; try { kept = localStorage.getItem('daicho_id') || ''; } catch (e) {}
+  if (kept && !$('loginName').value) $('loginName').value = kept;
+  $('loginKeep').checked = !!kept;
+  setTimeout(function () { (kept ? $('loginPw') : $('loginName')).focus(); }, 50);
 }
 
 function clearAll() {
@@ -855,7 +860,7 @@ var DOC_MAKERS = {
       var rows = slots(part, 15);
       var h = '<div class="page b5 mincho"><div style="writing-mode:vertical-rl;width:100%;height:100%;display:flex;flex-direction:column;gap:3mm">';
       h += '<div style="display:flex;justify-content:space-between;font-size:12pt;inline-size:100%;padding:0 2mm;' + (pi === 0 ? '' : 'visibility:hidden') + '">' +
-        '<span>' + esc(ci.name.replace(/^(.)(.*)$/, '$1　$2')) + '　　　園児名簿</span><span style="font-size:10pt">（' + nendo(S.year) + '）</span></div>';
+        '<span>' + tate(ci.name.replace(/^(.)(.*)$/, '$1　$2')) + '　　　園児名簿</span><span style="font-size:10pt">（' + tate(nendo(S.year)) + '）</span></div>';
       h += '<table class="t thick" style="font-size:10pt;inline-size:100%;table-layout:fixed">';
       var head = '<tr style="block-size:8.8mm;font-size:8.5pt"><td class="c" style="inline-size:14mm">割印</td><td class="c" style="inline-size:15mm">番号</td><td class="c" style="inline-size:30mm">園児氏名</td><td class="c" style="inline-size:16mm">保護者名</td><td class="c" style="inline-size:17mm">生年月日</td><td class="c">住　　　所</td><td class="c" style="inline-size:26mm">入園年月日</td></tr>';
       h += head;
@@ -1058,17 +1063,18 @@ function adminStaff() {
   call('listStaff').then(drawStaff).catch(function (e) { $('adminBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
 }
 function drawStaff(list) {
-  var h = '<p class="muted">職員ひとりずつに名前とパスワードを作ります。やめた人は「停止」にすると、すぐ入れなくなります（記録は残ります）。</p>' +
-    '<div class="tbl-wrap"><table class="edit"><tr><th>名前</th><th style="width:110px">権限</th><th style="width:100px">状態</th><th>最後に入った日時</th><th></th></tr>';
+  var h = '<p class="muted">職員ひとりずつに名前・ID・パスワードを作ります。入るときは、IDでも名前でも入れます。やめた人は「停止」にすると、すぐ入れなくなります（記録は残ります）。</p>' +
+    '<div class="tbl-wrap"><table class="edit"><tr><th>名前</th><th style="width:120px">ID</th><th style="width:110px">権限</th><th style="width:100px">状態</th><th>最後に入った日時</th><th></th></tr>';
   list.forEach(function (s, i) {
-    h += '<tr><td>' + esc(s.name) + '</td><td><select data-i="' + i + '" data-f="role"><option' + (s.role === '職員' ? ' selected' : '') + '>職員</option><option' + (s.role === '管理者' ? ' selected' : '') + '>管理者</option></select></td>' +
+    h += '<tr><td>' + esc(s.name) + '</td><td><input data-id="' + i + '" value="' + esc(s.id || '') + '" placeholder="（なし）" autocapitalize="off" spellcheck="false" style="width:100%"></td><td><select data-i="' + i + '" data-f="role"><option' + (s.role === '職員' ? ' selected' : '') + '>職員</option><option' + (s.role === '管理者' ? ' selected' : '') + '>管理者</option></select></td>' +
       '<td><select data-i="' + i + '" data-f="state"><option' + (s.state === '使える' ? ' selected' : '') + '>使える</option><option' + (s.state === '停止' ? ' selected' : '') + '>停止</option></select></td>' +
       '<td class="muted">' + esc(s.lastLogin || '－') + '</td><td><button class="btn small" data-pw="' + i + '">パスワードを付け直す</button></td></tr>';
   });
   h += '</table></div><h3 style="margin-top:18px">＋ 職員を登録する</h3><div class="row"><input id="nsName" placeholder="名前（例：山田 花子）" style="padding:7px;border:1px solid #b8c4cc;border-radius:7px">' +
+    '<input id="nsId" placeholder="ID（例：yamada）" autocapitalize="off" spellcheck="false" style="padding:7px;border:1px solid #b8c4cc;border-radius:7px;width:140px">' +
     '<select id="nsRole" style="padding:7px"><option>職員</option><option>管理者</option></select>' +
     '<input id="nsPw" placeholder="はじめのパスワード" style="padding:7px;border:1px solid #b8c4cc;border-radius:7px"><button class="btn main" id="nsAdd">登録する</button></div>' +
-    '<p class="muted">はじめのパスワードは本人に直接伝え、入ったら「🔑」で自分のパスワードに変えてもらってください。8文字以上で、英字と数字をまぜます。</p>';
+    '<p class="muted">IDは半角の英字・数字で2〜20文字です（例：yamada、t01）。ほかの人と同じIDは使えません。<br>はじめのパスワードは本人に直接伝え、入ったら「🔑」で自分のパスワードに変えてもらってください。8文字以上で、英字と数字をまぜます。</p>';
   $('adminBody').innerHTML = h;
   Array.prototype.forEach.call(document.querySelectorAll('#adminBody select[data-i]'), function (sel) {
     sel.onchange = function () {
@@ -1076,6 +1082,12 @@ function drawStaff(list) {
       var role = document.querySelector('select[data-i="' + sel.getAttribute('data-i') + '"][data-f=role]').value;
       var state = document.querySelector('select[data-i="' + sel.getAttribute('data-i') + '"][data-f=state]').value;
       call('updateStaff', s.name, role, state).then(function (l) { toast('変えました'); drawStaff(l); }).catch(function (e) { alert(e.message); adminStaff(); });
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#adminBody input[data-id]'), function (inp) {
+    inp.onchange = function () {
+      var s = list[+inp.getAttribute('data-id')];
+      call('setStaffId', s.name, inp.value).then(function (l) { toast('IDを変えました'); drawStaff(l); }).catch(function (e) { alert(e.message); adminStaff(); });
     };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-pw]'), function (b) {
@@ -1088,7 +1100,7 @@ function drawStaff(list) {
   });
   $('nsPw').value = suggestPw();
   $('nsAdd').onclick = function () {
-    call('addStaff', $('nsName').value, $('nsRole').value, $('nsPw').value).then(function (l) { toast('登録しました'); drawStaff(l); }).catch(function (e) { alert(e.message); });
+    call('addStaff', $('nsName').value, $('nsRole').value, $('nsPw').value, $('nsId').value).then(function (l) { toast('登録しました'); drawStaff(l); }).catch(function (e) { alert(e.message); });
   };
 }
 function suggestPw() {
@@ -1252,7 +1264,7 @@ var Demo = (function () {
   function seed() {
     var y = fy();
     var classes = [['星組', '星野 ひかり'], ['花１組', '花田 みどり'], ['雪１組', '雪村 しずか'], ['月１組', '月岡 あかね']];
-    var d = { children: [], enrolls: [], classes: [], staff: [{ name: '見本 管理者', role: '管理者', state: '使える', pw: 'demo1234', lastLogin: '' }, { name: '見本 先生', role: '職員', state: '使える', pw: 'demo1234', lastLogin: '' }],
+    var d = { children: [], enrolls: [], classes: [], staff: [{ name: '見本 管理者', id: 'demo', role: '管理者', state: '使える', pw: 'demo1234', lastLogin: '' }, { name: '見本 先生', id: 'sensei', role: '職員', state: '使える', pw: 'demo1234', lastLogin: '' }],
       log: [], settings: { kindergarten: '見本幼稚園', buses: ['青１', '青２', '桃１', '桃２', '黄１', '歩き'], schoolLabel: '和蒲', idleMinutes: '30' } };
     var n = 0;
     classes.forEach(function (c, ci) {
@@ -1346,21 +1358,23 @@ var Demo = (function () {
       log(m.name, 'クラスを直す', y); keep(); return hello(m);
     },
     saveSettings: function (m, s) { db.settings.kindergarten = s.kindergarten; db.settings.buses = String(s.buses).split(/[、,]/).map(function (x) { return x.trim(); }).filter(String); db.settings.schoolLabel = s.schoolLabel; db.settings.idleMinutes = s.idleMinutes; keep(); return hello(m); },
-    listStaff: function () { return db.staff.map(function (s) { return { name: s.name, role: s.role, state: s.state, lastLogin: s.lastLogin }; }); },
-    addStaff: function (m, n, r, pw) { if (!n.trim()) throw new Error('名前を入れてください。'); db.staff.push({ name: n.trim(), role: r, state: '使える', pw: pw, lastLogin: '' }); keep(); return api.listStaff(); },
+    listStaff: function () { return db.staff.map(function (s) { return { name: s.name, id: s.id || '', role: s.role, state: s.state, lastLogin: s.lastLogin }; }); },
+    addStaff: function (m, n, r, pw, id) { if (!n.trim()) throw new Error('名前を入れてください。'); db.staff.push({ name: n.trim(), id: String(id || '').trim().toLowerCase(), role: r, state: '使える', pw: pw, lastLogin: '' }); keep(); return api.listStaff(); },
+    setStaffId: function (m, n, id) { db.staff.filter(function (x) { return x.name === n; })[0].id = String(id || '').trim().toLowerCase(); keep(); return api.listStaff(); },
     updateStaff: function (m, n, r, st) { var s = db.staff.filter(function (x) { return x.name === n; })[0]; s.role = r; s.state = st; keep(); return api.listStaff(); },
     resetPassword: function (m, n, pw) { db.staff.filter(function (x) { return x.name === n; })[0].pw = pw; keep(); return true; },
     importRows: function (m, rows) { return { added: rows.length, updated: 0 }; },
     readLog: function () { return db.log.slice().reverse().slice(0, 300); }
   };
-  var ADMIN = ['deleteChild', 'saveClasses', 'saveSettings', 'listStaff', 'addStaff', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
+  var ADMIN = ['deleteChild', 'saveClasses', 'saveSettings', 'listStaff', 'addStaff', 'setStaffId', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
   return {
     call: function (fn, args, token) {
       load();
       return new Promise(function (res) { setTimeout(res, 120); }).then(function () {
         if (fn === 'login') {
-          var s = db.staff.filter(function (x) { return x.name.replace(/\s/g, '') === String(args[0]).replace(/\s/g, ''); })[0];
-          if (!s || s.pw !== args[1]) { log(String(args[0]), '入れなかった', ''); keep(); throw new Error('名前かパスワードがちがいます。（見本：「見本 管理者」／ demo1234）'); }
+          var key = String(args[0]).replace(/\s/g, '');
+          var s = db.staff.filter(function (x) { return (x.id && x.id === key.toLowerCase()) || x.name.replace(/\s/g, '') === key; })[0];
+          if (!s || s.pw !== args[1]) { log(String(args[0]), '入れなかった', ''); keep(); throw new Error('IDかパスワードがちがいます。（見本：「demo」または「見本 管理者」／ demo1234）'); }
           if (s.state === '停止') throw new Error('この名前は、今は使えないようになっています。');
           var t = 'T' + Math.random().toString(36).slice(2);
           sessions[t] = { name: s.name, role: s.role }; s.lastLogin = now(); log(s.name, '入った', ''); keep();
