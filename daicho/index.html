@@ -131,6 +131,9 @@ table.att td.off { background: #eceff1; color: #9aa4ab; }
 table.att td.out { background: #f4f4f4; color: #b5b5b5; }
 table.att tr.today .dcol { background: #ffe9b3; font-weight: bold; }
 table.att tr.offrow .dcol { color: #9aa4ab; }
+table.att td.dclick { cursor: pointer; }
+table.att td.dclick:hover { background: #e8f2fa; text-decoration: underline dotted; }
+.cls-off { color: #b35400; font-weight: bold; }
 table.att tfoot td { background: #fafbfc; font-size: 12px; height: 24px; }
 table.att tfoot .dcol { font-size: 11px; }
 .m-事 { color: #1f5f8b; } .m-病 { color: #c0392b; } .m-停 { color: #7b3fa0; } .m-忌 { color: #555; }
@@ -343,15 +346,15 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
       </div>
       <div class="row att-tools">
         <span class="muted">押すと入る印：</span>
-        <button class="mk on" data-t="事">事<small>事故欠席</small></button>
-        <button class="mk" data-t="病">病<small>病気欠席</small></button>
+        <button class="mk on" data-t="病">病<small>病気欠席</small></button>
         <button class="mk" data-t="停">停<small>出席停止</small></button>
-        <button class="mk" data-t="忌">忌<small>忌引</small></button>
+        <button class="mk" data-t="事">事<small>私用欠席</small></button>
+        <button class="mk" data-t="忌">忌<small>忌引き</small></button>
         <button class="mk" data-t="">消す</button>
         <span class="grow" style="flex:1"></span>
         <span id="attStatus" class="muted"></span>
       </div>
-      <p class="muted" style="margin:0 0 6px">欠席した子のマスを押します。同じ印のマスをもう一度押すと消えます。灰色の「－」は休みの日・在籍していない日です。入れたものは自動で保存されます。</p>
+      <p class="muted" style="margin:0 0 6px">欠席した子のマスを押します。同じ印のマスをもう一度押すと消えます。灰色の「－」は休みの日・在籍していない日です。入れたものは自動で保存されます。<br>学級閉鎖などで<b>このクラスだけ休み</b>の日は、左の日付を押します（もう一度押すと取り消せます）。</p>
       <div class="att-wrap" id="attWrap"><table class="att" id="attTable"></table></div>
     </div>
     <div class="card">
@@ -1244,13 +1247,16 @@ function jpHolidays(y) {
   return h;
 }
 function fyOfDate(s) { var p = parseD(s); return String(p.m >= 4 ? p.y : p.y - 1); }
-function calExceptions(year) { var m = {}; (S.calendar[year] || []).forEach(function (c) { m[c.date] = c; }); return m; }
+function calExceptions(year) { var m = {}; (S.calendar[year] || []).forEach(function (c) { if (!c.cls) m[c.date] = c; }); return m; }
+// そのクラスだけの休み（学級閉鎖など）
+function classOffs(year, cls) { var m = {}; (S.calendar[year] || []).forEach(function (c) { if (c.cls && c.cls === cls) m[c.date] = c; }); return m; }
 // その日が休みか：{ off, why }
-function dayInfo(date, ex) {
+function dayInfo(date, ex, clsEx) {
   ex = ex || calExceptions(fyOfDate(date));
   var d = dateOf(date), wd = d.getDay(), hol = jpHolidays(d.getFullYear())[date];
   var base = wd === 0 || wd === 6 || !!hol;
   var why = hol || (wd === 0 ? '日曜' : wd === 6 ? '土曜' : '');
+  if (clsEx && clsEx[date]) return { off: true, why: clsEx[date].note || '学級閉鎖', x: 'クラス', wd: wd, hol: hol };
   var x = ex[date];
   if (x && x.kind === '休み') return { off: true, why: x.note || '園の休み', x: '休み', wd: wd, hol: hol };
   if (x && x.kind === '保育日') return { off: false, why: x.note || '保育日', x: '保育日', wd: wd, hol: hol };
@@ -1258,7 +1264,7 @@ function dayInfo(date, ex) {
 }
 
 // ===== 出席簿 =====
-var A = { cls: '', ym: '', tool: '事', pending: [], timer: null, calc: null };
+var A = { cls: '', ym: '', tool: '病', pending: [], timer: null, calc: null };
 function fyOfYm(ym) { var y = +ym.slice(0, 4), m = +ym.slice(5, 7); return String(m >= 4 ? y : y - 1); }
 function ymList(year) { var out = []; for (var i = 0; i < 12; i++) { var m = 4 + i, y = +year; if (m > 12) { m -= 12; y++; } out.push(y + '-' + pad(m)); } return out; }
 function ymLabel(ym) { return +ym.slice(5, 7) + '月'; }
@@ -1276,13 +1282,13 @@ function loadAtt(ym) {
 // 1か月分を計算する（画面と印刷で同じものを使う）
 function attCalc(cls, ym) {
   var y = +ym.slice(0, 4), m = +ym.slice(5, 7), last = new Date(y, m, 0).getDate();
-  var ex = calExceptions(fyOfYm(ym));
+  var ex = calExceptions(fyOfYm(ym)), clsEx = classOffs(fyOfYm(ym), cls);
   var rows = (S.att[ym] || { rows: {} }).rows;
   var mStart = ym + '-01', mEnd = ym + '-' + pad(last);
   var days = [];
   for (var d = 1; d <= 31; d++) {
     if (d > last) { days.push({ d: d, none: true, off: true }); continue; }
-    var date = ym + '-' + pad(d), info = dayInfo(date, ex);
+    var date = ym + '-' + pad(d), info = dayInfo(date, ex, clsEx);
     days.push({ d: d, date: date, wd: info.wd, off: info.off, why: info.why, hol: info.hol, x: info.x });
   }
   var cols = kidsOf(cls, true).map(function (k) {
@@ -1407,8 +1413,10 @@ function drawAtt() {
   c.days.forEach(function (day, di) {
     if (day.none) return;
     var cls = (day.date === today ? 'today ' : '') + (day.off ? 'offrow' : '');
-    h += '<tr class="' + cls + '"><td class="dcol"><span class="' + (day.hol || day.wd === 0 ? 'hol' : day.wd === 6 ? 'wd6' : '') + '">' + day.d + '（' + WD[day.wd] + '）</span>' +
-      (day.off && day.why && day.wd !== 0 && day.wd !== 6 ? '<small class="muted"> ' + esc(day.why) + '</small>' : '') + (day.x === '保育日' ? '<small class="muted"> ' + esc(day.why) + '</small>' : '') + '</td>';
+    var canClose = !day.off || day.x === 'クラス';
+    h += '<tr class="' + cls + '"><td class="dcol' + (canClose ? ' dclick' : '') + '"' + (canClose ? ' data-day="' + day.d + '" title="押すと、このクラスだけの休み（学級閉鎖など）にできます"' : '') + '><span class="' + (day.hol || day.wd === 0 ? 'hol' : day.wd === 6 ? 'wd6' : '') + '">' + day.d + '（' + WD[day.wd] + '）</span>' +
+      (day.x === 'クラス' ? '<small class="cls-off"> ' + esc(day.why) + '</small>' : '') +
+      (day.off && day.x !== 'クラス' && day.why && day.wd !== 0 && day.wd !== 6 ? '<small class="muted"> ' + esc(day.why) + '</small>' : '') + (day.x === '保育日' ? '<small class="muted"> ' + esc(day.why) + '</small>' : '') + '</td>';
     c.cols.forEach(function (col, ki) {
       var x = c.cell(col, day);
       if (x.s === 'off') h += '<td class="off">－</td>';
@@ -1432,6 +1440,8 @@ function drawAtt() {
 }
 
 $('attTable').onclick = function (ev) {
+  var dc = ev.target.closest('td.dclick');
+  if (dc) { classOffClick(+dc.getAttribute('data-day')); return; }
   var td = ev.target.closest('td.ac');
   if (!td || !A.calc) return;
   var col = A.calc.cols[+td.getAttribute('data-k')], d = +td.getAttribute('data-d');
@@ -1457,6 +1467,21 @@ $('attTable').onclick = function (ev) {
   queueAtt(ch);
   drawAtt();
 };
+
+// 日付を押す：このクラスだけの休み（学級閉鎖など）を入れる・取り消す
+function classOffClick(d) {
+  var day = A.calc.days[d - 1], cls = A.cls, ym = A.ym;
+  var on = day.x !== 'クラス', note = '';
+  if (on) {
+    note = prompt(ym.slice(5, 7).replace(/^0/, '') + '月' + d + '日を「' + cls + '」だけ休みにします。\n休みの名前を入れてください。', '学級閉鎖');
+    if (note === null) return;
+    note = note.trim() || '学級閉鎖';
+  } else if (!confirm(d + '日の「' + day.why + '」を取り消して、ふつうの保育日にもどしますか？')) return;
+  busy(true, '保存しています…');
+  flushAtt().then(function () { return call('setClassOff', day.date, cls, note, on); })
+    .then(function (cal) { S.calendar[fyOfYm(ym)] = cal; drawAtt(); toast(on ? d + '日を「' + cls + '」だけ休みにしました' : '取り消しました'); })
+    .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+}
 
 function drawReasons(c) {
   var gs = attGroups(c);
@@ -1513,7 +1538,7 @@ function adminCalendar() {
   $('adminBody').innerHTML = '<p class="muted">読み込んでいます…</p>';
   loadAtt(calYear + '-04').then(function () {
     calEdit = {};
-    (S.calendar[calYear] || []).forEach(function (c) { calEdit[c.date] = { kind: c.kind, note: c.note }; });
+    (S.calendar[calYear] || []).forEach(function (c) { if (!c.cls) calEdit[c.date] = { kind: c.kind, note: c.note }; });
     drawCalendar();
   }).catch(function (e) { $('adminBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
 }
@@ -1994,8 +2019,14 @@ var Demo = (function () {
       });
       log(m.name, '出欠を入れる', ym); keep(); return { rows: [] };
     },
+    setClassOff: function (m, date, cls, note, on) {
+      db.cal = (db.cal || []).filter(function (c) { return !(c.date === date && c.cls === cls); });
+      if (on) db.cal.push({ date: date, kind: '休み', note: note || '学級閉鎖', cls: cls });
+      log(m.name, on ? 'クラスの休みを入れる' : 'クラスの休みを取り消す', cls + ' ' + date); keep();
+      var y = fyOfDate(date); return db.cal.filter(function (c) { return fyOfDate(c.date) === y; });
+    },
     saveCalendar: function (m, y, list) {
-      db.cal = (db.cal || []).filter(function (c) { return fyOfDate(c.date) !== y; }).concat(list);
+      db.cal = (db.cal || []).filter(function (c) { return fyOfDate(c.date) !== y || c.cls; }).concat(list);
       log(m.name, '園の予定を直す', y); keep(); return db.cal.filter(function (c) { return fyOfDate(c.date) === y; });
     },
     readLog: function () { return db.log.slice().reverse().slice(0, 300); }
