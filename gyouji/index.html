@@ -118,6 +118,20 @@ button { cursor: pointer; }
 .badge.plan { background: #fff0d6; color: #8a5a00; }
 .badge.done { background: #dff1e4; color: #2c6b3e; }
 .badge.free { background: #eceaf6; color: #4b4570; }
+.badge.todo { background: #fbd5dd; color: #a3324a; }
+.ev-card.todo { background: #fdecef; border-color: #f2bfca; }
+/* この記録で使う項目 */
+.use-items { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px; margin-bottom: 16px; }
+.use-items summary { cursor: pointer; font-weight: bold; font-size: 16px; padding: 4px 0; }
+.use-items summary .n { font-weight: normal; color: var(--sub); font-size: 14px; margin-left: 6px; }
+.use-items .hint { color: var(--sub); font-size: 14px; margin: 4px 0 10px; }
+.use-items .chips { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 6px; }
+.use-items .chips label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; background: #fff; cursor: pointer; font-size: 15px; user-select: none; }
+.use-items .chips label.on { border-color: var(--g); background: var(--g-soft); font-weight: bold; }
+.use-items .chips label:not(.on) { color: var(--sub); text-decoration: line-through; }
+.use-items .chips input { width: 18px; height: 18px; margin: 0; }
+.use-items .all { font-size: 13px; margin-left: 4px; }
+.item-off { display: none !important; }
 .empty { text-align: center; color: var(--sub); padding: 40px 10px; background: var(--card); border-radius: 12px; border: 1px dashed var(--line); }
 @media (max-width: 700px) {
   .ev-card { flex-wrap: wrap; }
@@ -498,6 +512,13 @@ button { cursor: pointer; }
     <div id="draftNotice" class="notice draft hidden"></div>
     <div id="sourceNotice" class="notice source hidden"></div>
 
+    <details class="use-items" id="useItems">
+      <summary>📋 この記録で使う項目を選ぶ<span class="n" id="useItemsCount"></span></summary>
+      <p class="hint">使わない項目のチェックを外すと、その欄は画面に出なくなり、印刷もされません。書いてあった内容は消えずに残ります（もう一度チェックすると戻ります）。<br>実施日・イベント名・記入者は必ず使います。</p>
+      <div class="chips" id="useItemsChips"></div>
+      <button type="button" class="linkbtn all" onclick="setAllItems(true)">すべて使う</button>
+    </details>
+
     <div class="section">
       <h3>基本のこと</h3>
       <div class="grid2">
@@ -561,7 +582,7 @@ button { cursor: pointer; }
       <h3>反省</h3>
       <div class="field"><div class="rich" id="f_reflection" data-rows="5"></div></div>
     </div>
-    <div class="section">
+    <div class="section" id="secNext">
       <h3>次年度へ向けての課題</h3>
       <p class="hint">来年、この記録をもとに新しく作ると、ここに書いたことが画面の上に出ます。</p>
       <div class="field"><div class="rich" id="f_nextIssues" data-rows="4"></div></div>
@@ -889,7 +910,9 @@ function addYears(s, n) { var d = parseDate(s); return (d.getFullYear() + n) + s
 function pendingEvents() {
   var today = todayStr();
   return events.filter(function (e) {
-    return e.kind !== FREE && e.date && e.date < today && (e.status !== '実施済み' || !e.hasReflection);
+    // 「反省」を使わない項目にした記録は、反省が空でも知らせない
+    var noRef = String(e.hidden || '').split(',').indexOf('reflection') >= 0;
+    return e.kind !== FREE && e.date && e.date < today && (e.status !== '実施済み' || (!noRef && !e.hasReflection));
   }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 }
 // 去年の今ごろ（1週間前〜2か月先）の記録。今年度にもう作ってあるものはのぞく
@@ -962,13 +985,18 @@ function renderList() {
     return;
   }
   var html = '', lastYear = null;
+  // 反省がまだの記録（上のお知らせと同じもの）は、うすいピンクにする
+  var todoIds = {};
+  pendingEvents().forEach(function (e) { todoIds[e.id] = 1; });
   list.forEach(function (e) {
     var fy = e.fiscalYear || fiscalYearOf(e.date);
     if (fy !== lastYear) { html += '<div class="year-title">' + yearLabel(fy) + '</div>'; lastYear = fy; }
     var done = e.status === '実施済み';
+    var todo = !!todoIds[e.id];
     var badge = e.kind === FREE ? '<span class="badge free">🗒 自由記述</span>' :
       '<span class="badge ' + (done ? 'done' : 'plan') + '">' + esc(e.status || '計画中') + '</span>';
-    html += '<div class="ev-card">' +
+    if (todo) badge += '<span class="badge todo">✏ 反省がまだ</span>';
+    html += '<div class="ev-card' + (todo ? ' todo' : '') + '">' +
       '<div class="date">' + esc(dateShort(e.date)) + '</div>' +
       '<div class="main" onclick="openEvent(\'' + esc(e.id) + '\')">' +
         '<div class="name">' + esc(e.name) + badge + (e.confirmCount ? '<span class="badge ok">✔ 確認済み</span>' : '') + '</div>' +
@@ -1062,7 +1090,7 @@ function closeModal() { $('modal').classList.add('hidden'); }
 
 function blankEvent() {
   return { id: '', grade: grade, section: grade === JIMU ? (section || '') : '', date: '', name: '', place: '', time: '', aim: '', environment: '', care: '', record: '', reflection: '',
-    nextIssues: '', other: '', status: '計画中', author: store('gyouji_author') || '', sourceId: '', updatedAt: '', images: [], prep: [], actions: [], comments: [],
+    nextIssues: '', other: '', status: '計画中', author: store('gyouji_author') || '', sourceId: '', updatedAt: '', hidden: '', images: [], prep: [], actions: [], comments: [],
     schedule: [{ planTime: '', what: '', note: '', actualTime: '' }, { planTime: '', what: '', note: '', actualTime: '' }, { planTime: '', what: '', note: '', actualTime: '' }] };
 }
 function newEvent(kind) {
@@ -1087,6 +1115,7 @@ function copyFrom(id) {
     ev.actions = (src.actions || []).map(function (x) { return { due: '', who: x.who, what: x.what, done: false }; });
     // 画像はコピーしない（同じ画像を2つの記録で使うと、片方で外したときに消えてしまうため）
     ev.kind = src.kind || '';
+    ev.hidden = src.hidden || '';   // 使う項目も引き継ぐ
     ev.sourceId = src.id;
     ev.source = { id: src.id, date: src.date, name: src.name, grade: src.grade, nextIssues: src.nextIssues, author: src.author };
     current = ev;
@@ -1464,6 +1493,10 @@ function openEditor(fromDraft) {
   $('schedClose').classList.toggle('hidden', !jimu);
   $('secPrep').classList.toggle('hidden', free);
   $('secActions').classList.toggle('hidden', free);
+  // 使う項目（新しい記録は選びやすいように開いておく）
+  hiddenItems = parseHidden(ev.hidden);
+  renderUseItems();
+  $('useItems').open = !ev.id && !fromDraft;
   setImages(ev.images || []);
   setPrep(ev.prep || []);
   setActions(ev.actions || []);
@@ -1503,6 +1536,55 @@ function openEditor(fromDraft) {
   if (!fromDraft) checkDraft();
   else $('draftNotice').classList.add('hidden');
 }
+// ===== この記録で使う項目（必須の 実施日・イベント名・記入者 以外は、使う・使わないを選べる） =====
+var ITEM_DEFS = [
+  ['place', '実施場所', 'fldPlace'], ['time', '時間', 'fldTime'], ['aim', '活動のねらい', 'secAim'],
+  ['sched', 'タイムスケジュール', 'secSched'], ['prep', '準備物・持ち物', 'secPrep'],
+  ['environment', '計画・環境構成など', 'secEnv'], ['care', '内容など', 'secCare'], ['record', '記録すること', 'secRecord'],
+  ['actions', 'アクションアイテム', 'secActions'], ['reflection', '反省', 'secReflection'],
+  ['nextIssues', '次年度へ向けての課題', 'secNext'], ['other', 'その他', 'secOther'], ['images', '画像・ファイル', 'secImages']
+];
+var hiddenItems = [];
+function parseHidden(s) { return String(s || '').split(',').filter(String); }
+function isHidden(ev, key) { return parseHidden(ev.hidden).indexOf(key) >= 0; }
+// この分類で選べる項目（事務分掌のタイムスケジュールは「入力する」ボタンで出すので、ここには出さない）
+function itemsFor(ev) {
+  var jimu = isJimu(ev), free = isFree(ev);
+  var keys = free ? ['record', 'nextIssues', 'images'] :
+    jimu ? ['place', 'time', 'prep', 'record', 'actions', 'reflection', 'nextIssues', 'other', 'images'] :
+    ['place', 'time', 'aim', 'sched', 'prep', 'environment', 'care', 'actions', 'reflection', 'nextIssues', 'other', 'images'];
+  return ITEM_DEFS.filter(function (d) { return keys.indexOf(d[0]) >= 0; });
+}
+function renderUseItems() {
+  var defs = itemsFor(current);
+  $('useItemsChips').innerHTML = defs.map(function (d) {
+    var on = hiddenItems.indexOf(d[0]) < 0;
+    return '<label class="' + (on ? 'on' : '') + '"><input type="checkbox" data-k="' + d[0] + '"' + (on ? ' checked' : '') + '>' + esc(d[1]) + '</label>';
+  }).join('');
+  Array.prototype.forEach.call($('useItemsChips').querySelectorAll('input'), function (cb) {
+    cb.onchange = function () { toggleItem(cb.getAttribute('data-k'), cb.checked); };
+  });
+  applyHidden();
+}
+function applyHidden() {
+  var defs = itemsFor(current);
+  ITEM_DEFS.forEach(function (d) { $(d[2]).classList.toggle('item-off', defs.indexOf(d) >= 0 && hiddenItems.indexOf(d[0]) >= 0); });
+  var off = defs.filter(function (d) { return hiddenItems.indexOf(d[0]) >= 0; }).length;
+  $('useItemsCount').textContent = off ? '（' + defs.length + 'こ中 ' + (defs.length - off) + 'こを使う）' : '（全部の項目を使う）';
+}
+function toggleItem(key, on) {
+  hiddenItems = hiddenItems.filter(function (k) { return k !== key; });
+  if (!on) hiddenItems.push(key);
+  renderUseItems();
+  markDirty();
+}
+function setAllItems() {
+  if (!hiddenItems.length) return;
+  hiddenItems = [];
+  renderUseItems();
+  markDirty();
+}
+
 // 題名の上の「令和○年度」の札（実施日・記録日から決まる。4月始まり）
 function updateYearBadge() {
   var fy = fiscalYearOf($('f_date').value);
@@ -1959,6 +2041,7 @@ function collect() {
   ev.prep = collectPrep();
   ev.actions = collectActions();
   ev.comments = current.comments || [];
+  ev.hidden = hiddenItems.join(',');
   ev.images = images.filter(function (im) { return im.id; }).map(function (im) {
     var o = { id: im.id, caption: im.caption || '' };
     if (isDoc(im)) o.type = im.type;
@@ -2188,9 +2271,12 @@ function doPrint(html, title) {
 // 1件分の印刷の中身
 function printHtml(ev) {
   var jimu = isJimu(ev);
+  // 使わない項目にしたもの・何も書いていないものは印刷しない（紙の無駄をなくす）
+  var use = function (k) { return !isHidden(ev, k); };
   // 書く欄（見出し・太字・表・チェックリストを付けられる）はそのまま、ほかはふつうの文字で
-  var box = function (title, text, plain) {
+  var box = function (title, text, plain, key) {
     var t = String(text || '').replace(/\s+$/, '');
+    if (!t.trim() || (key && !use(key))) return '';
     return '<div class="p-box"><div class="h">' + title + '</div>' +
       (plain || !t ? '<div class="b">' + esc(t) + '</div>' : '<div class="b rich-view">' + richHtml(t) + '</div>') + '</div>';
   };
@@ -2204,10 +2290,23 @@ function printHtml(ev) {
     (stamps.length ? '<table class="p-stamps"><tr>' + stamps.map(function (s) { return '<th>' + esc(s) + '</th>'; }).join('') + '</tr><tr>' +
       stamps.map(function () { return '<td></td>'; }).join('') + '</tr></table>' : '') +
     '</div>';
-  var prep = (ev.prep || []).filter(function (x) { return x.text; });
+  if (!use('sched')) rows = [];
+  var prep = use('prep') ? (ev.prep || []).filter(function (x) { return x.text; }) : [];
   var prepBox = prep.length ? '<div class="p-box"><div class="h">準備物・持ち物</div><div class="b p-prep">' +
     prep.map(function (x) { return '<div>' + (x.done ? '☑' : '☐') + ' ' + esc(x.text) + '</div>'; }).join('') + '</div></div>' : '';
-  var acts = sortByDue((ev.actions || []).filter(function (x) { return x.what || x.who; }));
+  var acts = use('actions') ? sortByDue((ev.actions || []).filter(function (x) { return x.what || x.who; })) : [];
+  // 上の表：実施場所・時間は、使っていて書いてあるときだけ
+  var cells = [['学年', gradeText(ev)], ['状態', ev.status || '計画中'], ['実施日', dateLong(ev.date)]];
+  if (use('time') && String(ev.time || '').trim()) cells.push(['時間', ev.time]);
+  cells.push(['イベント名', ev.name]);
+  if (use('place') && String(ev.place || '').trim()) cells.push(['実施場所', ev.place]);
+  cells.push(['記入者', ev.author]);
+  var infoRows = '';
+  for (var ci = 0; ci < cells.length; ci += 2) {
+    var a = cells[ci], b = cells[ci + 1];
+    infoRows += '<tr><th>' + a[0] + '</th><td' + (b ? '' : ' colspan="3"') + '>' + esc(a[1]) + '</td>' +
+      (b ? '<th>' + b[0] + '</th><td>' + esc(b[1]) + '</td>' : '') + '</tr>';
+  }
   var actionTable = acts.length ?
     '<table class="p-sched"><caption>アクションアイテム</caption><thead><tr><th style="width:9mm">済</th><th style="width:30mm">期限</th><th style="width:28mm">担当</th><th>やること</th></tr></thead><tbody>' +
     acts.map(function (x) {
@@ -2220,32 +2319,28 @@ function printHtml(ev) {
       '<tr><th>学年</th><td>' + esc(gradeText(ev)) + '（自由記述）</td><th>記録日</th><td>' + esc(dateLong(ev.date)) + '</td></tr>' +
       '<tr><th>記録名</th><td>' + esc(ev.name) + '</td><th>記入者</th><td>' + esc(ev.author) + '</td></tr>' +
     '</table>' +
-    box('記録すること', ev.record) +
-    box('次年度へ向けての課題', ev.nextIssues)
+    box('記録すること', ev.record, false, 'record') +
+    box('次年度へ向けての課題', ev.nextIssues, false, 'nextIssues')
     :
     head +
-    '<table class="p-info">' +
-      '<tr><th>学年</th><td>' + esc(gradeText(ev)) + '</td><th>状態</th><td>' + esc(ev.status || '計画中') + '</td></tr>' +
-      '<tr><th>実施日</th><td>' + esc(dateLong(ev.date)) + '</td><th>時間</th><td>' + esc(ev.time) + '</td></tr>' +
-      '<tr><th>イベント名</th><td>' + esc(ev.name) + '</td><th>実施場所</th><td>' + esc(ev.place) + '</td></tr>' +
-      '<tr><th>記入者</th><td colspan="3">' + esc(ev.author) + '</td></tr>' +
-    '</table>' +
-    (jimu ? '' : box('活動のねらい', ev.aim)) +
-    // 事務分掌は、タイムスケジュールを書いたときだけ印刷する
-    (jimu && !rows.length ? '' :
+    '<table class="p-info">' + infoRows + '</table>' +
+    (jimu ? '' : box('活動のねらい', ev.aim, false, 'aim')) +
+    // タイムスケジュールは、書いた行があるときだけ印刷する
+    (!rows.length ? '' :
     '<table class="p-sched"><caption>タイムスケジュール</caption><thead><tr><th>計画の時刻</th><th>やること</th><th>注意事項</th><th>実際の時刻</th></tr></thead><tbody>' +
-      (rows.length ? rows.map(function (r) {
+      rows.map(function (r) {
         return '<tr><td class="tm">' + esc(r.planTime) + '</td><td>' + esc(r.what) + '</td><td>' + esc(r.note) + '</td><td class="tm">' + esc(r.actualTime) + '</td></tr>';
-      }).join('') : '<tr><td class="tm">&nbsp;</td><td></td><td></td><td class="tm"></td></tr>') +
+      }).join('') +
     '</tbody></table>') +
     prepBox +
-    (jimu ? box('記録すること', ev.record) : box('計画・環境構成など', ev.environment) + box('内容など', ev.care)) +
+    (jimu ? box('記録すること', ev.record, false, 'record') : box('計画・環境構成など', ev.environment, false, 'environment') + box('内容など', ev.care, false, 'care')) +
     actionTable +
-    box('反省', ev.reflection) +
-    box('次年度へ向けての課題', ev.nextIssues) +
-    box('その他', ev.other);
-  var imgs = (ev.images || []).filter(function (im) { return im.src && !isDoc(im); });
-  var pdfs = (ev.images || []).filter(isDoc);
+    box('反省', ev.reflection, false, 'reflection') +
+    box('次年度へ向けての課題', ev.nextIssues, false, 'nextIssues') +
+    box('その他', ev.other, false, 'other');
+  var atts = use('images') ? (ev.images || []) : [];
+  var imgs = atts.filter(function (im) { return im.src && !isDoc(im); });
+  var pdfs = atts.filter(isDoc);
   if (imgs.length) {
     html += '<div class="p-imgs"><div class="h">画像</div><div class="g">' + imgs.map(function (im) {
       return '<div class="p-img"><img src="' + im.src + '" alt="">' + (im.caption ? '<div class="cap">' + esc(im.caption) + '</div>' : '') + '</div>';
@@ -2375,7 +2470,7 @@ function demoDb() {
 function demoSummary(e, db) {
   var cs = (db.comments || []).filter(function (c) { return c.eventId === e.id; });
   return { id: e.id, grade: e.grade, section: e.grade === JIMU ? e.section || '' : '', kind: e.kind || '', fiscalYear: fiscalYearOf(e.date), date: e.date, name: e.name, place: e.place, status: e.status, author: e.author,
-    updatedAt: e.updatedAt, sourceId: e.sourceId || '', hasReflection: !!String(e.reflection || '').trim(), imageCount: (e.images || []).length,
+    updatedAt: e.updatedAt, sourceId: e.sourceId || '', hasReflection: !!String(e.reflection || '').trim(), hidden: e.hidden || '', imageCount: (e.images || []).length,
     confirmCount: cs.filter(function (c) { return c.type === '確認'; }).length, commentCount: cs.filter(function (c) { return c.type !== '確認'; }).length };
 }
 function demoSave(db) { store(DEMO_STORE, JSON.stringify(db)); }
@@ -2453,7 +2548,7 @@ var demoApi = {
     var db = demoDb();
     if (!input.date) throw new Error('実施日を入れてください。');
     var ev = {};
-    ['grade', 'section', 'kind', 'date', 'name', 'place', 'time', 'aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other', 'status', 'author', 'sourceId'].forEach(function (k) { ev[k] = input[k] || ''; });
+    ['grade', 'section', 'kind', 'date', 'name', 'place', 'time', 'aim', 'environment', 'care', 'record', 'reflection', 'nextIssues', 'other', 'status', 'author', 'sourceId', 'hidden'].forEach(function (k) { ev[k] = input[k] || ''; });
     if (ev.grade !== JIMU) ev.section = '';
     if (ev.kind === FREE) ev.status = '';
     ev.schedule = (input.schedule || []).filter(function (r) { return (r.planTime + r.what + r.note + r.actualTime).trim(); });
