@@ -850,7 +850,7 @@ var DOC_MAKERS = {
       var head = '<tr style="block-size:8.8mm;font-size:8.5pt"><td class="c" style="inline-size:14mm">割印</td><td class="c" style="inline-size:15mm">番号</td><td class="c" style="inline-size:30mm">園児氏名</td><td class="c" style="inline-size:16mm">保護者名</td><td class="c" style="inline-size:17mm">生年月日</td><td class="c">住　　　所</td><td class="c" style="inline-size:26mm">入園年月日</td></tr>';
       h += head;
       rows.forEach(function (k) {
-        h += '<tr style="block-size:8.8mm">' + (k ? '<td></td><td class="c">' + esc(k.enroll.no) + '</td><td class="c" style="font-size:11pt">' + fi(k.name) + '</td><td class="c">' + fi(k.parent) + '</td>' +
+        h += '<tr style="block-size:8.8mm">' + (k ? '<td></td><td class="c"><span style="text-combine-upright:all">' + esc(k.enroll.no) + '</span></td><td class="c" style="font-size:11pt">' + fi(k.name) + '</td><td class="c">' + fi(k.parent) + '</td>' +
           '<td class="c" style="font-size:8.5pt">' + esc(wShort(k.birth)) + '</td><td style="font-size:9.5pt">' + fi(k.address) + '</td><td class="c" style="font-size:8.5pt">' + esc(wLong(k.transferIn || k.enterDate)) + '</td>'
           : '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>') + '</tr>';
       });
