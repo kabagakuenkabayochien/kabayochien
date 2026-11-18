@@ -661,6 +661,9 @@ var current = null;     // 書いている記録
 var dirty = false;
 
 // ===== サーバーを呼ぶ =====
+// 読むだけの操作（何度やり直しても害がない）。返事がないときは待つのをやめて、1回だけ自動でやり直す
+var READ_FNS = { hello: 1, listEvents: 1, getEvent: 1, getEvents: 1, searchEvents: 1, getImage: 1 };
+var READ_TIMEOUT = 45000, IMAGE_TIMEOUT = 90000, WRITE_TIMEOUT = 150000;
 function call(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   if (DEMO) {
@@ -668,17 +671,46 @@ function call(fn) {
       setTimeout(function () { try { resolve(JSON.parse(JSON.stringify(demoApi[fn].apply(null, args)))); } catch (e) { reject(e); } }, 200);
     });
   }
-  // Content-Type を text/plain にして、ブラウザの事前確認（プリフライト）が起きないようにする
-  return fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ key: appKey, fn: fn, args: args })
-  }).then(function (r) { return r.json(); }, function () {
-    throw new Error('通信できませんでした。インターネットにつながっているか確かめてください。');
+  var read = !!READ_FNS[fn];
+  var wait = fn === 'getImage' || fn === 'getEvents' ? IMAGE_TIMEOUT : read ? READ_TIMEOUT : WRITE_TIMEOUT;
+  var body = JSON.stringify({ key: appKey, fn: fn, args: args });
+  var once = function () { return postOnce(body, wait, read); };
+  return once().catch(function (e) {
+    // 通信の失敗・時間切れだけやり直す（パスワード違いなどサーバーの返事はそのまま）
+    if (read && e && e.retry) return new Promise(function (r) { setTimeout(r, 1500); }).then(once);
+    throw e;
   }).then(function (res) {
     if (!res || !res.ok) throw new Error(String((res && res.error) || '時間をおいて、もう一度お試しください。').replace(/合言葉/g, 'パスワード'));
     return res.result;
   });
+}
+function postOnce(body, wait, read) {
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var timedOut = false;
+  var timer = setTimeout(function () { timedOut = true; if (ctrl) ctrl.abort(); }, wait);
+  var fail = function (msg) { var e = new Error(msg); e.retry = true; return e; };
+  // Content-Type を text/plain にして、ブラウザの事前確認（プリフライト）が起きないようにする
+  var req = fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: body,
+    signal: ctrl ? ctrl.signal : undefined
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      try { return JSON.parse(t); } catch (e) {
+        // Google 側が混んでいるときなどは、JSON ではない画面が返ってくる
+        throw fail('サーバーが混み合っているようです。少し待ってから、もう一度お試しください。');
+      }
+    });
+  }).catch(function (e) {
+    if (e && e.retry) throw e;
+    if (timedOut) {
+      throw fail(read ? '読み込みに時間がかかりすぎたので、止めました。少し待ってから、もう一度お試しください。'
+        : '返事が来ませんでした。保存できたかどうかわからないので、一覧で確かめてください。');
+    }
+    throw fail('通信できませんでした。インターネットにつながっているか確かめてください。');
+  });
+  return req.then(function (res) { clearTimeout(timer); return res; }, function (e) { clearTimeout(timer); throw e; });
 }
 
 function busy(on) { $('loading').classList.toggle('hidden', !on); }
@@ -1905,14 +1937,51 @@ function openPdf(im) {
   });
 }
 function loadImage(im) {
-  return fetchImage(im.id).then(function (src) { im.src = src; renderImages(); }).catch(function () { im.failed = true; renderImages(); });
+  return fetchImage(im.id).then(function (src) { im.src = src; im.failed = false; updateImageCard(im); })
+    .catch(function () { im.failed = true; updateImageCard(im); });
 }
+// 読み込めた画像の枠だけを書きかえる（全部を作り直すと、画像が多いときに画面が重くなるため）
+function updateImageCard(im) {
+  var ph = im._ph;
+  if (!ph || !ph.isConnected || images.indexOf(im) < 0) { renderImages(); return; }
+  if (im.src) { ph.style.backgroundImage = 'url(\'' + im.src + '\')'; ph.textContent = im.uploading ? '送っています…' : ''; }
+  else ph.textContent = im.failed ? '画像を読み込めませんでした（押すともう一度）' : '読み込んでいます…';
+}
+// 画像は同時に3枚までサーバーに取りに行く（一度にたくさん頼むと、サーバーが止まりやすくなるため）
+var IMAGE_PARALLEL = 3;
+var imageQueue = [], imageActive = 0, imageLoading = {};
 function fetchImage(id) {
   if (imageCache[id]) return Promise.resolve(imageCache[id]);
-  return call('getImage', id).then(function (r) {
-    imageCache[id] = 'data:' + r.mime + ';base64,' + r.data;
-    return imageCache[id];
+  if (imageLoading[id]) return imageLoading[id];
+  var p = new Promise(function (resolve, reject) {
+    imageQueue.push({ id: id, resolve: resolve, reject: reject });
+    pumpImages();
   });
+  imageLoading[id] = p;
+  var clear = function () { delete imageLoading[id]; };
+  p.then(clear, clear);
+  return p;
+}
+function pumpImages() {
+  while (imageActive < IMAGE_PARALLEL && imageQueue.length) {
+    (function (job) {
+      imageActive++;
+      call('getImage', job.id).then(function (r) {
+        imageCache[job.id] = base64ToUrl(r.data, r.mime);
+        job.resolve(imageCache[job.id]);
+      }, job.reject).then(function () { imageActive--; pumpImages(); });
+    })(imageQueue.shift());
+  }
+}
+// 画像のデータを、画面で軽く扱える「blob:」のURLにする（長い data:URL を画面に何度も書くと重いため）
+function base64ToUrl(b64, mime) {
+  try {
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: mime || 'image/jpeg' }));
+  } catch (e) {
+    return 'data:' + mime + ';base64,' + b64;
+  }
 }
 function renderImages() {
   var box = $('imgList');
@@ -1921,7 +1990,7 @@ function renderImages() {
     var card = document.createElement('div');
     card.className = 'img-card';
     var pdf = isDoc(im), di = pdf ? docInfo(im) : null;
-    var label = im.uploading ? '送っています…' : im.failed ? '画像を読み込めませんでした' : im.src ? '' : '読み込んでいます…';
+    var label = im.uploading ? '送っています…' : im.src ? '' : im.failed ? '画像を読み込めませんでした（押すともう一度）' : '読み込んでいます…';
     var ph = pdf ?
       '<div class="ph pdf" style="background:' + di.bg + ';color:' + di.color + '"><span class="pi">' + di.icon + '</span><span class="pn">' + esc(im.caption || di.label) + '</span><span class="po">' +
         (im.uploading ? '送っています…' : im.type === 'pdf' ? 'PDF・押すと開きます' : di.label + '・押すとダウンロード') + '</span></div>' :
@@ -1933,7 +2002,12 @@ function renderImages() {
     var cap = card.querySelector('input');
     cap.value = im.caption || '';
     cap.addEventListener('input', function () { im.caption = cap.value; });
-    card.querySelector('.ph').onclick = function () { if (pdf) openDoc(im); else if (im.src) showBigImage(im); };
+    im._ph = card.querySelector('.ph');
+    im._ph.onclick = function () {
+      if (pdf) openDoc(im);
+      else if (im.src) showBigImage(im);
+      else if (im.failed && im.id) { im.failed = false; updateImageCard(im); loadImage(im); }
+    };
     card.querySelector('.x').onclick = function () {
       if (im.uploading) return;
       if (!confirm('この' + (pdf ? di.label + 'ファイル' : '画像') + 'を外しますか？\n（保存すると、ドライブのファイルはゴミ箱に移ります）')) return;
@@ -1977,8 +2051,9 @@ function addImageFile(file) {
   var im = { id: '', caption: '', src: '', uploading: true };
   images.push(im); renderImages();
   return shrinkImage(file).then(function (dataUrl) {
-    im.src = dataUrl; renderImages();
-    return call('uploadImage', { mime: 'image/jpeg', data: dataUrl.split(',')[1] });
+    var b64 = dataUrl.split(',')[1];
+    im.src = base64ToUrl(b64, 'image/jpeg'); updateImageCard(im);
+    return call('uploadImage', { mime: 'image/jpeg', data: b64 });
   }).then(function (r) {
     im.id = r.id; im.uploading = false;
     imageCache[r.id] = im.src;
