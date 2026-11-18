@@ -109,6 +109,49 @@ table.list .nm { font-weight: bold; }
 #preview { background: #8a959c; padding: 16px; border-radius: 10px; overflow: auto; max-height: 75vh; }
 #preview .page { margin: 0 auto 16px; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 
+/* 出席簿 */
+.att-tools { margin: 10px 0 6px; }
+.mk { border: 1px solid #b8c4cc; background: #fff; border-radius: 8px; padding: 4px 12px; font-size: 17px; font-weight: bold; line-height: 1.2; }
+.mk small { display: block; font-size: 10px; font-weight: normal; color: var(--sub); }
+.mk.on { background: var(--main); color: #fff; border-color: var(--main); }
+.mk.on small { color: #dfeaf2; }
+.att-wrap { max-height: 72vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+table.att { border-collapse: separate; border-spacing: 0; font-size: 13px; background: #fff; }
+table.att th, table.att td { border-right: 1px solid #e1e6ea; border-bottom: 1px solid #e1e6ea; text-align: center; padding: 0 2px; height: 28px; min-width: 34px; }
+table.att thead th { position: sticky; background: var(--main-l); z-index: 2; font-weight: normal; font-size: 12px; }
+table.att thead tr:first-child th { top: 0; height: 22px; }
+table.att thead tr:nth-child(2) th { top: 22px; vertical-align: top; }
+table.att .dcol { position: sticky; left: 0; background: #f7f9fa; z-index: 1; min-width: 62px; font-size: 12px; white-space: nowrap; text-align: left; padding-left: 5px; }
+table.att thead .dcol { z-index: 3; }
+table.att .nmv { writing-mode: vertical-rl; height: 96px; margin: 2px auto 0; font-size: 13px; line-height: 1.15; white-space: nowrap; overflow: hidden; }
+table.att .tot { background: #f3f6f8; font-size: 12px; color: var(--sub); min-width: 30px; }
+table.att td.ac { cursor: pointer; font-weight: bold; font-size: 15px; }
+table.att td.ac:hover { background: #e8f2fa; }
+table.att td.off { background: #eceff1; color: #9aa4ab; }
+table.att td.out { background: #f4f4f4; color: #b5b5b5; }
+table.att tr.today .dcol { background: #ffe9b3; font-weight: bold; }
+table.att tr.offrow .dcol { color: #9aa4ab; }
+table.att tfoot td { background: #fafbfc; font-size: 12px; height: 24px; }
+table.att tfoot .dcol { font-size: 11px; }
+.m-事 { color: #1f5f8b; } .m-病 { color: #c0392b; } .m-停 { color: #7b3fa0; } .m-忌 { color: #555; }
+.wd6 { color: #1565c0; } .wd0, .hol { color: #c62828; }
+.rs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 5px 0; border-bottom: 1px solid #edf0f2; font-size: 14px; }
+.rs .rd { min-width: 78px; font-weight: bold; }
+.rs .rn { min-width: 150px; }
+.rs input { padding: 5px 8px; border: 1px solid #b8c4cc; border-radius: 7px; width: 180px; }
+/* 園の予定 */
+.cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.cal-m { border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.cal-m b { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+.cal-m table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.cal-m th { font-weight: normal; color: var(--sub); }
+.cal-m td { text-align: center; padding: 0; }
+.cal-m td button { width: 100%; border: 0; border-radius: 4px; padding: 3px 0; background: #fff; font-size: 12px; }
+.cal-m td button.off { background: #e3e7ea; color: #8a949b; }
+.cal-m td button.xoff { background: #f6c9a8; color: #7a3a10; font-weight: bold; }
+.cal-m td button.xon { background: #bfe5c9; color: #1d5e33; font-weight: bold; }
+.cal-legend span { display: inline-block; padding: 1px 8px; border-radius: 4px; margin-right: 6px; font-size: 12px; }
+
 /* 管理 */
 .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid var(--main); }
 .tab { border: 1px solid var(--line); border-bottom: 0; background: #fff; border-radius: 8px 8px 0 0; padding: 6px 14px; }
@@ -175,6 +218,7 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
   <span id="demoBadge" class="hidden">見本</span>
   <select id="yearSel" title="年度"></select>
   <button class="tbtn" data-go="list">👧 園児</button>
+  <button class="tbtn" data-go="att">📅 出席簿</button>
   <button class="tbtn" data-go="docs">🖨 書類</button>
   <button class="tbtn" data-go="admin" id="adminBtn">⚙ 管理</button>
   <span class="grow"></span>
@@ -285,6 +329,43 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
     </div>
   </section>
 
+  <!-- 出席簿 -->
+  <section id="vAtt" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">📅 出席簿</h2>
+        <div class="row">
+          <select id="attCls"></select>
+          <button class="btn small" id="attPrev" title="前の月">◀</button>
+          <select id="attYm"></select>
+          <button class="btn small" id="attNext" title="次の月">▶</button>
+        </div>
+      </div>
+      <div class="row att-tools">
+        <span class="muted">押すと入る印：</span>
+        <button class="mk on" data-t="事">事<small>事故欠席</small></button>
+        <button class="mk" data-t="病">病<small>病気欠席</small></button>
+        <button class="mk" data-t="停">停<small>出席停止</small></button>
+        <button class="mk" data-t="忌">忌<small>忌引</small></button>
+        <button class="mk" data-t="">消す</button>
+        <span class="grow" style="flex:1"></span>
+        <span id="attStatus" class="muted"></span>
+      </div>
+      <p class="muted" style="margin:0 0 6px">欠席した子のマスを押します。同じ印のマスをもう一度押すと消えます。灰色の「－」は休みの日・在籍していない日です。入れたものは自動で保存されます。</p>
+      <div class="att-wrap" id="attWrap"><table class="att" id="attTable"></table></div>
+    </div>
+    <div class="card">
+      <h3>欠席した理由</h3>
+      <p class="muted" style="margin-top:0">続けて休んだ日は1つにまとまります。理由を入れると、出席簿の「欠席した理由等」に出ます（前の日と続けて休んだときは、前の日の理由が自動で入ります）。</p>
+      <div id="attReasons"></div>
+      <datalist id="reasonList"></datalist>
+    </div>
+    <div class="row">
+      <button class="btn main" id="attPrint">🖨 この月の出席簿を印刷する</button>
+      <button class="btn" id="attCalBtn">📆 園の休み（予定）を決める</button>
+    </div>
+  </section>
+
   <!-- 書類 -->
   <section id="vDocs" class="hidden">
     <div class="card">
@@ -306,6 +387,7 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
       <div class="tabs" id="adminTabs">
         <button class="tab" data-tab="classes">クラス</button>
         <button class="tab" data-tab="staff">職員</button>
+        <button class="tab" data-tab="calendar">園の予定</button>
         <button class="tab" data-tab="settings">設定</button>
         <button class="tab" data-tab="import">Excelから取り込む</button>
         <button class="tab" data-tab="log">操作の記録</button>
@@ -341,7 +423,8 @@ var GRADE_NAMES = { '星': '満３歳児', '花': '３歳児', '雪': '４歳児
 // ===== 状態 =====
 var S = {
   token: '', me: null, settings: null, years: [], currentYear: '', year: '', classes: [],
-  roster: null, cls: '', view: '', edit: null, dirty: false, doc: 'classList', heights: {}
+  roster: null, cls: '', view: '', edit: null, dirty: false, doc: 'classList', heights: {},
+  att: {}, calendar: {}
 };
 try { S.token = sessionStorage.getItem('daicho_token') || ''; } catch (e) {}
 
@@ -404,7 +487,9 @@ function showLogin(msg) {
 }
 
 function clearAll() {
-  S.token = ''; S.me = null; S.roster = null; S.edit = null; S.dirty = false; S.heights = {};
+  S.token = ''; S.me = null; S.roster = null; S.edit = null; S.dirty = false; S.heights = {}; S.att = {}; S.calendar = {};
+  A.pending = []; clearTimeout(A.timer);
+  $('attTable').innerHTML = ''; $('attReasons').innerHTML = '';
   try { sessionStorage.removeItem('daicho_token'); } catch (e) {}
   $('kidTable').innerHTML = '';
 }
@@ -461,10 +546,12 @@ Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), functi
 function go(v) {
   if (S.view === 'edit' && v !== 'edit' && S.dirty && !confirm('保存していない変更があります。保存しないで移りますか？')) return;
   if (v !== 'edit') S.dirty = false;
+  if (S.view === 'att' && v !== 'att') flushAtt();
   S.view = v;
-  show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin');
+  show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin'); show('vAtt', v === 'att');
   Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), function (b) { b.classList.toggle('on', b.getAttribute('data-go') === v); });
   if (v === 'list') renderList();
+  if (v === 'att') renderAtt();
   if (v === 'docs') renderDocs();
   if (v === 'admin') renderAdmin();
   window.scrollTo(0, 0);
@@ -681,9 +768,10 @@ var DOCS = [
   { id: 'pref', name: '県提出用名簿', note: 'A4・男女・4月現在の満年齢', left: true },
   { id: 'nameTags', name: '絵画名札', note: 'B5・1枚に4人', left: false },
   { id: 'height', name: '身長順並び表', note: 'B5・身長を入れて並べる', left: false },
-  { id: 'hensei', name: 'クラス編成用名簿', note: 'B5・来年度のバス・進学先など', left: false }
+  { id: 'hensei', name: 'クラス編成用名簿', note: 'B5・来年度のバス・進学先など', left: false },
+  { id: 'attendance', name: '出席簿', note: 'B5たて・2枚で1か月（左・右）', left: true }
 ];
-var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true };
+var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true, ym: '' };
 
 function renderDocs() {
   $('docCards').innerHTML = DOCS.map(function (d) {
@@ -698,6 +786,12 @@ function renderDocs() {
   var h = '<div class="row"><b>クラス</b><select id="optCls">' + yearClasses().map(function (c) { return '<option' + (docOpt.cls === c.name ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
     '<option value="*"' + (docOpt.cls === '*' ? ' selected' : '') + '>全クラス（クラスごとに次の紙へ）</option></select>' +
     '<label><input type="checkbox" id="optLeft"' + (docOpt.includeLeft ? ' checked' : '') + '> 退園した子も入れる</label></div>';
+  if (S.doc === 'attendance') {
+    if (!docOpt.ym || ymList(S.year).indexOf(docOpt.ym) < 0) docOpt.ym = defaultYm();
+    h = h.replace(/<label><input type="checkbox" id="optLeft"[^]*?<\/label>/, '<input type="checkbox" id="optLeft" class="hidden">');
+    h += '<div class="row"><b>月</b><select id="optYm">' + ymList(S.year).map(function (ym) { return '<option value="' + ym + '"' + (ym === docOpt.ym ? ' selected' : '') + '>' + ymLabel(ym) + '</option>'; }).join('') + '</select>' +
+      '<span class="muted">1枚目（左）：欠席した理由等・日々の数／2枚目（右）：園児ごとの出欠。両面ではなく、2枚に印刷します。</span></div>';
+  }
   if (S.doc === 'classList') {
     h += '<div class="row"><b>チェック欄の数</b><select id="optBlanks">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) { return '<option' + (n === docOpt.blanks ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>';
   }
@@ -725,6 +819,12 @@ function renderDocs() {
   Array.prototype.forEach.call(document.querySelectorAll('[data-h]'), function (inp) {
     inp.oninput = function () { S.heights[inp.getAttribute('data-h')] = inp.value.trim(); clearTimeout(drawPreview.t); drawPreview.t = setTimeout(drawPreview, 300); };
   });
+  if ($('optYm')) $('optYm').onchange = function () { docOpt.ym = this.value; renderDocs(); };
+  if (S.doc === 'attendance') {
+    $('preview').innerHTML = '<div class="empty" style="color:#fff">出欠を読み込んでいます…</div>';
+    flushAtt().then(function () { return loadAtt(docOpt.ym); }).then(drawPreview).catch(function (e) { $('preview').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+    return;
+  }
   drawPreview();
 }
 function docKids(cls) { return kidsOf(cls, docOpt.includeLeft); }
@@ -959,6 +1059,130 @@ var DOC_MAKERS = {
   }
 };
 
+// ===== 出席簿（印刷）：今のExcel「出席簿_○月」の形。1枚目＝左（欠席した理由等・日々の数・21～30番）、2枚目＝右（1～20番） =====
+var AG = { top: 12, title: 11, no: 5, name: 27, day: 4.2, sums: [6.5, 10, 12.5, 4.2, 4.2, 4.2, 6], kw: 6.1, av: 5, aw: 6.5, ax: 5.5 };
+DOC_MAKERS.attendance = function (ci) {
+  var c = attCalc(ci.name, docOpt.ym || defaultYm());
+  var groups = attGroups(c);
+  var pages = [];
+  chunk(c.cols, 30).forEach(function (cols, i) {
+    pages.push(attLeftPage(c, ci, slots(cols.slice(20, 30), 10), i === 0 ? groups : [], i === 0));
+    pages.push(attRightPage(c, ci, slots(cols.slice(0, 20), 20)));
+  });
+  // 欠席した理由等が29件より多いときは、続きの紙
+  for (var i = 29; i < groups.length; i += 45) pages.push(attReasonMore(c, ci, groups.slice(i, i + 45)));
+  return { size: 'b5', pages: pages };
+};
+function attVal(c, col, day) {
+  if (!col) return day.none || day.off ? '－' : '';
+  var x = c.cell(col, day);
+  return x.s === 'off' || x.s === 'out' ? '－' : x.s === 'blank' ? '' : x.mark;
+}
+function attSum(col, key) { if (!col || col.status === 'notyet') return ''; if (col.status === 'gone') return '－'; return col.t[key]; }
+function attName(col) { return !col ? '' : col.status === 'gone' ? '（除　籍）' : col.status === 'notyet' ? '' : col.k.name.replace(/ /g, '　'); }
+function attWd(day) { if (day.none) return ''; return '<span style="color:' + (day.wd === 0 || day.hol ? '#d00' : day.wd === 6 ? '#00c' : '#000') + '">' + WD[day.wd] + '</span>'; }
+var ATT_SUM_ROWS = [
+  ['edu', '教育<br>日数'], ['stop', '出席停止<br>忌引等の<br>日数'], ['must', '出席しな<br>ければな<br>らない<br>日数'],
+  ['sick', '病'], ['acc', '事'], ['abs', '計'], ['att', '出席日数']
+];
+function attNameCell(col) {
+  return '<td style="padding:0;vertical-align:top"><div style="writing-mode:vertical-rl;height:' + (AG.name - 1.5) + 'mm;margin:0.7mm auto 0;font-size:9pt;line-height:1">' + fi(attName(col)) + '</div></td>';
+}
+function attDiagHead() {
+  return '<td colspan="2" style="position:relative;padding:0"><svg style="position:absolute;inset:0;width:100%;height:100%" preserveAspectRatio="none" viewBox="0 0 10 10"><line x1="10" y1="0" x2="0" y2="10" stroke="#000" stroke-width="0.08"/></svg>' +
+    '<div style="position:absolute;left:0.8mm;top:6mm;writing-mode:vertical-rl;font-size:7.5pt;letter-spacing:.5mm">幼児氏名</div><div style="position:absolute;right:1mm;bottom:0.5mm;font-size:7.5pt">曜</div></td>' +
+    '<td style="vertical-align:bottom;text-align:center;font-size:7.5pt">日</td>';
+}
+// 右の紙（1～20番）
+function attRightPage(c, ci, cols) {
+  var rev = cols.slice().reverse();
+  var W = AG.kw * 20 + AG.av + AG.aw + AG.ax;
+  var h = '<div class="page b5 mincho" style="padding:0"><table class="t thick" style="position:absolute;left:24mm;top:' + AG.top + 'mm;width:' + W + 'mm;table-layout:fixed;font-size:8pt;line-height:1.05">' +
+    '<colgroup>' + Array(21).join('<col style="width:' + AG.kw + 'mm">') + '<col style="width:' + AG.av + 'mm"><col style="width:' + AG.aw + 'mm"><col style="width:' + AG.ax + 'mm"></colgroup>';
+  var sm = 'font-size:6.5pt;line-height:1.1';
+  h += '<tr style="height:' + AG.title + 'mm"><td colspan="6" style="padding:0 1.5mm"><div style="display:flex;align-items:center;gap:2.5mm"><span style="' + sm + ';width:3mm">令<br>和</span><span style="font-size:13pt;flex:1;display:flex;justify-content:space-around">' +
+    '<span>' + reiwaNum(c.y) + '</span><span>年</span><span>' + c.m + '</span><span>月</span></span></div></td>' +
+    '<td colspan="2" class="c" style="' + sm + '">学級名<br>（組名）</td><td colspan="5" class="c" style="font-size:13pt">' + fi(ci.name) + '</td>' +
+    '<td colspan="2" class="c" style="' + sm + '">担　任<br>氏　名</td><td colspan="7" class="c" style="font-size:13pt">' + fi(ci.teacher) + '</td><td class="c" style="font-size:7.5pt">印</td></tr>';
+  h += '<tr style="height:' + AG.no + 'mm">' + rev.map(function (col) { return '<td class="c">' + (col ? esc(col.k.enroll.no) : '') + '</td>'; }).join('') + '<td colspan="3" class="c" style="letter-spacing:2mm">番号</td></tr>';
+  h += '<tr style="height:' + AG.name + 'mm">' + rev.map(attNameCell).join('') + attDiagHead() + '</tr>';
+  c.days.forEach(function (day) {
+    h += '<tr style="height:' + AG.day + 'mm">' + rev.map(function (col) { return '<td class="c" style="padding:0">' + attVal(c, col, day) + '</td>'; }).join('') +
+      '<td colspan="2" class="c">' + attWd(day) + '</td><td class="c">' + day.d + '</td></tr>';
+  });
+  ATT_SUM_ROWS.forEach(function (r, i) {
+    h += '<tr style="height:' + AG.sums[i] + 'mm">' + rev.map(function (col) { return '<td class="c" style="padding:0">' + attSum(col, r[0]) + '</td>'; }).join('');
+    if (i >= 3 && i <= 5) h += '<td class="c" style="font-size:6pt;padding:0">' + r[1] + '</td>' + (i === 3 ? '<td rowspan="3" class="c" style="font-size:6pt;line-height:1.1;padding:0">欠席<br>日数</td>' : '');
+    else h += '<td colspan="2" class="c" style="font-size:5.5pt;line-height:1.05;padding:0">' + r[1] + '</td>';
+    if (i === 0) h += '<td rowspan="7" style="padding:1mm 0;font-size:7.5pt"><div style="height:100%;display:flex;flex-direction:column;justify-content:space-between;align-items:center"><span>合</span><span>計</span></div></td>';
+    h += '</tr>';
+  });
+  return h + '</table></div>';
+}
+// 左の紙（欠席した理由等・日々の数・21～30番）
+function attLeftPage(c, ci, cols, groups, withTotals) {
+  var rev = cols.slice().reverse();
+  var tw = [3.6, 3.6, 3.6, 5.2];
+  var W = tw.reduce(function (a, b) { return a + b; }, 0) + AG.kw * 10 + AG.av + AG.aw + AG.ax;
+  var x0 = 170 - W;
+  var top = AG.top + AG.title;
+  var h = '<div class="page b5 mincho" style="padding:0"><table class="t thick" style="position:absolute;left:' + x0 + 'mm;top:' + top + 'mm;width:' + W + 'mm;table-layout:fixed;font-size:8pt;line-height:1.05">' +
+    '<colgroup>' + tw.map(function (w) { return '<col style="width:' + w + 'mm">'; }).join('') + Array(11).join('<col style="width:' + AG.kw + 'mm">') + '<col style="width:' + AG.av + 'mm"><col style="width:' + AG.aw + 'mm"><col style="width:' + AG.ax + 'mm"></colgroup>';
+  h += '<tr style="height:' + AG.no + 'mm"><td colspan="4" class="c" style="letter-spacing:1.5mm">総計</td>' + rev.map(function (col) { return '<td class="c">' + (col ? esc(col.k.enroll.no) : '') + '</td>'; }).join('') + '<td colspan="3" class="c" style="letter-spacing:2mm">番号</td></tr>';
+  h += '<tr style="height:' + AG.name + 'mm"><td colspan="3" style="padding:0;vertical-align:top"><div style="height:' + (AG.name - 0.5) + 'mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-size:7.5pt">' +
+    '<div style="writing-mode:vertical-rl;margin-top:1mm;letter-spacing:.3mm">日々欠席数</div><div style="display:flex;width:100%;justify-content:space-around"><span>計</span><span>事</span><span>病</span></div></div></td>' +
+    '<td style="padding:0;vertical-align:top"><div style="writing-mode:vertical-rl;margin:1mm auto 0;font-size:7.5pt;letter-spacing:.3mm">日々出席数</div></td>' +
+    rev.map(attNameCell).join('') + attDiagHead() + '</tr>';
+  c.days.forEach(function (day, di) {
+    var o = withTotals ? c.daily[di] : null;
+    var tc = '<td class="c" style="padding:0">';
+    var tot = day.none || day.off ? tc + '－</td>' + tc + '－</td>' + tc + '－</td>' + tc + '－</td>'
+      : o ? tc + o.kei + '</td>' + tc + o.ji + '</td>' + tc + o.byo + '</td>' + tc + o.present + '</td>' : '<td></td><td></td><td></td><td></td>';
+    h += '<tr style="height:' + AG.day + 'mm">' + tot + rev.map(function (col) { return '<td class="c" style="padding:0">' + attVal(c, col, day) + '</td>'; }).join('') +
+      '<td colspan="2" class="c">' + attWd(day) + '</td><td class="c">' + day.d + '</td></tr>';
+  });
+  ATT_SUM_ROWS.forEach(function (r, i) {
+    h += '<tr style="height:' + AG.sums[i] + 'mm"><td></td><td></td><td></td><td></td>' + rev.map(function (col) { return '<td class="c" style="padding:0">' + attSum(col, r[0]) + '</td>'; }).join('');
+    if (i >= 3 && i <= 5) h += '<td class="c" style="font-size:6pt;padding:0">' + r[1] + '</td>' + (i === 3 ? '<td rowspan="3" class="c" style="font-size:6pt;line-height:1.1;padding:0">欠席<br>日数</td>' : '');
+    else h += '<td colspan="2" class="c" style="font-size:5.5pt;line-height:1.05;padding:0">' + r[1] + '</td>';
+    if (i === 0) h += '<td rowspan="7" style="padding:1mm 0;font-size:7.5pt"><div style="height:100%;display:flex;flex-direction:column;justify-content:space-between;align-items:center"><span>合</span><span>計</span></div></td>';
+    h += '</tr>';
+  });
+  h += '</table>';
+  // 欠席した理由等（日1の行から29件）
+  var rTop = top + AG.no + AG.name, rw = [6.5, 4.5, 15, 12], RW = 38, rx = x0 - 3 - RW;
+  h += '<div style="position:absolute;left:' + rx + 'mm;top:' + (rTop - 5) + 'mm;width:' + RW + 'mm;text-align:center;font-size:9pt">【欠席した理由等】</div>' +
+    '<table class="t thick" style="position:absolute;left:' + rx + 'mm;top:' + rTop + 'mm;width:' + RW + 'mm;table-layout:fixed;font-size:7.5pt;line-height:1.05"><colgroup>' + rw.map(function (w) { return '<col style="width:' + w + 'mm">'; }).join('') + '</colgroup>' +
+    '<tr style="height:' + AG.day + 'mm"><td class="c">日</td><td class="c" style="font-size:5pt;padding:0">番号</td><td class="c">園児名</td><td class="c" style="font-size:6.5pt;white-space:nowrap;padding:0">欠席理由</td></tr>';
+  for (var i = 0; i < 29; i++) {
+    var g = groups[i];
+    h += '<tr style="height:' + AG.day + 'mm">' + (g ? '<td class="c" style="padding:0 .3mm">' + fi(fmtDays(g.days)) + '</td><td class="c" style="padding:0">' + esc(g.col.k.enroll.no) + '</td><td style="padding:0 .5mm">' + fi(g.col.k.name) + '</td><td class="c" style="padding:0 .5mm">' + fi(g.reason) + '</td>' : '<td></td><td></td><td></td><td></td>') + '</tr>';
+  }
+  h += '</table><div style="position:absolute;left:' + rx + 'mm;top:' + (rTop + AG.day * 30 + 0.5) + 'mm;font-size:5.5pt;white-space:nowrap">※ 欄が足らない場合は別紙にまとめること' + (groups.length > 29 ? '（続きは別の紙）' : '') + '</div>';
+  // 備考
+  var f = c.foot, fTop = top + AG.no + AG.name + AG.day * 31 + AG.sums.reduce(function (a, b) { return a + b; }, 0) + 3;
+  var names = function (list) { return list.map(function (x) { return x.k.name; }).join('、'); };
+  var fx = rx, FW = 170 - rx;
+  var cs = 'font-size:7pt;padding:0 .8mm;white-space:nowrap';
+  h += '<table class="t thick" style="position:absolute;left:' + fx + 'mm;top:' + fTop + 'mm;width:' + FW + 'mm;table-layout:fixed;font-size:7pt;line-height:1.1">' +
+    '<colgroup><col style="width:4mm"><col style="width:19mm"><col style="width:7mm"><col style="width:3.5mm"><col><col style="width:6mm"><col style="width:11mm"><col style="width:8mm"><col style="width:3.5mm"><col style="width:21mm"></colgroup>' +
+    '<tr style="height:5mm"><td rowspan="4" class="c" style="font-size:8pt;line-height:1.6;padding:0">備<br><br>考</td><td style="' + cs + ';letter-spacing:.6mm">入園幼児数</td><td class="r" style="' + cs + '">' + (withTotals ? f.entered.length : '') + '</td><td style="' + cs + ';padding:0">名</td>' +
+    '<td rowspan="2" style="font-size:7pt;padding:0 1mm">入園幼児氏名　' + fi(withTotals ? names(f.entered) : '') + '</td>' +
+    '<td rowspan="2" class="c" style="font-size:5pt;line-height:1.1;padding:0">日々<br>出席</td><td rowspan="2" style="' + cs + '">平均数</td><td rowspan="2" class="r" style="' + cs + '">' + (withTotals ? f.avgPresent : '') + '</td><td rowspan="2" style="' + cs + ';padding:0">名</td>' +
+    '<td rowspan="4" class="c" style="font-size:7.5pt;line-height:1.5"><div>' + c.m + '　月の</div><div>幼児出席率</div><div style="text-align:right;padding-right:1mm"><span style="font-size:9pt">' + (withTotals ? f.rate : '') + '</span> ％</div></td></tr>' +
+    '<tr style="height:2mm"><td rowspan="2" style="' + cs + ';letter-spacing:.6mm">退園幼児数</td><td rowspan="2" class="r" style="' + cs + '">' + (withTotals ? f.left.length : '') + '</td><td rowspan="2" style="' + cs + ';padding:0">名</td></tr>' +
+    '<tr style="height:2mm"><td rowspan="2" style="font-size:7pt;padding:0 1mm">退園幼児氏名　' + fi(withTotals ? names(f.left) : '') + '</td>' +
+    '<td rowspan="2" class="c" style="font-size:5pt;line-height:1.1;padding:0">日々<br>欠席</td><td rowspan="2" style="' + cs + '">平均数</td><td rowspan="2" class="r" style="' + cs + '">' + (withTotals ? f.avgAbsent : '') + '</td><td rowspan="2" style="' + cs + ';padding:0">名</td></tr>' +
+    '<tr style="height:5mm"><td style="' + cs + '">月末在籍幼児数</td><td class="r" style="' + cs + '">' + (withTotals ? f.atEnd : '') + '</td><td style="' + cs + ';padding:0">名</td></tr></table>';
+  return h + '</div>';
+}
+function attReasonMore(c, ci, groups) {
+  var h = '<div class="page b5 mincho"><div class="pg-head"><span>' + esc(ci.name) + '　' + c.m + '月　欠席した理由等（つづき）</span></div><table class="t thick" style="width:100%;table-layout:fixed;font-size:9pt"><colgroup><col style="width:22mm"><col style="width:12mm"><col style="width:40mm"><col></colgroup>' +
+    '<tr style="height:6mm"><td class="c">日</td><td class="c">番号</td><td class="c">園児名</td><td class="c" style="font-size:6.5pt;white-space:nowrap;padding:0">欠席理由</td></tr>';
+  groups.forEach(function (g) { h += '<tr style="height:5mm"><td class="c">' + fmtDays(g.days) + '</td><td class="c">' + esc(g.col.k.enroll.no) + '</td><td>' + fi(g.col.k.name) + '</td><td>' + fi(g.reason) + '</td></tr>'; });
+  return h + '</table></div>';
+}
+
 // 文字が多いときは小さくする（max 文字までは base pt のまま）
 function fitStyle(text, max, base) {
   base = base || 10;
@@ -988,6 +1212,364 @@ function smallOrBus(ci, kids, bus) {
   return { size: 'b5', pages: pages };
 }
 
+// ===== 暦（祝日・園の休み） =====
+var WD = ['日', '月', '火', '水', '木', '金', '土'];
+function ymd(dt) { return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()); }
+function dateOf(s) { var p = parseD(s); return new Date(p.y, p.m - 1, p.d); }
+var holCache = {};
+// 日本の祝日（春分・秋分は計算。振替休日・国民の休日も入れる）
+function jpHolidays(y) {
+  if (holCache[y]) return holCache[y];
+  var h = {};
+  var add = function (m, d, n) { h[y + '-' + pad(m) + '-' + pad(d)] = n; };
+  var nthMon = function (m, n) { var f = new Date(y, m - 1, 1).getDay(); return 1 + ((8 - f) % 7) + (n - 1) * 7; };
+  var k = y - 1980;
+  add(1, 1, '元日'); add(1, nthMon(1, 2), '成人の日'); add(2, 11, '建国記念の日'); add(2, 23, '天皇誕生日');
+  add(3, Math.floor(20.8431 + 0.242194 * k - Math.floor(k / 4)), '春分の日');
+  add(4, 29, '昭和の日'); add(5, 3, '憲法記念日'); add(5, 4, 'みどりの日'); add(5, 5, 'こどもの日');
+  add(7, nthMon(7, 3), '海の日'); add(8, 11, '山の日'); add(9, nthMon(9, 3), '敬老の日');
+  add(9, Math.floor(23.2488 + 0.242194 * k - Math.floor(k / 4)), '秋分の日');
+  add(10, nthMon(10, 2), 'スポーツの日'); add(11, 3, '文化の日'); add(11, 23, '勤労感謝の日');
+  Object.keys(h).forEach(function (s) {   // 祝日にはさまれた日
+    var a = dateOf(s), b = dateOf(s); a.setDate(a.getDate() + 1); b.setDate(b.getDate() + 2);
+    if (h[ymd(b)] && !h[ymd(a)] && a.getDay() !== 0) h[ymd(a)] = '国民の休日';
+  });
+  Object.keys(h).sort().forEach(function (s) {   // 日曜の祝日の次の平日
+    var d = dateOf(s);
+    if (d.getDay() !== 0) return;
+    do { d.setDate(d.getDate() + 1); } while (h[ymd(d)]);
+    h[ymd(d)] = '振替休日';
+  });
+  holCache[y] = h;
+  return h;
+}
+function fyOfDate(s) { var p = parseD(s); return String(p.m >= 4 ? p.y : p.y - 1); }
+function calExceptions(year) { var m = {}; (S.calendar[year] || []).forEach(function (c) { m[c.date] = c; }); return m; }
+// その日が休みか：{ off, why }
+function dayInfo(date, ex) {
+  ex = ex || calExceptions(fyOfDate(date));
+  var d = dateOf(date), wd = d.getDay(), hol = jpHolidays(d.getFullYear())[date];
+  var base = wd === 0 || wd === 6 || !!hol;
+  var why = hol || (wd === 0 ? '日曜' : wd === 6 ? '土曜' : '');
+  var x = ex[date];
+  if (x && x.kind === '休み') return { off: true, why: x.note || '園の休み', x: '休み', wd: wd, hol: hol };
+  if (x && x.kind === '保育日') return { off: false, why: x.note || '保育日', x: '保育日', wd: wd, hol: hol };
+  return { off: base, why: why, x: '', wd: wd, hol: hol };
+}
+
+// ===== 出席簿 =====
+var A = { cls: '', ym: '', tool: '事', pending: [], timer: null, calc: null };
+function fyOfYm(ym) { var y = +ym.slice(0, 4), m = +ym.slice(5, 7); return String(m >= 4 ? y : y - 1); }
+function ymList(year) { var out = []; for (var i = 0; i < 12; i++) { var m = 4 + i, y = +year; if (m > 12) { m -= 12; y++; } out.push(y + '-' + pad(m)); } return out; }
+function ymLabel(ym) { return +ym.slice(5, 7) + '月'; }
+function defaultYm() { var t = todayStr().slice(0, 7); return ymList(S.year).indexOf(t) >= 0 ? t : S.year + '-04'; }
+function kidStart(k) { return k.transferIn || k.enterDate || ''; }
+function loadAtt(ym) {
+  return call('attendance', ym).then(function (r) {
+    var map = {};
+    r.rows.forEach(function (x) { map[x.childId] = x; });
+    S.att[ym] = { rows: map };
+    S.calendar[fyOfYm(ym)] = r.calendar;
+  });
+}
+
+// 1か月分を計算する（画面と印刷で同じものを使う）
+function attCalc(cls, ym) {
+  var y = +ym.slice(0, 4), m = +ym.slice(5, 7), last = new Date(y, m, 0).getDate();
+  var ex = calExceptions(fyOfYm(ym));
+  var rows = (S.att[ym] || { rows: {} }).rows;
+  var mStart = ym + '-01', mEnd = ym + '-' + pad(last);
+  var days = [];
+  for (var d = 1; d <= 31; d++) {
+    if (d > last) { days.push({ d: d, none: true, off: true }); continue; }
+    var date = ym + '-' + pad(d), info = dayInfo(date, ex);
+    days.push({ d: d, date: date, wd: info.wd, off: info.off, why: info.why, hol: info.hol, x: info.x });
+  }
+  var cols = kidsOf(cls, true).map(function (k) {
+    var st = kidStart(k), en = k.leaveDate || '';
+    var status = st && st > mEnd ? 'notyet' : en && en < mStart ? 'gone' : 'in';
+    var r = rows[k.id] || {};
+    return { k: k, st: st, en: en, status: status, marks: r.marks || {}, reasons: r.reasons || {} };
+  });
+  var cell = function (c, day) {
+    if (day.none || day.off) return { s: 'off' };
+    if (c.status === 'notyet') return { s: 'blank' };
+    if (c.status === 'gone' || (c.st && day.date < c.st) || (c.en && day.date > c.en)) return { s: 'out' };
+    return { s: 'in', mark: c.marks[day.d] || '' };
+  };
+  cols.forEach(function (c) {
+    var t = { edu: 0, stop: 0, sick: 0, acc: 0 };
+    days.forEach(function (day) {
+      var x = cell(c, day);
+      if (x.s !== 'in') return;
+      t.edu++;
+      if (x.mark === '停' || x.mark === '忌') t.stop++;
+      if (x.mark === '病') t.sick++;
+      if (x.mark === '事') t.acc++;
+    });
+    t.must = t.edu - t.stop; t.abs = t.sick + t.acc; t.att = t.must - t.abs;
+    c.t = t;
+  });
+  var daily = days.map(function (day) {
+    if (day.none || day.off) return null;
+    var o = { ji: 0, byo: 0, other: 0, enrolled: 0 };
+    cols.forEach(function (c) {
+      var x = cell(c, day);
+      if (x.s !== 'in') return;
+      o.enrolled++;
+      if (x.mark === '事') o.ji++; else if (x.mark === '病') o.byo++; else if (x.mark) o.other++;
+    });
+    o.kei = o.ji + o.byo; o.present = o.enrolled - o.kei - o.other;
+    return o;
+  });
+  var schoolDays = daily.filter(Boolean).length;
+  var sumPresent = 0, sumAbs = 0;
+  daily.forEach(function (o) { if (o) { sumPresent += o.present; sumAbs += o.kei; } });
+  var must = 0, att = 0;
+  cols.forEach(function (c) { if (c.status === 'in') { must += c.t.must; att += c.t.att; } });
+  var entered = cols.filter(function (c) { return c.st && c.st >= mStart && c.st <= mEnd; });
+  var left = cols.filter(function (c) { return c.en && c.en >= mStart && c.en <= mEnd; });
+  var atEnd = cols.filter(function (c) { return (!c.st || c.st <= mEnd) && (!c.en || c.en > mEnd); });
+  var r1 = function (v) { return Math.round(v * 10) / 10; };
+  return {
+    ym: ym, y: y, m: m, last: last, days: days, cols: cols, cell: cell, daily: daily, schoolDays: schoolDays,
+    foot: {
+      entered: entered, left: left, atEnd: atEnd.length,
+      avgPresent: schoolDays ? r1(sumPresent / schoolDays) : '', avgAbsent: schoolDays ? r1(sumAbs / schoolDays) : '',
+      rate: must ? r1(att / must * 100) : ''
+    }
+  };
+}
+
+// 続けて休んだ日をまとめる（理由が同じあいだ）
+function attGroups(c) {
+  var out = [];
+  c.cols.forEach(function (col, ki) {
+    if (col.status !== 'in') return;
+    var g = null;
+    c.days.forEach(function (day) {
+      var x = c.cell(col, day);
+      if (x.s !== 'in') return;          // 休みの日は続きとみなす
+      if (!x.mark) { g = null; return; }
+      var rs = col.reasons[day.d] || '';
+      if (g && g.reason === rs) { g.days.push(day.d); g.marks.push(x.mark); return; }
+      g = { ki: ki, col: col, days: [day.d], marks: [x.mark], reason: rs };
+      out.push(g);
+    });
+  });
+  out.sort(function (a, b) { return a.days[0] - b.days[0] || (Number(a.col.k.enroll.no) || 0) - (Number(b.col.k.enroll.no) || 0); });
+  return out;
+}
+function fmtDays(days) { return days.length === 1 ? String(days[0]) : days.length === 2 ? days[0] + '・' + days[1] : days[0] + '～' + days[days.length - 1]; }
+function markSummary(marks) {
+  var cnt = {}; marks.forEach(function (m) { cnt[m] = (cnt[m] || 0) + 1; });
+  return Object.keys(cnt).map(function (m) { return '<span class="m-' + m + '">' + m + (cnt[m] > 1 ? '×' + cnt[m] : '') + '</span>'; }).join(' ');
+}
+
+function renderAtt() {
+  if (!A.ym || ymList(S.year).indexOf(A.ym) < 0) A.ym = defaultYm();
+  var cls = yearClasses();
+  if (!A.cls || !cls.some(function (c) { return c.name === A.cls; })) A.cls = S.cls || (cls[0] || {}).name || '';
+  $('attCls').innerHTML = cls.map(function (c) { return '<option' + (c.name === A.cls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
+  $('attYm').innerHTML = ymList(S.year).map(function (ym) { return '<option value="' + ym + '"' + (ym === A.ym ? ' selected' : '') + '>' + ymLabel(ym) + '</option>'; }).join('');
+  $('reasonList').innerHTML = (S.settings.reasons || []).map(function (r) { return '<option value="' + esc(r) + '">'; }).join('');
+  $('attCalBtn').classList.toggle('hidden', S.me.role !== '管理者');
+  if (!A.cls) { $('attTable').innerHTML = '<tr><td class="empty">クラスがありません。</td></tr>'; return; }
+  busy(true);
+  flushAtt().then(function () { return loadAtt(A.ym); }).then(drawAtt).catch(function (e) { alert(e.message); }).then(function () { busy(false); });
+}
+$('attCls').onchange = function () { A.cls = this.value; S.cls = this.value; drawAtt(); };
+$('attYm').onchange = function () { A.ym = this.value; renderAtt(); };
+$('attPrev').onclick = function () { var l = ymList(S.year), i = l.indexOf(A.ym); if (i > 0) { A.ym = l[i - 1]; renderAtt(); } };
+$('attNext').onclick = function () { var l = ymList(S.year), i = l.indexOf(A.ym); if (i < l.length - 1) { A.ym = l[i + 1]; renderAtt(); } };
+Array.prototype.forEach.call(document.querySelectorAll('.mk'), function (b) {
+  b.onclick = function () {
+    A.tool = b.getAttribute('data-t');
+    Array.prototype.forEach.call(document.querySelectorAll('.mk'), function (x) { x.classList.toggle('on', x === b); });
+  };
+});
+$('attPrint').onclick = function () { flushAtt(); S.doc = 'attendance'; docOpt.cls = A.cls; docOpt.ym = A.ym; go('docs'); };
+$('attCalBtn').onclick = function () { flushAtt(); adminTab = 'calendar'; calYear = S.year; go('admin'); };
+
+function drawAtt() {
+  if (!S.att[A.ym]) return;
+  var c = attCalc(A.cls, A.ym);
+  A.calc = c;
+  var today = todayStr();
+  var h = '<thead><tr><th class="dcol">番号</th>';
+  c.cols.forEach(function (col) { h += '<th>' + esc(col.k.enroll.no) + '</th>'; });
+  h += '<th class="tot">事</th><th class="tot">病</th><th class="tot">出席</th></tr><tr><th class="dcol">日（曜）</th>';
+  c.cols.forEach(function (col) {
+    var nm = col.status === 'gone' ? '（除籍）' : col.status === 'notyet' ? '（まだ）' : col.k.name;
+    h += '<th title="' + esc(col.k.name) + '"><div class="nmv">' + esc(nm) + '</div></th>';
+  });
+  h += '<th class="tot"></th><th class="tot"></th><th class="tot"></th></tr></thead><tbody>';
+  c.days.forEach(function (day, di) {
+    if (day.none) return;
+    var cls = (day.date === today ? 'today ' : '') + (day.off ? 'offrow' : '');
+    h += '<tr class="' + cls + '"><td class="dcol"><span class="' + (day.hol || day.wd === 0 ? 'hol' : day.wd === 6 ? 'wd6' : '') + '">' + day.d + '（' + WD[day.wd] + '）</span>' +
+      (day.off && day.why && day.wd !== 0 && day.wd !== 6 ? '<small class="muted"> ' + esc(day.why) + '</small>' : '') + (day.x === '保育日' ? '<small class="muted"> ' + esc(day.why) + '</small>' : '') + '</td>';
+    c.cols.forEach(function (col, ki) {
+      var x = c.cell(col, day);
+      if (x.s === 'off') h += '<td class="off">－</td>';
+      else if (x.s === 'out') h += '<td class="out">－</td>';
+      else if (x.s === 'blank') h += '<td class="out"></td>';
+      else h += '<td class="ac" data-k="' + ki + '" data-d="' + day.d + '"><span class="m-' + x.mark + '">' + x.mark + '</span></td>';
+    });
+    var o = c.daily[di];
+    h += o ? '<td class="tot">' + o.ji + '</td><td class="tot">' + o.byo + '</td><td class="tot">' + o.present + '</td>' : '<td class="tot">－</td><td class="tot">－</td><td class="tot">－</td>';
+    h += '</tr>';
+  });
+  h += '</tbody><tfoot>';
+  [['教育日数', 'edu'], ['出席停止・忌引', 'stop'], ['出席すべき日数', 'must'], ['欠席（病）', 'sick'], ['欠席（事）', 'acc'], ['欠席（計）', 'abs'], ['出席日数', 'att']].forEach(function (r) {
+    h += '<tr><td class="dcol">' + r[0] + '</td>';
+    c.cols.forEach(function (col) { h += '<td>' + (col.status === 'in' ? col.t[r[1]] : col.status === 'gone' ? '－' : '') + '</td>'; });
+    h += '<td class="tot" colspan="3"></td></tr>';
+  });
+  h += '</tfoot>';
+  $('attTable').innerHTML = h;
+  drawReasons(c);
+}
+
+$('attTable').onclick = function (ev) {
+  var td = ev.target.closest('td.ac');
+  if (!td || !A.calc) return;
+  var col = A.calc.cols[+td.getAttribute('data-k')], d = +td.getAttribute('data-d');
+  var ym = A.ym;
+  var rows = S.att[ym].rows;
+  var row = rows[col.k.id] || (rows[col.k.id] = { childId: col.k.id, marks: {}, reasons: {} });
+  row.marks = row.marks || {}; row.reasons = row.reasons || {};
+  var cur = row.marks[d] || '';
+  var next = A.tool === '' ? '' : (cur === A.tool ? '' : A.tool);
+  if (next === cur) return;
+  var ch = { ym: ym, childId: col.k.id, cls: A.cls, d: d, mark: next };
+  if (next) {
+    row.marks[d] = next;
+    if (!cur && !row.reasons[d]) {   // 前の保育日も休んでいたら、同じ理由を入れる
+      for (var p = d - 1; p >= 1; p--) {
+        var x = A.calc.cell(col, A.calc.days[p - 1]);
+        if (x.s !== 'in') continue;
+        if (row.marks[p] && row.reasons[p]) { row.reasons[d] = row.reasons[p]; ch.reason = row.reasons[p]; }
+        break;
+      }
+    }
+  } else { delete row.marks[d]; delete row.reasons[d]; }
+  queueAtt(ch);
+  drawAtt();
+};
+
+function drawReasons(c) {
+  var gs = attGroups(c);
+  if (!gs.length) { $('attReasons').innerHTML = '<p class="muted">この月は、まだ欠席が入っていません。</p>'; return; }
+  $('attReasons').innerHTML = gs.map(function (g, i) {
+    return '<div class="rs"><span class="rd">' + c.m + '/' + fmtDays(g.days) + '</span><span class="rn">' + esc(g.col.k.enroll.no) + '　' + esc(g.col.k.name) + '</span><span>' + markSummary(g.marks) + '</span>' +
+      '<input list="reasonList" data-g="' + i + '" value="' + esc(g.reason) + '" placeholder="理由（例：風邪）"></div>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('#attReasons input'), function (inp) {
+    inp.onchange = function () {
+      var g = gs[+inp.getAttribute('data-g')], v = inp.value.trim().slice(0, 30);
+      var row = S.att[A.ym].rows[g.col.k.id];
+      g.days.forEach(function (d) {
+        if (v) row.reasons[d] = v; else delete row.reasons[d];
+        queueAtt({ ym: A.ym, childId: g.col.k.id, cls: A.cls, d: d, reason: v });
+      });
+      drawAtt();
+    };
+  });
+}
+
+function attStatus(t) { $('attStatus').textContent = t; }
+function queueAtt(ch) {
+  A.pending.push(ch);
+  attStatus('保存を待っています…');
+  clearTimeout(A.timer);
+  A.timer = setTimeout(flushAtt, 900);
+}
+var attSaving = Promise.resolve();
+function flushAtt() {
+  clearTimeout(A.timer);
+  if (!A.pending.length) return attSaving;
+  var list = A.pending; A.pending = [];
+  var byYm = {};
+  list.forEach(function (c) { (byYm[c.ym] = byYm[c.ym] || []).push({ childId: c.childId, cls: c.cls, d: c.d, mark: c.mark, reason: c.reason }); });
+  attStatus('保存しています…');
+  attSaving = attSaving.then(function () {
+    return Object.keys(byYm).reduce(function (p, ym) { return p.then(function () { return call('saveAttendance', ym, byYm[ym]); }); }, Promise.resolve());
+  }).then(function () {
+    var t = new Date(); attStatus(A.pending.length ? '保存を待っています…' : '✔ 保存しました（' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + '）');
+  }).catch(function (e) {
+    attStatus('⚠ 保存できませんでした');
+    alert('出欠を保存できませんでした。\n' + e.message + '\n\n画面を読み直します。');
+    if (S.token) renderAtt();
+  });
+  return attSaving;
+}
+window.addEventListener('beforeunload', function (e) { if (A.pending.length) { flushAtt(); e.preventDefault(); e.returnValue = ''; } });
+
+// ===== 管理：園の予定 =====
+var calYear = '', calEdit = null;
+function adminCalendar() {
+  if (!calYear) calYear = S.year;
+  $('adminBody').innerHTML = '<p class="muted">読み込んでいます…</p>';
+  loadAtt(calYear + '-04').then(function () {
+    calEdit = {};
+    (S.calendar[calYear] || []).forEach(function (c) { calEdit[c.date] = { kind: c.kind, note: c.note }; });
+    drawCalendar();
+  }).catch(function (e) { $('adminBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+}
+function drawCalendar() {
+  var ys = S.years.slice(); var next = String(Number(S.currentYear) + 1);
+  if (ys.indexOf(next) < 0) ys.unshift(next);
+  var h = '<div class="row" style="margin-bottom:8px"><b>年度</b><select id="calYear">' + ys.map(function (y) { return '<option value="' + y + '"' + (y === calYear ? ' selected' : '') + '>' + nendo(y) + '</option>'; }).join('') + '</select></div>' +
+    '<p class="muted" style="margin:0 0 6px">土・日・祝日は、はじめから休みです。そのほかの休み（夏休み・冬休み・春休み・振替など）と、土日の保育日（参観日など）を決めます。日を押すと変わります。ここで決めた休みは、全クラスの出席簿に「－」で入り、教育日数に数えません。</p>' +
+    '<div class="cal-legend" style="margin-bottom:8px"><span style="background:#fff;border:1px solid #ccc">保育日</span><span style="background:#e3e7ea">土日・祝日</span><span style="background:#f6c9a8">園の休み</span><span style="background:#bfe5c9">土日・祝日の保育日</span></div>' +
+    '<div class="row" style="margin-bottom:10px"><b>まとめて休みにする</b><input type="date" id="calFrom"> ～ <input type="date" id="calTo"><input id="calNote" placeholder="例：夏休み" style="width:120px;padding:5px 8px;border:1px solid #b8c4cc;border-radius:7px"><button class="btn small" id="calRange">休みにする</button><button class="btn small" id="calRangeOn">もとにもどす</button></div>' +
+    '<div class="cal-grid">';
+  var ex = {};
+  Object.keys(calEdit).forEach(function (d) { ex[d] = calEdit[d]; });
+  ymList(calYear).forEach(function (ym) {
+    var y = +ym.slice(0, 4), m = +ym.slice(5, 7), last = new Date(y, m, 0).getDate(), first = new Date(y, m - 1, 1).getDay();
+    var cnt = 0, cells = '';
+    for (var i = 0; i < first; i++) cells += '<td></td>';
+    for (var d = 1; d <= last; d++) {
+      var date = ym + '-' + pad(d), info = dayInfo(date, ex);
+      if (!info.off) cnt++;
+      var cl = info.x === '休み' ? 'xoff' : info.x === '保育日' ? 'xon' : info.off ? 'off' : '';
+      cells += '<td><button class="' + cl + '" data-date="' + date + '" title="' + esc(info.why) + '">' + d + '</button></td>';
+      if ((first + d) % 7 === 0 && d < last) cells += '</tr><tr>';
+    }
+    h += '<div class="cal-m"><b><span>' + y + '年' + m + '月</span><span class="muted">保育日 ' + cnt + '日</span></b><table><tr>' + WD.map(function (w, i) { return '<th class="' + (i === 0 ? 'hol' : i === 6 ? 'wd6' : '') + '">' + w + '</th>'; }).join('') + '</tr><tr>' + cells + '</tr></table></div>';
+  });
+  h += '</div><div class="row" style="margin-top:12px"><button class="btn main" id="calSave">💾 園の予定を保存する</button><span class="muted">保存するまで、出席簿には反映されません。</span></div>';
+  $('adminBody').innerHTML = h;
+  $('calYear').onchange = function () { calYear = this.value; adminCalendar(); };
+  Array.prototype.forEach.call(document.querySelectorAll('.cal-m button'), function (b) {
+    b.onclick = function () {
+      var date = b.getAttribute('data-date'), info = dayInfo(date, {});
+      if (calEdit[date]) delete calEdit[date];
+      else calEdit[date] = { kind: info.off ? '保育日' : '休み', note: '' };
+      if (calEdit[date] && calEdit[date].kind === '休み') { var n = prompt('休みの名前（なくてもよい）', ''); if (n === null) { delete calEdit[date]; } else calEdit[date].note = n.trim(); }
+      drawCalendar();
+    };
+  });
+  var range = function (on) {
+    var f = $('calFrom').value, t = $('calTo').value;
+    if (!f || !t || f > t) { alert('はじめの日と終わりの日を入れてください。'); return; }
+    for (var d = dateOf(f); ymd(d) <= t; d.setDate(d.getDate() + 1)) {
+      var s = ymd(d), base = dayInfo(s, {});
+      if (on) { if (calEdit[s] && calEdit[s].kind === '休み') delete calEdit[s]; }
+      else if (!base.off) calEdit[s] = { kind: '休み', note: $('calNote').value.trim() };
+    }
+    drawCalendar();
+  };
+  $('calRange').onclick = function () { range(false); };
+  $('calRangeOn').onclick = function () { range(true); };
+  $('calSave').onclick = function () {
+    var list = Object.keys(calEdit).map(function (d) { return { date: d, kind: calEdit[d].kind, note: calEdit[d].note }; });
+    call('saveCalendar', calYear, list).then(function (cal) { S.calendar[calYear] = cal; toast('園の予定を保存しました'); }).catch(function (e) { alert(e.message); });
+  };
+}
+
 // ===== 管理 =====
 var adminTab = 'classes';
 Array.prototype.forEach.call(document.querySelectorAll('#adminTabs .tab'), function (b) {
@@ -996,7 +1578,7 @@ Array.prototype.forEach.call(document.querySelectorAll('#adminTabs .tab'), funct
 function renderAdmin() {
   if (S.me.role !== '管理者') { $('adminBody').innerHTML = '<p>管理者だけが使えます。</p>'; return; }
   Array.prototype.forEach.call(document.querySelectorAll('#adminTabs .tab'), function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === adminTab); });
-  ({ classes: adminClasses, staff: adminStaff, settings: adminSettings, import: adminImport, log: adminLog })[adminTab]();
+  ({ classes: adminClasses, staff: adminStaff, calendar: adminCalendar, settings: adminSettings, import: adminImport, log: adminLog })[adminTab]();
 }
 
 // クラス
@@ -1118,9 +1700,10 @@ function adminSettings() {
     '<div class="f wide"><label>バスコース（、で区切る。最初の字が「青・桃・黄・緑」ならバス名簿に色が付きます）</label><input id="stBus" value="' + esc((s.buses || []).join('、')) + '"></div>' +
     '<div class="f"><label>クラス編成用名簿のいちばん右の列の名前</label><input id="stLabel" value="' + esc(s.schoolLabel) + '"></div>' +
     '<div class="f"><label>使わないと自動で閉じるまでの時間（分）</label><input id="stIdle" inputmode="numeric" value="' + esc(s.idleMinutes) + '"></div>' +
+    '<div class="f wide"><label>欠席理由の候補（、で区切る。出席簿で理由を入れるときに出ます。候補にない理由も入れられます）</label><textarea id="stReasons" style="min-height:70px">' + esc((s.reasons || []).join('、')) + '</textarea></div>' +
     '</div><div class="row" style="margin-top:12px"><button class="btn main" id="stSave">💾 保存する</button></div>';
   $('stSave').onclick = function () {
-    call('saveSettings', { kindergarten: $('stKg').value, buses: $('stBus').value, schoolLabel: $('stLabel').value, idleMinutes: $('stIdle').value })
+    call('saveSettings', { kindergarten: $('stKg').value, buses: $('stBus').value, schoolLabel: $('stLabel').value, idleMinutes: $('stIdle').value, reasons: $('stReasons').value })
       .then(function (h) { S.settings = h.settings; renderTop(); toast('保存しました（自動で閉じる時間は、次に入ったときから）'); })
       .catch(function (e) { alert(e.message); });
   };
@@ -1292,6 +1875,34 @@ var Demo = (function () {
     return d;
   }
   function fy() { var t = new Date(); return t.getMonth() >= 3 ? t.getFullYear() : t.getFullYear() - 1; }
+  // 見本の園の予定（夏・冬・春の休み）
+  function demoCal() {
+    var y = fy(), out = [];
+    var range = function (f, t, note) { for (var d = dateOf(f); ymd(d) <= t; d.setDate(d.getDate() + 1)) { var s = ymd(d); if (!dayInfo(s, {}).off) out.push({ date: s, kind: '休み', note: note }); } };
+    range(y + '-07-21', y + '-08-31', '夏休み'); range(y + '-12-24', (y + 1) + '-01-07', '冬休み'); range((y + 1) + '-03-20', (y + 1) + '-03-31', '春休み');
+    range(y + '-04-01', y + '-04-07', '春休み');
+    return out;
+  }
+  // 見本の出欠（でたらめに休ませる）
+  function demoAtt(ym) {
+    var rows = {}, seed = +ym.replace('-', '');
+    var rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    var reasons = ['風邪', '発熱', '私用', '療育', '通院', '腹痛'];
+    db.enrolls.filter(function (e) { return e.year === fyOfYm(ym); }).forEach(function (e) {
+      var last = new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0).getDate();
+      var r = { ym: ym, childId: e.childId, cls: e.cls, marks: {}, reasons: {}, updatedAt: '', updatedBy: '見本' };
+      var d = 1;
+      while (d <= last) {
+        if (rnd() < 0.035) {
+          var len = 1 + Math.floor(rnd() * 3), mk = rnd() < 0.55 ? '病' : '事', rs = reasons[Math.floor(rnd() * reasons.length)];
+          for (var i = 0; i < len && d <= last; i++, d++) { r.marks[d] = mk; r.reasons[d] = rs; }
+        }
+        d++;
+      }
+      if (Object.keys(r.marks).length) rows[e.childId] = r;
+    });
+    return rows;
+  }
   function load() { if (db) return db; try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {} if (!db) { db = seed(); keep(); } return db; }
   function keep() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
   function now() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
@@ -1300,6 +1911,7 @@ var Demo = (function () {
   function me(token) { var m = sessions[token] || (token === 'demo-token' ? { name: '見本 管理者', role: '管理者' } : null); if (!m) throw new Error('AUTH|もう一度入ってください。'); return m; }
   function hello(m) {
     var ys = {}; db.classes.forEach(function (c) { ys[c.year] = 1; }); db.enrolls.forEach(function (e) { ys[e.year] = 1; }); ys[String(fy())] = 1;
+    if (!db.settings.reasons) db.settings.reasons = ['風邪', '頭痛', '発熱', '鼻水', '腹痛', '嘔吐・下痢', '大事をとって', 'インフルエンザ', '水痘', 'おたふく', '溶連菌', '手足口病', '感染性胃腸炎', 'コロナ', '怪我', '通院', '療育', '私用', '忌引'];
     return { me: { name: m.name, role: m.role, idleMinutes: Number(db.settings.idleMinutes) || 30 }, settings: db.settings, years: Object.keys(ys).sort().reverse(), currentYear: String(fy()), classes: JSON.parse(JSON.stringify(db.classes)) };
   }
   function roster(y) {
@@ -1357,16 +1969,38 @@ var Demo = (function () {
       db.enrolls.forEach(function (e) { if (e.year === y && ren[e.cls]) e.cls = ren[e.cls]; });
       log(m.name, 'クラスを直す', y); keep(); return hello(m);
     },
-    saveSettings: function (m, s) { db.settings.kindergarten = s.kindergarten; db.settings.buses = String(s.buses).split(/[、,]/).map(function (x) { return x.trim(); }).filter(String); db.settings.schoolLabel = s.schoolLabel; db.settings.idleMinutes = s.idleMinutes; keep(); return hello(m); },
+    saveSettings: function (m, s) { db.settings.kindergarten = s.kindergarten; db.settings.buses = String(s.buses).split(/[、,]/).map(function (x) { return x.trim(); }).filter(String); db.settings.schoolLabel = s.schoolLabel; db.settings.idleMinutes = s.idleMinutes; if (s.reasons !== undefined) db.settings.reasons = String(s.reasons).split(/[、,\n]/).map(function (x) { return x.trim(); }).filter(String); keep(); return hello(m); },
     listStaff: function () { return db.staff.map(function (s) { return { name: s.name, id: s.id || '', role: s.role, state: s.state, lastLogin: s.lastLogin }; }); },
     addStaff: function (m, n, r, pw, id) { if (!n.trim()) throw new Error('名前を入れてください。'); db.staff.push({ name: n.trim(), id: String(id || '').trim().toLowerCase(), role: r, state: '使える', pw: pw, lastLogin: '' }); keep(); return api.listStaff(); },
     setStaffId: function (m, n, id) { db.staff.filter(function (x) { return x.name === n; })[0].id = String(id || '').trim().toLowerCase(); keep(); return api.listStaff(); },
     updateStaff: function (m, n, r, st) { var s = db.staff.filter(function (x) { return x.name === n; })[0]; s.role = r; s.state = st; keep(); return api.listStaff(); },
     resetPassword: function (m, n, pw) { db.staff.filter(function (x) { return x.name === n; })[0].pw = pw; keep(); return true; },
     importRows: function (m, rows) { return { added: rows.length, updated: 0 }; },
+    attendance: function (m, ym) {
+      db.att = db.att || {}; db.cal = db.cal || demoCal();
+      if (!db.att[ym] && ym <= todayStr().slice(0, 7)) db.att[ym] = demoAtt(ym);
+      var rows = db.att[ym] || {};
+      var y = fyOfYm(ym);
+      return { ym: ym, rows: Object.keys(rows).map(function (id) { return JSON.parse(JSON.stringify(rows[id])); }),
+        calendar: db.cal.filter(function (c) { return fyOfDate(c.date) === y; }) };
+    },
+    saveAttendance: function (m, ym, changes) {
+      db.att = db.att || {}; var rows = db.att[ym] = db.att[ym] || {};
+      changes.forEach(function (c) {
+        var r = rows[c.childId] = rows[c.childId] || { ym: ym, childId: c.childId, cls: c.cls, marks: {}, reasons: {} };
+        if (c.mark !== undefined) { if (c.mark) r.marks[c.d] = c.mark; else { delete r.marks[c.d]; delete r.reasons[c.d]; } }
+        if (c.reason !== undefined) { if (c.reason && r.marks[c.d]) r.reasons[c.d] = c.reason; else delete r.reasons[c.d]; }
+        r.updatedAt = now(); r.updatedBy = m.name;
+      });
+      log(m.name, '出欠を入れる', ym); keep(); return { rows: [] };
+    },
+    saveCalendar: function (m, y, list) {
+      db.cal = (db.cal || []).filter(function (c) { return fyOfDate(c.date) !== y; }).concat(list);
+      log(m.name, '園の予定を直す', y); keep(); return db.cal.filter(function (c) { return fyOfDate(c.date) === y; });
+    },
     readLog: function () { return db.log.slice().reverse().slice(0, 300); }
   };
-  var ADMIN = ['deleteChild', 'saveClasses', 'saveSettings', 'listStaff', 'addStaff', 'setStaffId', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
+  var ADMIN = ['deleteChild', 'saveClasses', 'saveSettings', 'saveCalendar', 'listStaff', 'addStaff', 'setStaffId', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
   return {
     call: function (fn, args, token) {
       load();
