@@ -171,6 +171,20 @@ table.att tfoot .dcol { font-size: 11px; }
 .haru details div { white-space: pre-wrap; font-family: var(--mincho); color: var(--ink); background: #f7f9fa; border-radius: 6px; padding: 6px 8px; margin-top: 4px; }
 .haru .conflict { margin-top: 6px; }
 .haru .conflict pre { white-space: pre-wrap; font-family: var(--mincho); background: #fff; border: 1px solid #e6d9a8; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+/* 体力測定 */
+.sp-wrap { overflow-x: auto; margin-bottom: 12px; }
+.sp-tbl { border-collapse: collapse; background: #fff; font-size: 14px; }
+.sp-tbl th, .sp-tbl td { border: 1px solid var(--line); padding: 3px 6px; white-space: nowrap; }
+.sp-tbl th { background: #f2f5f7; font-weight: bold; font-size: 13px; text-align: center; }
+.sp-tbl td.no { text-align: right; color: var(--sub); }
+.sp-tbl tr.left td { background: #fafafa; color: var(--sub); }
+.sp-tbl input { width: 5.2em; padding: 4px 6px; border: 1px solid #b8c4cc; border-radius: 6px; font-size: 15px; text-align: right; font-family: inherit; }
+.sp-tbl input.dirty { border-color: var(--accent); }
+.sp-tbl input.bad { border-color: #c62828; background: #fdecec; }
+.sp-tbl input.conf { border-color: #b35400; background: #fff6e0; }
+.sp-tbl td.num { text-align: right; }
+.sp-tbl td.na { background: #f5f5f5; }
+.sp-conf .msg { margin-bottom: 6px; }
 
 /* 管理 */
 .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid var(--main); }
@@ -815,7 +829,7 @@ function loadGrowth(year, force) {
   return call('growth', year).then(function (r) {
     var map = {};
     r.rows.forEach(function (x) { map[x.childId + '|' + x.grade] = x; });
-    S.growth[year] = { map: map, at: Date.now() };
+    S.growth[year] = { map: map, at: Date.now(), avg: r.avg || {} };
     return S.growth[year];
   });
 }
@@ -828,7 +842,8 @@ function renderGrow() {
     b.onclick = function () { flushGrow(); G.tab = b.getAttribute('data-tab'); renderGrow(); };
   });
   if (G.tab === 'haru') { renderHaru(); return; }
-  $('growBody').innerHTML = '<div class="empty">' + (G.tab === 'sports' ? '体力測定' : '指導要録') + 'は、これから作ります。</div>';
+  if (G.tab === 'sports') { renderSports(); return; }
+  $('growBody').innerHTML = '<div class="empty">指導要録は、これから作ります。</div>';
 }
 
 // --- 春の陽 ---
@@ -934,6 +949,174 @@ function paintHaru() {
     };
   });
 }
+// --- 体力測定 ---
+// 今のExcel「体力測定結果」と同じ種目・説明。grades＝測る学年
+var SPORTS = [
+  { key: 'kenken', name: 'けんけん跳び', label: 'けんけん跳び', grades: '花雪月',
+    desc: 'マットのまわりを裸足でけんけんして\nまわる。\n一回りして出発点を越すごとに得点。\n・脚の持久力\n・リズム感\n・身体のバランス' },
+  { key: 'tachihaba', name: '立ち幅跳び', label: '立ち幅跳び', grades: '花雪月',
+    desc: '１５ｃｍ間隔の平行線を両足を揃えて\n遠くまでとぶ。\n反動をつけひざをまげのばし、両手を\n振ってとぶ。\n・跳躍力\n・遠く高く速くなど遊びに必要な能力' },
+  { key: 'kataashi', name: '片足立ち', label: '片足立ち', grades: '花雪月',
+    desc: '片足でできるだけ長く立つ。\n最高３００秒まで測定。\n・バランス\n・平衡感覚\n・脚の筋肉の発達' },
+  { key: 'maritsuki', name: 'まりつき', label: '（月組）<br>まりつき', grades: '月',
+    desc: 'ゴム製のボールを直径２ｍの円の中で\n何回つけるかをみる。\n最高３００回まで測定。\n・目と手の調整能力\n・リズム感\n・筋感覚' },
+  { key: 'nawatobi', name: '縄跳び', label: '（雪・月組）<br>縄跳び', grades: '雪月',
+    desc: '短なわで両足を越して何回跳べるかを\nみる。\n最高３００回まで測定。\n・腕と足の調整能力\n・リズム感' },
+  { key: 'tamanage', name: '球投げ', label: '球投げ', grades: '花雪月',
+    desc: '男児３ｍ、女児２ｍの離れた位置から\n球を投げる。\n１０球のうち高さ２ｍの目標をいくつ\n越えられるかをみる。\n・投てき力\n・集中力' }
+];
+var SPORT_GRADES = ['花', '雪', '月'];
+function sportsFor(g) { return SPORTS.filter(function (s) { return s.grades.indexOf(g) >= 0; }); }
+function sportNorm(v) {
+  return String(v == null ? '' : v).replace(/[０-９．]/g, function (c) { return c === '．' ? '.' : String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/[\s　]/g, '');
+}
+function sportOk(s) { return s === '' || (/^\d{1,3}(\.\d)?$/.test(s) && Number(s) <= 999); }
+// 学年平均（全クラス・男女別）。サーバーが記録の全部から計算したもの
+function sportAvg(fy, grade, sex, key) {
+  var g = S.growth[S.year], a = g && g.avg && g.avg[fy + '|' + grade + '|' + sex + '|' + key];
+  return a && a.n ? a : null;
+}
+function fmtAvg(a) { return a ? (Math.round(a.sum / a.n * 10) / 10).toFixed(1) : '---'; }
+function fmtNum(v) { return Math.round(Number(v) * 10) / 10 + ''; }
+
+function renderSports() {
+  var classes = yearClasses();
+  var has = function (n) { return classes.some(function (c) { return c.name === n; }); };
+  if (!has(G.cls)) G.cls = has(S.cls) ? S.cls : (classes[0] || {}).name || '';
+  var year = S.year;
+  if (!S.growth[year]) {
+    $('growBody').innerHTML = '<div class="empty">読み込んでいます…</div>';
+    loadGrowth(year).then(function () { if (S.view === 'grow' && S.year === year) renderGrow(); })
+      .catch(function (e) { $('growBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+    return;
+  }
+  var grade = gradeOfCls(G.cls), sps = sportsFor(grade);
+  var h = '<div class="row haru-tools"><b>クラス</b><select id="spCls">' +
+    classes.map(function (c) { return '<option' + (c.name === G.cls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select>' +
+    '<label class="muted"><input type="checkbox" id="spLeft"' + (G.showLeft ? ' checked' : '') + '> 退園した子も出す</label>' +
+    '<span style="flex:1"></span><span id="growStatus" class="muted"></span></div>';
+  if (!classes.length) { $('growBody').innerHTML = h + '<div class="empty">この年度のクラスがありません。管理の「クラス」で作ってください。</div>'; bindSportsTools(); return; }
+  if (!sps.length) { $('growBody').innerHTML = h + '<div class="empty">' + esc(grade) + '組（' + (GRADE_NAMES[grade] || '') + '）は、体力測定をしません。花組・雪組・月組で入れます。</div>'; bindSportsTools(); return; }
+  h += '<p class="muted" style="margin:0 0 10px">数を入れると自動で保存されます（手を止めて2秒ほどで保存）。まだ測っていない子は空のままにします（印刷では「---」になります）。<br>' +
+    'Enter で下の子へ進みます。学年平均は、' + esc(grade) + '組の全クラスの記録から、男の子・女の子べつに自動で計算します。</p>';
+  var kids = kidsOf(G.cls, G.showLeft);
+  h += '<div class="sp-conf" id="spConf"></div>';
+  if (!kids.length) h += '<div class="empty">このクラスの園児はいません。</div>';
+  else {
+    h += '<div class="sp-wrap"><table class="sp-tbl"><tr><th>番号</th><th>園児名</th><th>性別</th>' + sps.map(function (s) { return '<th>' + esc(s.name) + '</th>'; }).join('') + '</tr>';
+    kids.forEach(function (k, ri) {
+      var row = growthRow(year, k.id, grade) || {};
+      h += '<tr' + (isLeft(k) ? ' class="left"' : '') + '><td class="no">' + esc(k.enroll.no) + '</td><td>' + esc(k.name) + (isLeft(k) ? ' <span class="badge left">退園</span>' : '') + '</td>' +
+        '<td class="' + (k.sex === '男' ? 'sex-m' : k.sex === '女' ? 'sex-f' : '') + '" style="text-align:center">' + esc(k.sex) + '</td>';
+      sps.forEach(function (sp, ci) {
+        var pk = gkey(year, k.id, sp.key);
+        if (!G.pending[pk] && !G.conflicts[pk]) G.base[pk] = row[sp.key] || '';
+        var val = G.pending[pk] ? G.pending[pk].value : G.conflicts[pk] ? G.conflicts[pk].mine : (row[sp.key] || '');
+        h += '<td><input inputmode="decimal" autocomplete="off" data-id="' + esc(k.id) + '" data-pk="' + esc(pk) + '" data-key="' + sp.key + '" data-r="' + ri + '" data-c="' + ci + '" value="' + esc(val) + '" aria-label="' + esc(k.name + ' ' + sp.name) + '"></td>';
+      });
+      h += '</tr>';
+    });
+    h += '</table></div>';
+  }
+  h += '<h3 style="margin:14px 0 6px;font-size:16px">' + esc(grade) + '組の学年平均（' + esc(nendo(year)) + '・全クラス）</h3><div class="sp-wrap" id="spSum"></div>';
+  if (kids.length) h += '<div class="row"><button class="btn main" id="spCardBtn">🖨 体力測定結果（A4・1人1枚）を印刷する</button><button class="btn" id="spSheetBtn">🖨 記録表（B5）を印刷する</button></div>';
+  $('growBody').innerHTML = h;
+  bindSportsTools();
+  Array.prototype.forEach.call(document.querySelectorAll('#growBody input[data-pk]'), function (inp) {
+    var pk = inp.getAttribute('data-pk');
+    inp.oninput = function () {
+      var v = sportNorm(inp.value);
+      if (!sportOk(v)) {
+        inp.classList.add('bad'); delete G.pending[pk];
+        growStatus('⚠ 0～999の数で入れてください（小数は1けたまで）');
+        return;
+      }
+      inp.classList.remove('bad');
+      G.pending[pk] = { year: year, childId: inp.getAttribute('data-id'), key: inp.getAttribute('data-key'), value: v };
+      paintSports();
+      growStatus('入れています…');
+      clearTimeout(G.timer); G.timer = setTimeout(flushGrow, 2000);
+    };
+    inp.onkeydown = function (e) {
+      var dr = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+      if (!dr) return;
+      e.preventDefault();
+      var next = document.querySelector('#growBody input[data-c="' + inp.getAttribute('data-c') + '"][data-r="' + (Number(inp.getAttribute('data-r')) + dr) + '"]');
+      if (next) { next.focus(); next.select(); }
+    };
+    inp.onfocus = function () { inp.select(); };
+  });
+  var toDoc = function (doc) {
+    flushGrow().then(function () {
+      S.doc = doc; docOpt.cls = G.cls; docOpt.kid = ''; docOpt.includeLeft = null;
+      if (S.growth[year]) S.growth[year].at = 0;   // 書類の画面で読み直す
+      go('docs');
+    });
+  };
+  if ($('spCardBtn')) { $('spCardBtn').onclick = function () { toDoc('sportsCard'); }; $('spSheetBtn').onclick = function () { toDoc('sportsSheet'); }; }
+  paintSports();
+  growStatus(Object.keys(G.pending).length ? '保存していない記録があります' : '');
+}
+function bindSportsTools() {
+  if ($('spCls')) $('spCls').onchange = function () { flushGrow(); G.cls = this.value; renderSports(); };
+  if ($('spLeft')) $('spLeft').onchange = function () { G.showLeft = this.checked; renderSports(); };
+}
+// 学年平均の表（全クラス・男女別）
+function sportsSummary(year, grade) {
+  var sps = sportsFor(grade);
+  var h = '<table class="sp-tbl"><tr><th rowspan="2">種目</th><th colspan="4" class="sex-m">男の子</th><th colspan="4" class="sex-f">女の子</th></tr><tr>' +
+    ['人数', '平均', '最高', '最低', '人数', '平均', '最高', '最低'].map(function (t) { return '<th>' + t + '</th>'; }).join('') + '</tr>';
+  sps.forEach(function (sp) {
+    h += '<tr><td>' + esc(sp.name) + '</td>';
+    ['男', '女'].forEach(function (sx) {
+      var a = sportAvg(year, grade, sx, sp.key);
+      h += a ? '<td class="num">' + a.n + '人</td><td class="num"><b>' + fmtAvg(a) + '</b></td><td class="num">' + fmtNum(a.max) + '</td><td class="num">' + fmtNum(a.min) + '</td>'
+        : '<td class="num muted">0人</td><td class="num muted">---</td><td class="num muted">―</td><td class="num muted">―</td>';
+    });
+    h += '</tr>';
+  });
+  return h + '</table>';
+}
+// 保存待ち・先に入れられた数を、画面に出す（入れている欄はそのまま）
+function paintSports() {
+  var inputs = document.querySelectorAll('#growBody input[data-pk]');
+  if ($('spSum')) $('spSum').innerHTML = sportsSummary(S.year, gradeOfCls(G.cls));
+  if (!inputs.length) return;
+  var names = {}, conf = [];
+  Array.prototype.forEach.call(inputs, function (inp) {
+    var pk = inp.getAttribute('data-pk');
+    inp.classList.toggle('dirty', !!G.pending[pk]);
+    inp.classList.toggle('conf', !!G.conflicts[pk]);
+    if (G.conflicts[pk]) conf.push(pk);
+    names[pk] = inp.getAttribute('aria-label');
+  });
+  var box = $('spConf');
+  if (!box) return;
+  box.innerHTML = conf.map(function (pk) {
+    var cf = G.conflicts[pk];
+    return '<div class="msg warn">⚠ ' + esc(names[pk]) + '：' + esc(cf.by || 'ほかの先生') + ' さんが ' + esc(cf.at) + ' に先に「' + esc(cf.theirs || '空') + '」と入れていたので、まだ保存していません。 ' +
+      '<button class="btn small" data-cf="' + esc(pk) + '" data-act="theirs">「' + esc(cf.theirs || '空') + '」にする</button> <button class="btn small" data-cf="' + esc(pk) + '" data-act="mine">自分の「' + esc(cf.mine || '空') + '」で上書きする</button></div>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('[data-cf]'), function (b) {
+    b.onclick = function () {
+      var pk = b.getAttribute('data-cf'), cf = G.conflicts[pk], p = pk.split('|');
+      if (!cf) return;
+      var inp = document.querySelector('#growBody input[data-pk="' + pk + '"]');
+      if (b.getAttribute('data-act') === 'theirs') {
+        if (inp) inp.value = cf.theirs;
+        G.base[pk] = cf.theirs; delete G.conflicts[pk]; delete G.pending[pk];
+        var row = growthRow(p[0], p[1], gradeOfCls(G.cls));
+        if (row) row[p[2]] = cf.theirs;
+        paintSports();
+      } else {
+        G.pending[pk] = { year: p[0], childId: p[1], key: p[2], value: cf.mine, force: true };
+        delete G.conflicts[pk];
+        flushGrow();
+      }
+    };
+  });
+}
+
 // 保存待ちの文をまとめて送る（順番に1回ずつ）
 function flushGrow() {
   clearTimeout(G.timer);
@@ -951,6 +1134,7 @@ function flushGrow() {
         var changes = list.map(function (p) { return { childId: p.childId, key: p.key, value: p.value, old: G.base[gkey(y, p.childId, p.key)] || '', force: !!p.force }; });
         return call('saveGrowth', y, changes).then(function (r) {
           r.saved.forEach(function (row) { putGrowth(y, row); });
+          if (r.avg && S.growth[y]) S.growth[y].avg = r.avg;
           var conf = {};
           r.conflicts.forEach(function (c) { conf[gkey(y, c.childId, c.key)] = c; });
           list.forEach(function (p) {
@@ -958,12 +1142,12 @@ function flushGrow() {
             if (conf[pk]) G.conflicts[pk] = { mine: p.value, theirs: conf[pk].current, by: conf[pk].by, at: conf[pk].at };
             else { G.base[pk] = p.value; delete G.conflicts[pk]; }
           });
-          growStatus(r.conflicts.length ? '⚠ ほかの先生が先に書きかえていた文があります（下を見てください）' : '保存しました（' + timeNow() + '）');
+          growStatus(r.conflicts.length ? '⚠ ほかの先生が先に書きかえていたところがあります（下を見てください）' : '保存しました（' + timeNow() + '）');
         }, function (e) {
           list.forEach(function (p) { var pk = gkey(y, p.childId, p.key); if (!G.pending[pk]) G.pending[pk] = p; });
           growStatus('⚠ 保存できませんでした。しばらくしてから自動でやり直します（' + e.message + '）');
           clearTimeout(G.timer); G.timer = setTimeout(flushGrow, 15000);
-        }).then(function () { if (S.view === 'grow') paintHaru(); });
+        }).then(function () { if (S.view === 'grow') { paintHaru(); paintSports(); } });
       });
     }, Promise.resolve());
   });
@@ -992,11 +1176,13 @@ var DOCS = [
   { id: 'height', name: '身長順並び表', note: 'B5・身長を入れて並べる', left: false },
   { id: 'hensei', name: 'クラス編成用名簿', note: 'B5・来年度のバス・進学先など', left: false },
   { id: 'attendance', name: '出席簿', note: 'B5たて・2枚で1か月（左・右）', left: true },
-  { id: 'haruPrint', name: '春の陽だより', note: 'A4たて・1人1枚（清書）', left: false, growth: true },
-  { id: 'haruDraft', name: '春の陽の下書き', note: 'B5たて・1人1枚', left: false, growth: true },
+  { id: 'haruPrint', name: '春の陽だより', note: 'A4たて・1人1枚（清書）', left: false, growth: true, term: true },
+  { id: 'haruDraft', name: '春の陽の下書き', note: 'B5たて・1人1枚', left: false, growth: true, term: true },
+  { id: 'sportsCard', name: '体力測定結果', note: 'A4たて・1人1枚・学年平均つき', left: false, growth: true, sports: true },
+  { id: 'sportsSheet', name: '体力測定の記録表', note: 'B5たて・クラスの一覧', left: false, growth: true, sports: true },
   { id: 'cover', name: 'ファイルの表紙', note: 'A4たて・学年ごと', left: false }
 ];
-var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true, ym: '', term: 0, kid: '', grade: '' };
+var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true, ym: '', term: 0, kid: '', grade: '', spMode: 'now', spSkip: true };
 function isGrowthDoc() { var d = DOCS.filter(function (x) { return x.id === S.doc; })[0]; return !!(d && d.growth); }
 
 function renderDocs() {
@@ -1020,11 +1206,19 @@ function renderDocs() {
   }
   if (isGrowthDoc()) {
     if (!docOpt.term) docOpt.term = defaultTerm();
-    var hk = docOpt.cls === '*' ? [] : docKids(docOpt.cls);
+    var hk = docOpt.cls === '*' || S.doc === 'sportsSheet' ? [] : docKids(docOpt.cls);
     if (docOpt.kid && !hk.some(function (k) { return k.id === docOpt.kid; })) docOpt.kid = '';
-    h += '<div class="row"><b>学期</b><select id="optTerm">' + [1, 2, 3].map(function (t) { return '<option value="' + t + '"' + (t === docOpt.term ? ' selected' : '') + '>' + TERM_K[t] + '学期</option>'; }).join('') + '</select>' +
-      (hk.length ? '<b>園児</b><select id="optKid"><option value="">全員</option>' + hk.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === docOpt.kid ? ' selected' : '') + '>' + esc(k.enroll.no) + '　' + esc(k.name) + '</option>'; }).join('') + '</select>' : '') +
-      '<span class="muted">文は「🌱 成長の記録」の「春の陽」で書きます。</span></div>';
+    var kidSel = hk.length ? '<b>園児</b><select id="optKid"><option value="">全員</option>' + hk.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === docOpt.kid ? ' selected' : '') + '>' + esc(k.enroll.no) + '　' + esc(k.name) + '</option>'; }).join('') + '</select>' : '';
+    if (d.sports) {
+      h += '<div class="row">' + kidSel +
+        (S.doc === 'sportsCard' ? '<label><input type="radio" name="optSpMode" value="now"' + (docOpt.spMode === 'now' ? ' checked' : '') + '> 今年の学年の記録だけ</label>' +
+          '<label><input type="radio" name="optSpMode" value="all"' + (docOpt.spMode === 'all' ? ' checked' : '') + '> 花・雪・月の3学年とも</label>' +
+          '<label><input type="checkbox" id="optSpSkip"' + (docOpt.spSkip ? ' checked' : '') + '> 今年の記録がない子は印刷しない</label>' : '') +
+        '<span class="muted">記録は「🌱 成長の記録」の「体力測定」で入れます。' + (S.doc === 'sportsSheet' ? '測る日に持っていく表にも使えます（まだの欄は空いています）。' : '') + '</span></div>';
+    } else {
+      h += '<div class="row"><b>学期</b><select id="optTerm">' + [1, 2, 3].map(function (t) { return '<option value="' + t + '"' + (t === docOpt.term ? ' selected' : '') + '>' + TERM_K[t] + '学期</option>'; }).join('') + '</select>' +
+        kidSel + '<span class="muted">文は「🌱 成長の記録」の「春の陽」で書きます。</span></div>';
+    }
   }
   if (S.doc === 'cover') {
     if (!docOpt.grade) docOpt.grade = S.cls ? S.cls.charAt(0) : '月';
@@ -1051,6 +1245,8 @@ function renderDocs() {
   if ($('optLeft')) $('optLeft').onchange = function () { docOpt.includeLeft = this.checked; renderDocs(); };
   if ($('optTerm')) $('optTerm').onchange = function () { docOpt.term = Number(this.value); drawPreview(); };
   if ($('optKid')) $('optKid').onchange = function () { docOpt.kid = this.value; drawPreview(); };
+  Array.prototype.forEach.call(document.querySelectorAll('[name=optSpMode]'), function (r) { r.onchange = function () { docOpt.spMode = this.value; drawPreview(); }; });
+  if ($('optSpSkip')) $('optSpSkip').onchange = function () { docOpt.spSkip = this.checked; drawPreview(); };
   if ($('optGrade')) $('optGrade').onchange = function () { docOpt.grade = this.value; drawPreview(); };
   if ($('optBlanks')) $('optBlanks').onchange = function () { docOpt.blanks = Number(this.value); drawPreview(); };
   if ($('optTitle')) {
@@ -1422,6 +1618,88 @@ function coverPage(g) {
       '<img src="' + IMG['c' + GRADES.indexOf(g)] + '" alt="" style="max-width:100%;max-height:100%">') +
     '</div>';
 }
+
+// ===== 体力測定（印刷） =====
+// 体力測定結果（A4・1人1枚）。今のExcel「体力測定結果」と同じ並び
+DOC_MAKERS.sportsCard = function (ci, kids) {
+  var grade = ci.grade || ci.name.charAt(0);
+  if (SPORT_GRADES.indexOf(grade) < 0) return { size: 'a4', pages: [] };
+  var sps = sportsFor(grade);
+  var list = haruKids(kids).filter(function (k) {
+    if (!docOpt.spSkip || docOpt.kid) return true;
+    var row = growthRow(S.year, k.id, grade) || {};
+    return sps.some(function (sp) { return row[sp.key] !== undefined && row[sp.key] !== ''; });
+  });
+  return { size: 'a4', pages: list.map(function (k) { return sportsCardPage(k, grade, docOpt.spMode); }) };
+};
+// その年度の初めより後に入園した子は、その学年の欄を空ける
+function enteredAfterFy(k, fy) { var d = k.transferIn || k.enterDate; return !!d && d > (Number(fy) + 1) + '-03-31'; }
+function sportsCardPage(k, grade, mode) {
+  var gi = GRADES.indexOf(grade), y = Number(S.year);
+  var B = '1.6px solid #000', b = '0.8px solid #000';
+  // 1つの学年・種目のマス（isAvg＝学年平均の段）
+  var cell = function (g, sp, isAvg) {
+    var j = GRADES.indexOf(g);
+    if (sp.grades.indexOf(g) < 0 || j > gi || (mode !== 'all' && j !== gi)) return '';
+    var row = growthRow(S.year, k.id, g);
+    var fy = row && row.year ? row.year : String(y - (gi - j));
+    if (j < gi && !row && enteredAfterFy(k, fy)) return '';
+    if (isAvg) return fmtAvg(sportAvg(fy, g, k.sex, sp.key));
+    var v = row ? row[sp.key] : '';
+    return v !== undefined && v !== '' && v !== null ? esc(fmtNum(v)) : '---';
+  };
+  var td = function (style, html, attr) { return '<td' + (attr || '') + ' style="' + style + '">' + html + '</td>'; };
+  var h = '<div class="page a4" style="padding:16mm 11mm 0">' +
+    '<div style="display:flex;gap:6mm;align-items:stretch;height:27mm">' +
+      '<div style="width:92mm;display:flex;flex-direction:column;justify-content:space-between">' +
+        '<div style="font-size:20pt;text-align:center;letter-spacing:2pt;line-height:1.3">体力測定結果</div>' +
+        '<div style="display:flex;align-items:flex-end;border-bottom:' + b + ';height:11mm;padding-bottom:0.8mm">' +
+          '<span style="width:20mm;text-align:center;font-size:11pt">名前</span>' +
+          '<span style="flex:1;text-align:center;font-size:16pt;overflow:hidden" class="nw">' + fi(k.name) + '</span></div>' +
+      '</div>' +
+      '<div style="flex:1;font-size:10pt;line-height:1.55;display:flex;align-items:center">' + esc(S.settings.kindergarten || '蒲幼稚園') + 'では身体発達のバランスを見るために、体力測定を行っています。お子様の成長の足跡としてご活用ください。<br>（お子様を評価するためのものではありません。）</div>' +
+    '</div>' +
+    '<div style="text-align:right;font-size:9pt;margin:3mm 0 1.5mm">※　測定は毎年３学期に実施しています。</div>' +
+    '<table style="width:188mm;table-layout:fixed;border:' + B + '">' +
+    '<colgroup><col style="width:27mm"><col style="width:68mm"><col style="width:8mm"><col><col><col></colgroup>' +
+    '<tr style="height:13mm">' + td('border:' + b + ';border-bottom:' + B + ';text-align:center;font-size:11pt', '種目名') +
+      td('border:' + b + ';border-bottom:' + B + ';text-align:center;font-size:11pt', '種目の説明') + td('border-left:' + B + ';border-bottom:' + B, '') +
+      SPORT_GRADES.map(function (g) { return td('border:' + b + ';border-left:' + B + ';border-bottom:' + B + ';text-align:center;font-size:11pt;line-height:1.35', esc(g) + '組<br>（' + GRADE_NAMES[g] + '）'); }).join('') + '</tr>';
+  SPORTS.forEach(function (sp) {
+    var rh = 'height:17.6mm';
+    h += '<tr style="' + rh + '">' +
+      td('border:' + b + ';border-bottom:' + B + ';text-align:center;font-size:12pt;line-height:1.35', sp.label, ' rowspan="2"') +
+      td('border:' + b + ';border-bottom:' + B + ';font-size:9.5pt;line-height:1.38;white-space:pre-line;padding:0 1.8mm', esc(sp.desc), ' rowspan="2"') +
+      td('border-left:' + B + ';border-bottom:' + b + ';writing-mode:vertical-rl;text-align:center;font-size:10pt;letter-spacing:1pt', '記録') +
+      SPORT_GRADES.map(function (g) { return td('border:' + b + ';border-left:' + B + ';text-align:center;font-size:18pt', cell(g, sp, false)); }).join('') + '</tr>' +
+      '<tr style="' + rh + '">' +
+      td('border-left:' + B + ';border-bottom:' + B + ';writing-mode:vertical-rl;text-align:center;font-size:9pt;letter-spacing:0.5pt', '学年平均') +
+      SPORT_GRADES.map(function (g) { return td('border:' + b + ';border-left:' + B + ';border-bottom:' + B + ';text-align:center;font-size:16pt', cell(g, sp, true)); }).join('') + '</tr>';
+  });
+  return h + '</table></div>';
+}
+// 体力測定の記録表（B5・クラスの一覧。30人ずつ）
+DOC_MAKERS.sportsSheet = function (ci, kids) {
+  var grade = ci.grade || ci.name.charAt(0), sps = sportsFor(grade);
+  if (!sps.length) return { size: 'b5', pages: [] };
+  var pages = chunk(kids, 30).map(function (part) {
+    var h = '<div class="page b5"><div class="pg-head" style="font-size:11pt"><span>' + esc(ci.name) + '　体力測定　記録表（' + esc(nendo(S.year)) + '）</span><span>担任：' + esc(ci.teacher) + '</span></div>' +
+      '<table class="t thick" style="width:100%;table-layout:fixed;font-size:10pt"><colgroup><col style="width:9mm"><col style="width:36mm"><col style="width:9mm">' + sps.map(function () { return '<col>'; }).join('') + '</colgroup>' +
+      '<tr class="hd" style="height:9mm;font-size:9pt"><td class="c">番号</td><td class="c">園児名</td><td class="c">性別</td>' + sps.map(function (sp) { return '<td class="c">' + fi(sp.name) + '</td>'; }).join('') + '</tr>';
+    slots(part, 30).forEach(function (k) {
+      var row = k ? growthRow(S.year, k.id, grade) || {} : {};
+      h += '<tr style="height:6.5mm">' + (k ? '<td class="c">' + esc(k.enroll.no) + '</td><td class="nw">' + fi(k.name) + '</td><td class="c">' + esc(k.sex) + '</td>' : '<td></td><td></td><td></td>') +
+        sps.map(function (sp) { var v = row[sp.key]; return '<td class="c" style="font-size:11pt">' + (v !== undefined && v !== '' ? esc(fmtNum(v)) : '') + '</td>'; }).join('') + '</tr>';
+    });
+    // 学年平均（全クラス・男女別）
+    ['男', '女'].forEach(function (sx, i) {
+      h += '<tr style="height:6.5mm;' + (i === 0 ? 'border-top:2px solid #000' : '') + '"><td colspan="3" class="c" style="font-size:9pt">学年平均（' + (sx === '男' ? '男の子' : '女の子') + '）</td>' +
+        sps.map(function (sp) { return '<td class="c" style="font-size:10pt">' + fmtAvg(sportAvg(S.year, grade, sx, sp.key)) + '</td>'; }).join('') + '</tr>';
+    });
+    return h + '</table></div>';
+  });
+  return { size: 'b5', pages: pages };
+};
 
 // ===== 出席簿（印刷）：今のExcel「出席簿_○月」の形。1枚目＝左（欠席した理由等・日々の数・21～30番）、2枚目＝右（1～20番） =====
 var AG = { top: 12, title: 11, no: 5, name: 27, day: 4.2, sums: [6.5, 10, 12.5, 4.2, 4.2, 4.2, 6], kw: 6.1, av: 5, aw: 6.5, ax: 5.5 };
@@ -2589,18 +2867,27 @@ var Demo = (function () {
     growth: function (m, y) {
       db.growth = db.growth || seedGrowth();
       var ids = {}; db.enrolls.forEach(function (e) { if (e.year === y) ids[e.childId] = 1; });
-      return { year: y, rows: db.growth.filter(function (g) { return ids[g.childId]; }).map(function (g) { return JSON.parse(JSON.stringify(g)); }) };
+      return { year: y, rows: db.growth.filter(function (g) { return ids[g.childId]; }).map(function (g) { return JSON.parse(JSON.stringify(g)); }), avg: demoAvg() };
     },
     saveGrowth: function (m, y, changes) {
       db.growth = db.growth || seedGrowth();
       var tidy = function (s) { return String(s == null ? '' : s).replace(/\r/g, '').replace(/\s+$/, ''); };
       var saved = {}, conflicts = [];
+      var anySport = false;
       changes.forEach(function (c) {
-        if (['harunohi1', 'harunohi2', 'harunohi3'].indexOf(c.key) < 0) throw new Error('この項目は直せません：' + c.key);
+        var sp = SPORTS.filter(function (s) { return s.key === c.key; })[0];
+        if (['harunohi1', 'harunohi2', 'harunohi3'].indexOf(c.key) < 0 && !sp) throw new Error('この項目は直せません：' + c.key);
         var e = db.enrolls.filter(function (x) { return x.year === y && x.childId === c.childId; })[0];
         if (!e) throw new Error('この年度のクラスにいない園児です。');
         var g = e.cls.charAt(0);
         var val = tidy(c.value).replace(/^\n+/, '');
+        if (sp) {
+          if (sp.grades.indexOf(g) < 0) throw new Error(sp.name + 'は、' + g + '組では測りません。');
+          val = sportNorm(val);
+          if (!sportOk(val)) throw new Error(sp.name + 'は、0～999の数で入れてください：' + val);
+          if (val) val = String(Number(val));
+          anySport = true;
+        }
         if (val.length > 1000) throw new Error('文が長すぎます（1000文字まで）。');
         var row = db.growth.filter(function (r) { return r.childId === c.childId && r.grade === g; })[0];
         var cur = row ? tidy(row[c.key]) : '';
@@ -2610,8 +2897,11 @@ var Demo = (function () {
         saved[row.childId + g] = row;
       });
       var out = Object.keys(saved).map(function (k) { return JSON.parse(JSON.stringify(saved[k])); });
-      if (out.length) log(m.name, '成長の記録を書く', y + '（' + out.length + '人）');
-      keep(); return { saved: out, conflicts: conflicts };
+      if (out.length) log(m.name, anySport ? '体力測定を入れる' : '成長の記録を書く', y + '（' + out.length + '人）');
+      keep();
+      var res = { saved: out, conflicts: conflicts };
+      if (anySport) res.avg = demoAvg();
+      return res;
     },
     readLog: function () { return db.log.slice().reverse().slice(0, 300); }
   };
@@ -2624,6 +2914,40 @@ var Demo = (function () {
     db.enrolls.filter(function (e) { return e.year === y; }).forEach(function (e, i) {
       if (i % 4 === 3) return;
       out.push({ childId: e.childId, grade: e.cls.charAt(0), year: y, harunohi1: t[i % 3], updatedAt: '', updatedBy: '見本' });
+    });
+    // 見本の体力測定：前の学年の分（雪組・月組の子）と、今年の分（半分くらいの子）
+    var seed = 11, rnd = function (a, b) { seed = (seed * 9301 + 49297) % 233280; return a + Math.floor(seed / 233280 * (b - a + 1)); };
+    var base = { kenken: [6, 22], tachihaba: [55, 125], kataashi: [5, 300], maritsuki: [5, 300], nawatobi: [0, 120], tamanage: [0, 10] };
+    var put = function (id, g, fy) {
+      var j = GRADES.indexOf(g), row = out.filter(function (r) { return r.childId === id && r.grade === g; })[0];
+      if (!row) { row = { childId: id, grade: g, year: String(fy), updatedAt: '', updatedBy: '見本' }; out.push(row); }
+      SPORTS.forEach(function (sp) {
+        if (sp.grades.indexOf(g) < 0) return;
+        var r = base[sp.key], grow = (j - 1) * 0.25;
+        row[sp.key] = String(Math.min(r[1], Math.round(rnd(r[0], r[1]) * (0.75 + grow))));
+      });
+    };
+    db.enrolls.filter(function (e) { return e.year === y; }).forEach(function (e, i) {
+      var gi = GRADES.indexOf(e.cls.charAt(0));
+      for (var j = 1; j < gi; j++) put(e.childId, GRADES[j], Number(y) - (gi - j));
+      if (gi >= 1 && i % 2 === 0) put(e.childId, GRADES[gi], Number(y));
+    });
+    return out;
+  }
+  function demoAvg() {
+    var sex = {}, out = {};
+    db.children.forEach(function (c) { sex[c.id] = c.sex; });
+    (db.growth || []).forEach(function (g) {
+      var sx = sex[g.childId];
+      if (!g.year || (sx !== '男' && sx !== '女')) return;
+      SPORTS.forEach(function (sp) {
+        var v = g[sp.key];
+        if (v === undefined || v === '' || isNaN(Number(v))) return;
+        v = Number(v);
+        var k = g.year + '|' + g.grade + '|' + sx + '|' + sp.key;
+        var a = out[k] || (out[k] = { n: 0, sum: 0, max: v, min: v });
+        a.n++; a.sum += v; a.max = Math.max(a.max, v); a.min = Math.min(a.min, v);
+      });
     });
     return out;
   }
