@@ -185,6 +185,16 @@ table.att tfoot .dcol { font-size: 11px; }
 .sp-tbl td.num { text-align: right; }
 .sp-tbl td.na { background: #f5f5f5; }
 .sp-conf .msg { margin-bottom: 6px; }
+/* 指導要録 */
+.yk .yk-f { margin-top: 6px; }
+.yk .yk-f label { display: flex; gap: 10px; align-items: baseline; font-size: 13px; font-weight: bold; color: var(--sub); }
+.yk .yk-f .cnt { font-weight: normal; font-size: 12px; }
+.yk textarea { min-height: 0; font-size: 15px; }
+.yk textarea.conf, .yk input.conf { border-color: #b35400; background: #fff6e0; }
+.yk-days { margin-top: 8px; gap: 14px; }
+.yk-days input { width: 4.5em; padding: 4px 6px; border: 1px solid #b8c4cc; border-radius: 6px; font-size: 15px; text-align: right; font-family: inherit; }
+.yk-days input.dirty { border-color: var(--accent); }
+.yk-days input.bad { border-color: #c62828; background: #fdecec; }
 
 /* 管理 */
 .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 2px solid var(--main); }
@@ -226,6 +236,12 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
 .page .t td, .page .t th { border: 1px solid #000; padding: 0 1.2mm; font-weight: normal; overflow: hidden; }
 .page .nw, .page .t tr.hd td { white-space: nowrap; }
 .page .thick { border: 2px solid #000 !important; }
+/* 指導要録：Excel のマス目どおりに置く枠（線はとなりの枠と重なって1本に見えるように outline で引く） */
+.page .xc { outline: 0.75px solid #000; outline-offset: -0.375px; }
+.page .xm { outline: 1.5px solid #000; outline-offset: -0.75px; pointer-events: none; }
+.page .xf { display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; line-height: 1.25; }
+.page .xv { writing-mode: vertical-rl; text-orientation: upright; }
+.yk-page { font-size: 10.5pt; }
 .pg-head { display: flex; justify-content: space-between; align-items: flex-end; font-size: 12pt; margin-bottom: 1.5mm; padding: 0 2mm; }
 .kn { font-size: 6pt; line-height: 1.1; letter-spacing: .3pt; white-space: nowrap; }
 .nmk { font-size: 10.5pt; line-height: 1.25; white-space: nowrap; }
@@ -329,6 +345,7 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
         <div class="f"><label>郵便番号</label><input data-k="zip" placeholder="例：435-0048"></div>
         <div class="f wide"><label>住所</label><input data-k="address"></div>
         <div class="chk"><label><input type="checkbox" data-k="diffAddress" value="○"> 園児と保護者が別の住所</label></div>
+        <div class="f wide"><label>保護者の住所（園児と別のときだけ。空なら要録は「幼児の欄に同じ」）</label><input data-k="parentAddress"></div>
         <div class="f"><label>電話番号</label><input data-k="tel" inputmode="tel"></div>
         <div class="f"><label>連絡先①（例：母携帯）</label><input data-k="c1"></div>
         <div class="f"><label>電話番号①</label><input data-k="t1" inputmode="tel"></div>
@@ -843,7 +860,7 @@ function renderGrow() {
   });
   if (G.tab === 'haru') { renderHaru(); return; }
   if (G.tab === 'sports') { renderSports(); return; }
-  $('growBody').innerHTML = '<div class="empty">指導要録は、これから作ります。</div>';
+  renderYoroku();
 }
 
 // --- 春の陽 ---
@@ -924,6 +941,7 @@ function renderHaru() {
 }
 // 字数・保存待ち・先に書きかえられた文を、画面に出す（書いている欄はそのまま）
 function paintHaru() {
+  if (G.tab !== 'haru') return;
   Array.prototype.forEach.call(document.querySelectorAll('#growBody textarea[data-pk]'), function (ta) {
     var pk = ta.getAttribute('data-pk');
     var c = haruCount(ta.value), cnt = ta.parentNode.querySelector('.cnt');
@@ -1079,35 +1097,41 @@ function sportsSummary(year, grade) {
 }
 // 保存待ち・先に入れられた数を、画面に出す（入れている欄はそのまま）
 function paintSports() {
-  var inputs = document.querySelectorAll('#growBody input[data-pk]');
+  if (G.tab !== 'sports') return;
   if ($('spSum')) $('spSum').innerHTML = sportsSummary(S.year, gradeOfCls(G.cls));
-  if (!inputs.length) return;
+  paintFields('spConf', paintSports);
+}
+// 入力欄（data-pk のもの）に、保存待ち・先に書きかえられた印を付け、boxId の所に知らせを出す
+function paintFields(boxId, repaint) {
+  var els = document.querySelectorAll('#growBody [data-pk]');
+  if (!els.length) return;
   var names = {}, conf = [];
-  Array.prototype.forEach.call(inputs, function (inp) {
-    var pk = inp.getAttribute('data-pk');
-    inp.classList.toggle('dirty', !!G.pending[pk]);
-    inp.classList.toggle('conf', !!G.conflicts[pk]);
+  Array.prototype.forEach.call(els, function (el) {
+    var pk = el.getAttribute('data-pk');
+    el.classList.toggle('dirty', !!G.pending[pk]);
+    el.classList.toggle('conf', !!G.conflicts[pk]);
     if (G.conflicts[pk]) conf.push(pk);
-    names[pk] = inp.getAttribute('aria-label');
+    names[pk] = el.getAttribute('aria-label');
   });
-  var box = $('spConf');
+  var box = $(boxId);
   if (!box) return;
+  var short = function (s) { s = String(s || ''); return s ? (s.length > 60 ? s.slice(0, 60) + '…' : s) : '空'; };
   box.innerHTML = conf.map(function (pk) {
     var cf = G.conflicts[pk];
-    return '<div class="msg warn">⚠ ' + esc(names[pk]) + '：' + esc(cf.by || 'ほかの先生') + ' さんが ' + esc(cf.at) + ' に先に「' + esc(cf.theirs || '空') + '」と入れていたので、まだ保存していません。 ' +
-      '<button class="btn small" data-cf="' + esc(pk) + '" data-act="theirs">「' + esc(cf.theirs || '空') + '」にする</button> <button class="btn small" data-cf="' + esc(pk) + '" data-act="mine">自分の「' + esc(cf.mine || '空') + '」で上書きする</button></div>';
+    return '<div class="msg warn">⚠ ' + esc(names[pk]) + '：' + esc(cf.by || 'ほかの先生') + ' さんが ' + esc(cf.at) + ' に先に「' + esc(short(cf.theirs)) + '」と入れていたので、まだ保存していません。 ' +
+      '<button class="btn small" data-cf="' + esc(pk) + '" data-act="theirs">先に入れられたほうにする</button> <button class="btn small" data-cf="' + esc(pk) + '" data-act="mine">自分のほうで上書きする</button></div>';
   }).join('');
   Array.prototype.forEach.call(box.querySelectorAll('[data-cf]'), function (b) {
     b.onclick = function () {
       var pk = b.getAttribute('data-cf'), cf = G.conflicts[pk], p = pk.split('|');
       if (!cf) return;
-      var inp = document.querySelector('#growBody input[data-pk="' + pk + '"]');
+      var el = document.querySelector('#growBody [data-pk="' + pk + '"]');
       if (b.getAttribute('data-act') === 'theirs') {
-        if (inp) inp.value = cf.theirs;
+        if (el) el.value = cf.theirs;
         G.base[pk] = cf.theirs; delete G.conflicts[pk]; delete G.pending[pk];
         var row = growthRow(p[0], p[1], gradeOfCls(G.cls));
         if (row) row[p[2]] = cf.theirs;
-        paintSports();
+        repaint();
       } else {
         G.pending[pk] = { year: p[0], childId: p[1], key: p[2], value: cf.mine, force: true };
         delete G.conflicts[pk];
@@ -1115,6 +1139,156 @@ function paintSports() {
       }
     };
   });
+}
+
+// --- 指導要録（入力） ---
+var YK_TEXT = [
+  { key: 'focus', name: '個人の重点', max: 300, rows: 2 },
+  { key: 'guidance', name: '指導上参考となる事項', max: 1500, rows: 9 },
+  { key: 'remarks', name: '備考', max: 500, rows: 2 }
+];
+var FOCUS_KEY = { '星': 'focusHoshi', '花': 'focusHana', '雪': 'focusYuki', '月': 'focusTsuki' };
+function gradeFocus(g) { return (S.settings && S.settings[FOCUS_KEY[g]]) || ''; }
+// 和暦の日付（例：令和2年4月2日）
+function wareki(d) {
+  var m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  var y = +m[1], s = m[1] + m[2] + m[3];
+  var era = s >= '20190501' ? ['令和', y - 2018] : s >= '19890108' ? ['平成', y - 1988] : ['昭和', y - 1925];
+  return era[0] + (era[1] === 1 ? '元' : era[1]) + '年' + (+m[2]) + '月' + (+m[3]) + '日';
+}
+// 出席簿の1年分を読む（要録の教育日数・出席日数）
+S.attYear = {};
+function loadAttYear(year, force) {
+  if (S.attYear[year] && !force && Date.now() - S.attYear[year] < 60000) return Promise.resolve();
+  return flushAtt().then(function () { return call('attendanceYear', year); }).then(function (r) {
+    var by = {};
+    ymList(year).forEach(function (ym) { by[ym] = {}; });
+    r.rows.forEach(function (x) { if (by[x.ym]) by[x.ym][x.childId] = x; });
+    Object.keys(by).forEach(function (ym) { S.att[ym] = { rows: by[ym] }; });
+    S.calendar[year] = r.calendar;
+    S.attYear[year] = Date.now();
+    S.yDays = {};
+  });
+}
+// クラスの1年分の教育日数・出席日数（出席簿から。今年度は今日まで）：{ 園児ID: { edu, att } }
+S.yDays = {};
+function yearDays(cls) {
+  var key = S.year + '|' + cls;
+  if (S.yDays[key]) return S.yDays[key];
+  var out = {}, end = (Number(S.year) + 1) + '-03-31', today = todayStr(), lim = today < end ? today : end;
+  ymList(S.year).forEach(function (ym) {
+    if (ym + '-01' > lim) return;
+    var c = attCalc(cls, ym);
+    c.cols.forEach(function (col) {
+      var o = out[col.k.id] = out[col.k.id] || { edu: 0, att: 0 };
+      c.days.forEach(function (day) {
+        if (day.none || day.off || day.date > lim) return;
+        var x = c.cell(col, day);
+        if (x.s !== 'in') return;
+        o.edu++;
+        if (!x.mark) o.att++;
+      });
+    });
+  });
+  out._lim = lim;
+  return (S.yDays[key] = out);
+}
+// 印刷に使う日数：手で入れた数があればそれ、なければ出席簿から
+function yorokuDays(k, grade, cls) {
+  var row = growthRow(S.year, k.id, grade) || {}, auto = (yearDays(cls)[k.id]) || null;
+  return {
+    edu: row.eduDays !== undefined && row.eduDays !== '' ? row.eduDays : auto ? String(auto.edu) : '',
+    att: row.attendDays !== undefined && row.attendDays !== '' ? row.attendDays : auto ? String(auto.att) : ''
+  };
+}
+function mdText(d) { var m = String(d || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? (+m[1]) + '月' + (+m[2]) + '日' : ''; }
+
+function renderYoroku() {
+  var classes = yearClasses();
+  var has = function (n) { return classes.some(function (c) { return c.name === n; }); };
+  if (!has(G.cls)) G.cls = has(S.cls) ? S.cls : (classes[0] || {}).name || '';
+  var year = S.year;
+  if (!S.growth[year] || !S.attYear[year]) {
+    $('growBody').innerHTML = '<div class="empty">読み込んでいます…</div>';
+    Promise.all([loadGrowth(year), loadAttYear(year)]).then(function () { if (S.view === 'grow' && S.year === year && G.tab === 'yoroku') renderGrow(); })
+      .catch(function (e) { $('growBody').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+    return;
+  }
+  var grade = gradeOfCls(G.cls);
+  var h = '<div class="row haru-tools"><b>クラス</b><select id="ykCls">' +
+    classes.map(function (c) { return '<option' + (c.name === G.cls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select>' +
+    '<label class="muted"><input type="checkbox" id="ykLeft"' + (G.showLeft ? ' checked' : '') + '> 退園した子も出す</label>' +
+    '<span style="flex:1"></span><span id="growStatus" class="muted"></span></div>';
+  if (!classes.length) { $('growBody').innerHTML = h + '<div class="empty">この年度のクラスがありません。管理の「クラス」で作ってください。</div>'; bindYorokuTools(); return; }
+  h += '<p class="muted" style="margin:0 0 6px">書いた文は自動で保存されます（手を止めて2秒ほどで保存）。行の初めの字下げは、全角の空白で入れてください。<br>' +
+    '教育日数・出席日数は、空にしておくと出席簿から自動で数えます（今年度は今日まで）。出席簿とちがう数にしたいときだけ入れてください。</p>' +
+    '<div class="msg" style="margin-bottom:10px">' + esc(grade) + '組の<b>学年の重点</b>：' + esc(gradeFocus(grade) || '（まだ決めていません）') + '<span class="muted">（管理の「設定」で直せます）</span></div>';
+  var kids = G.cls ? kidsOf(G.cls, G.showLeft) : [];
+  var days = yearDays(G.cls);
+  h += '<div class="sp-conf" id="ykConf"></div>';
+  kids.forEach(function (k) {
+    var row = growthRow(year, k.id, grade) || {};
+    var val = function (key) {
+      var pk = gkey(year, k.id, key);
+      if (!G.pending[pk] && !G.conflicts[pk]) G.base[pk] = row[key] || '';
+      return G.pending[pk] ? G.pending[pk].value : G.conflicts[pk] ? G.conflicts[pk].mine : (row[key] || '');
+    };
+    var auto = days[k.id];
+    h += '<div class="haru yk' + (isLeft(k) ? ' left' : '') + '"><div class="haru-h"><span class="no">' + esc(k.enroll.no) + '</span><span class="nm">' + esc(k.name) + '</span>' +
+      (isLeft(k) ? '<span class="badge left">退園</span>' : '') + '</div>';
+    YK_TEXT.forEach(function (f) {
+      h += '<div class="yk-f"><label>' + f.name + '<span class="cnt" data-cnt="' + esc(gkey(year, k.id, f.key)) + '"></span></label>' +
+        '<textarea rows="' + f.rows + '" data-id="' + esc(k.id) + '" data-key="' + f.key + '" data-pk="' + esc(gkey(year, k.id, f.key)) + '" maxlength="' + f.max + '" spellcheck="false" aria-label="' + esc(k.name + ' ' + f.name) + '"' +
+        (f.key === 'guidance' ? ' style="min-height:190px"' : '') + '>' + esc(val(f.key)) + '</textarea></div>';
+    });
+    h += '<div class="row yk-days"><label>教育日数 <input inputmode="numeric" data-id="' + esc(k.id) + '" data-key="eduDays" data-pk="' + esc(gkey(year, k.id, 'eduDays')) + '" value="' + esc(val('eduDays')) + '" placeholder="' + (auto ? auto.edu : '') + '" aria-label="' + esc(k.name + ' 教育日数') + '"> 日</label>' +
+      '<label>出席日数 <input inputmode="numeric" data-id="' + esc(k.id) + '" data-key="attendDays" data-pk="' + esc(gkey(year, k.id, 'attendDays')) + '" value="' + esc(val('attendDays')) + '" placeholder="' + (auto ? auto.att : '') + '" aria-label="' + esc(k.name + ' 出席日数') + '"> 日</label>' +
+      '<span class="muted">出席簿から：' + (auto ? '教育 ' + auto.edu + '日・出席 ' + auto.att + '日（' + mdText(days._lim) + 'まで）' : 'まだありません') + '</span></div></div>';
+  });
+  if (G.cls && !kids.length) h += '<div class="empty">このクラスの園児はいません。</div>';
+  if (kids.length) h += '<div class="row"><button class="btn main" id="ykShidoBtn">🖨 指導に関する記録（A4）を印刷する</button><button class="btn" id="ykGakuBtn">🖨 学籍に関する記録（A4）を印刷する</button></div>';
+  $('growBody').innerHTML = h;
+  bindYorokuTools();
+  Array.prototype.forEach.call(document.querySelectorAll('#growBody [data-pk]'), function (el) {
+    var pk = el.getAttribute('data-pk'), key = el.getAttribute('data-key');
+    el.oninput = function () {
+      var v = el.value;
+      if (key === 'eduDays' || key === 'attendDays') {
+        v = sportNorm(v).replace(/日/g, '');
+        if (v !== '' && !(/^\d{1,3}$/.test(v) && Number(v) <= 366)) { el.classList.add('bad'); delete G.pending[pk]; growStatus('⚠ 日数は0～366の数で入れてください'); return; }
+        el.classList.remove('bad');
+      }
+      G.pending[pk] = { year: year, childId: el.getAttribute('data-id'), key: key, value: v };
+      paintYoroku();
+      growStatus('書いています…');
+      clearTimeout(G.timer); G.timer = setTimeout(flushGrow, 2000);
+    };
+    if (el.tagName === 'TEXTAREA') el.onblur = function () { if (G.pending[pk]) flushGrow(); };
+  });
+  var toDoc = function (doc) {
+    flushGrow().then(function () {
+      S.doc = doc; docOpt.cls = G.cls; docOpt.kid = ''; docOpt.includeLeft = null;
+      if (S.growth[year]) S.growth[year].at = 0;   // 書類の画面で読み直す
+      go('docs');
+    });
+  };
+  if ($('ykShidoBtn')) { $('ykShidoBtn').onclick = function () { toDoc('yorokuShido'); }; $('ykGakuBtn').onclick = function () { toDoc('yorokuGakuseki'); }; }
+  paintYoroku();
+  growStatus(Object.keys(G.pending).length ? '保存していないところがあります' : '');
+}
+function bindYorokuTools() {
+  if ($('ykCls')) $('ykCls').onchange = function () { flushGrow(); G.cls = this.value; renderYoroku(); };
+  if ($('ykLeft')) $('ykLeft').onchange = function () { G.showLeft = this.checked; renderYoroku(); };
+}
+function paintYoroku() {
+  if (G.tab !== 'yoroku') return;
+  Array.prototype.forEach.call(document.querySelectorAll('#growBody [data-cnt]'), function (s) {
+    var el = document.querySelector('#growBody textarea[data-pk="' + s.getAttribute('data-cnt') + '"]');
+    var n = el ? el.value.replace(/\s+$/, '').replace(/\n/g, '').length : 0;
+    s.textContent = n ? n + '字' : '';
+  });
+  paintFields('ykConf', paintYoroku);
 }
 
 // 保存待ちの文をまとめて送る（順番に1回ずつ）
@@ -1147,7 +1321,7 @@ function flushGrow() {
           list.forEach(function (p) { var pk = gkey(y, p.childId, p.key); if (!G.pending[pk]) G.pending[pk] = p; });
           growStatus('⚠ 保存できませんでした。しばらくしてから自動でやり直します（' + e.message + '）');
           clearTimeout(G.timer); G.timer = setTimeout(flushGrow, 15000);
-        }).then(function () { if (S.view === 'grow') { paintHaru(); paintSports(); } });
+        }).then(function () { if (S.view === 'grow') { paintHaru(); paintSports(); paintYoroku(); } });
       });
     }, Promise.resolve());
   });
@@ -1180,9 +1354,11 @@ var DOCS = [
   { id: 'haruDraft', name: '春の陽の下書き', note: 'B5たて・1人1枚', left: false, growth: true, term: true },
   { id: 'sportsCard', name: '体力測定結果', note: 'A4たて・1人1枚・学年平均つき', left: false, growth: true, sports: true },
   { id: 'sportsSheet', name: '体力測定の記録表', note: 'B5たて・クラスの一覧', left: false, growth: true, sports: true },
+  { id: 'yorokuShido', name: '指導要録（指導）', note: 'A4・今年の列（月組は最終学年の様式）', left: true, growth: true, yoroku: true },
+  { id: 'yorokuGakuseki', name: '指導要録（学籍）', note: 'A4・今年の列', left: true, growth: true, yoroku: true },
   { id: 'cover', name: 'ファイルの表紙', note: 'A4たて・学年ごと', left: false }
 ];
-var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true, ym: '', term: 0, kid: '', grade: '', spMode: 'now', spSkip: true };
+var docOpt = { cls: '', includeLeft: null, blanks: 4, tagTitle: '', tagDate: '', tagKana: true, ym: '', term: 0, kid: '', grade: '', spMode: 'now', spSkip: true, ykNew: false };
 function isGrowthDoc() { var d = DOCS.filter(function (x) { return x.id === S.doc; })[0]; return !!(d && d.growth); }
 
 function renderDocs() {
@@ -1209,7 +1385,12 @@ function renderDocs() {
     var hk = docOpt.cls === '*' || S.doc === 'sportsSheet' ? [] : docKids(docOpt.cls);
     if (docOpt.kid && !hk.some(function (k) { return k.id === docOpt.kid; })) docOpt.kid = '';
     var kidSel = hk.length ? '<b>園児</b><select id="optKid"><option value="">全員</option>' + hk.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === docOpt.kid ? ' selected' : '') + '>' + esc(k.enroll.no) + '　' + esc(k.name) + '</option>'; }).join('') + '</select>' : '';
-    if (d.sports) {
+    if (d.yoroku) {
+      h += '<div class="row">' + kidSel +
+        (S.doc === 'yorokuGakuseki' ? '<label><input type="checkbox" id="optYkNew"' + (docOpt.ykNew ? ' checked' : '') + '> 今年入園・転入園した子だけ</label>' : '') +
+        '<span class="muted">今年の年度の列だけが入ります（前の年に刷った紙に重ねて刷ります）。' +
+        (S.doc === 'yorokuShido' ? '月組は「最終学年の指導に関する記録」の様式になります。文は「🌱 成長の記録」の「指導要録」で書きます。' : '園長名・園名・修了の日は、管理の「設定」で決めます。') + '</span></div>';
+    } else if (d.sports) {
       h += '<div class="row">' + kidSel +
         (S.doc === 'sportsCard' ? '<label><input type="radio" name="optSpMode" value="now"' + (docOpt.spMode === 'now' ? ' checked' : '') + '> 今年の学年の記録だけ</label>' +
           '<label><input type="radio" name="optSpMode" value="all"' + (docOpt.spMode === 'all' ? ' checked' : '') + '> 花・雪・月の3学年とも</label>' +
@@ -1247,6 +1428,7 @@ function renderDocs() {
   if ($('optKid')) $('optKid').onchange = function () { docOpt.kid = this.value; drawPreview(); };
   Array.prototype.forEach.call(document.querySelectorAll('[name=optSpMode]'), function (r) { r.onchange = function () { docOpt.spMode = this.value; drawPreview(); }; });
   if ($('optSpSkip')) $('optSpSkip').onchange = function () { docOpt.spSkip = this.checked; drawPreview(); };
+  if ($('optYkNew')) $('optYkNew').onchange = function () { docOpt.ykNew = this.checked; drawPreview(); };
   if ($('optGrade')) $('optGrade').onchange = function () { docOpt.grade = this.value; drawPreview(); };
   if ($('optBlanks')) $('optBlanks').onchange = function () { docOpt.blanks = Number(this.value); drawPreview(); };
   if ($('optTitle')) {
@@ -1265,10 +1447,10 @@ function renderDocs() {
   }
   // 春の陽などは、ほかの先生が書いた分も入るように読み直す（1分以内に読んだものはそのまま）
   var gy = S.growth[S.year];
-  if (isGrowthDoc() && (!gy || Date.now() - (gy.at || 0) > 60000)) {
+  if (isGrowthDoc() && (!gy || Date.now() - (gy.at || 0) > 60000 || (d.yoroku && !S.attYear[S.year]))) {
     $('preview').innerHTML = '<div class="empty" style="color:#fff">読み込んでいます…</div>';
     var y = S.year;
-    flushGrow().then(function () { return loadGrowth(y, true); }).then(function () { if (S.view === 'docs' && isGrowthDoc()) drawPreview(); })
+    flushGrow().then(function () { return Promise.all([loadGrowth(y, true), d.yoroku ? loadAttYear(y, true) : null]); }).then(function () { if (S.view === 'docs' && isGrowthDoc()) drawPreview(); })
       .catch(function (e) { $('preview').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
     return;
   }
@@ -1705,6 +1887,271 @@ DOC_MAKERS.sportsSheet = function (ci, kids) {
   });
   return { size: 'b5', pages: pages };
 };
+
+// ===== 指導要録（印刷） =====
+// Excel のマス目（列の幅・行の高さ）から、紙の上の位置（mm）を出す
+function colNum(s) { var n = 0; for (var i = 0; i < s.length; i++) n = n * 26 + s.charCodeAt(i) - 64; return n; }
+function xlGrid(o) {
+  var n1 = colNum(o.c1), n2 = colNum(o.c2), cx = {}, x = 0, ry = {}, y = 0;
+  for (var c = n1; c <= n2 + 1; c++) { cx[c] = x; if (c <= n2) x += o.colW(c); }
+  var kx = o.width / x;
+  for (var r = o.r1; r <= o.r2 + 1; r++) { ry[r] = y; if (r <= o.r2) y += o.rowH(r) * o.ky; }
+  return function (range) {
+    var p = range.split(':'), a = p[0].match(/([A-Z]+)(\d+)/), b = (p[1] || p[0]).match(/([A-Z]+)(\d+)/);
+    var ca = colNum(a[1]), cb = colNum(b[1]), ra = +a[2], rb = +b[2];
+    return { l: o.x0 + cx[ca] * kx, t: o.y0 + ry[ra], w: (cx[cb + 1] - cx[ca]) * kx, h: ry[rb + 1] - ry[ra] };
+  };
+}
+function boxAt(b, html, css, cls) {
+  return '<div class="' + (cls || '') + '" style="position:absolute;left:' + b.l.toFixed(2) + 'mm;top:' + b.t.toFixed(2) + 'mm;width:' + b.w.toFixed(2) + 'mm;height:' + b.h.toFixed(2) + 'mm;' + (css || '') + '">' + (html || '') + '</div>';
+}
+// 何行もある文：枠に入らないときは字を小さくする（fitAll の .ft）
+function ftBox(b, text, pt, css) {
+  return boxAt(b, '<div class="ft" style="height:100%;overflow:hidden;white-space:pre-wrap;word-break:break-all">' + esc(text) + '</div>', 'font-size:' + pt + 'pt;line-height:1.42;' + (css || ''));
+}
+function ageAt(birth, on) {
+  var b = String(birth || '').match(/^(\d{4})-(\d{2})-(\d{2})/), d = String(on || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!b || !d) return null;
+  var y = +d[1] - +b[1], m = +d[2] - +b[2];
+  if (+d[3] < +b[3]) m--;
+  if (m < 0) { y--; m += 12; }
+  return y >= 0 ? { y: y, m: m } : null;
+}
+function surname(s) { return String(s || '').split(/[\s　]+/)[0]; }
+// 保護者の名前：姓が同じときは、園児の姓を前に付ける（Excel と同じ）
+function parentFull(k, kana) {
+  var p = kana ? k.parentKana : k.parent;
+  if (!p) return '';
+  if (k.diffSurname || /[\s　]/.test(p)) return p;
+  return surname(kana ? k.kana : k.name) + (kana ? ' ' : '　') + p;
+}
+var NERAI = [
+  ['健　康', ['明るく伸び伸びと行動し、充実感を味わう。', '自分の体を十分に動かし、進んで運動しようとする。', '健康、安全な生活に必要な習慣や態度を身に付ける。']],
+  ['人間関係', ['幼稚園生活を楽しみ、自分の力で行動することの充実感を味わう。', '身近な人と親しみ、かかわりを深め、愛情や信頼感をもつ。', '社会生活における望ましい習慣や態度を身に付ける。']],
+  ['環　境', ['身近な環境に親しみ、自然と触れ合う中で様々な事象に興味や関心をもつ。', '身近な環境に自分からかかわり、発見を楽しんだり、考えたりし、それを生活に取り入れようとする。', '身近な事象を見たり、考えたり、扱ったりする中で、物の性質や数量、文字などに対する感覚を豊かにする。']],
+  ['言　葉', ['自分の気持ちを言葉で表現する楽しさを味わう。', '人の言葉や話などをよく聞き、自分の経験したことや考えたことを話し、伝え合う喜びを味わう。', '日常生活に必要な言葉が分かるようになるとともに、絵本や物語などに親しみ、先生や友達と心を通わせる。']],
+  ['表　現', ['いろいろなものの美しさなどに対する豊かな感性をもつ。', '感じたことや考えたことを自分なりに表現して楽しむ。', '生活の中でイメージを豊かにし、様々な表現を楽しむ。']]
+];
+var YK_NOTE = [
+  [0, '学年の重点：年度当初に、教育課程に基づき長期の見通しとして設定したものを記入'],
+  [0, '個人の重点：１年間を振り返って、当該幼児の指導について特に重視してきた点を記入'],
+  [0, '指導上参考となる事項：'],
+  [0, '（１） 次の事項について記入すること。'],
+  [1, '①一年間の指導の過程と幼児の発達の姿について以下の事項を踏まえ記入すること。'],
+  [2, '・幼稚園教育要領第２章「ねらい及び内容」に示された各領域のねらいを視点として、当該幼児の発達の実情から向上が著しいと思われるもの、'],
+  [2, ' その際、他の幼児との比較や一定の基準に対する達成度についての評定によって捉えるものではないことに留意すること。'],
+  [2, '・幼稚園生活を通して全体的、総合的に捉えた幼児の発達の姿。'],
+  [1, '②次の年度の指導に必要と考えられる配慮事項等について記入すること。']
+];
+var YK_NOTE_END = [
+  [0, '（２） 幼児の健康の状況等指導上特に留意する必要がある場合等について記入すること。'],
+  [0, '備考：教育課程に係る教育時間の終了後等に行う教育活動を行っている場合には、必要に応じて当該教育活動を通した幼児の発達の姿を記入すること。']
+];
+var YK_NOTE_LAST = [
+  [1, '③最終年度の記入に当たっては、特に小学校等における児童の指導に生かされるよう、幼稚園教育要領第１章総則に示された「幼児期の終わりまでに育ってほしい姿」を活用して幼児に育まれて'],
+  [1, '　いる資質・能力を捉え、指導の過程と育ちつつある姿を分かりやすく記入するように留意すること。また、「幼児期の終わりまでに育ってほしい姿」が到達すべき目標ではないことに留意し、項'],
+  [1, '　目別に幼児の育ちつつある姿を記入するのではなく、全体的、総合的に捉えて記入すること。']
+];
+var SUGATA = [
+  ['健康な心と体', '幼稚園生活の中で、充実感を持って自分のやりたいことに向かって心と体を十分に働かせ、見通しをもって行動し、自ら健康で安全な生活をつくり出すようになる。', 16, 19],
+  ['自立心', '身近な環境に主体的に関わり様々な活動を楽しむ中で、しなければならないことを自覚し、自分の力で行うために考えたり、工夫したりしながら、諦めずにやり遂げることで達成感を味わい、自信をもって行動するようになる。', 20, 23],
+  ['協同性', '友達と関わる中で、互いの思いや考えなどを共有し、共通の目的の実現に向けて、考えたり、工夫したり、協力したりし、充実感をもってやり遂げるようになる。', 24, 27],
+  ['道徳性・規範意識の芽生え', '友達と様々な体験を重ねる中で、してよいことや悪いことが分かり、自分の行動を振り返ったり、友達の気持ちに共感したりし、相手の立場に立って行動するようになる。また、きまりを守る必要性が分かり、自分の気持ちを調整し、友達と折り合いを付けながら、きまりをつくったり、守ったりするようになる。', 28, 33],
+  ['社会生活との関わり', '家族を大切にしようとする気持ちをもつとともに、地域の身近な人と触れ合う中で、人との様々なかかわり方に気付き、相手の気持ちを考えて関わり、自分が役に立つ喜びを感じ、地域に親しみをもつようになる。また、幼稚園内外の様々な環境に関わる中で、遊びや生活に必要な情報を取り入れ、情報に基づき判断したり、情報を伝え合ったり、活用したりするなど、情報を役立てながら活動するようになるとともに、公共の施設を大切に利用するなどして、社会とのつながりなどを意識するようになる。', 34, 43],
+  ['思考力の芽生え', '身近な事象に積極的に関わる中で、物の性質や仕組みなどを感じ取ったり、気付いたりし、考えたり、予想したり、工夫したりするなど、多様な関わりを楽しむようになる。また、友達の様々な考えに触れる中で、自分と異なる考えがあることに気付き、自ら判断したり、考え直したりするなど、新しい考えを生み出す喜びを味わいながら、自分の考えをよりよいものにするようになる。', 44, 50],
+  ['自然との関わり・生命尊重', '自然に触れて感動する体験を通して、自然の変化等を感じ取り、好奇心や探究心をもって考え言葉などで表現しながら、身近な事象への関心が高まるとともに、自然への愛情や畏敬の念をもつようになる。また、身近な動植物に心を動かされる中で、生命の不思議さや尊さに気付き、身近な動植物への接し方を考え、命あるものとしていたわり、大切にする気持ちをもって関わるようになる。', 51, 57],
+  ['数量や図形、標識や文字などへの関心・感覚', '遊びや生活の中で、数量や図形、標識や文字などに親しむ体験を重ねたり、標識や文字の役割に気付いたりし、自らの必要感に基づきこれらを活用し、興味や関心、感覚をもつようになる。', 58, 61],
+  ['言葉による伝え合い', '先生や友達と心を通わせる中で、絵本や物語などに親しみながら、豊かな言葉や表現を身に付け、経験したことや考えたことなどを言葉で伝えたり、相手の話を注意して聞いたりし、言葉による伝え合いを楽しむようになる。', 62, 65],
+  ['豊かな感性と表現', '心を動かす出来事などに触れ感性を働かせる中で、様々な素材の特徴や表現の仕方などに気付き、感じたことや考えたことを自分で表現したり、友達同士で表現する過程を楽しんだりし、表現する喜びを味わい、意欲をもつようになる。', 66, 70]
+];
+var SUGATA_NOTE = '「幼児期の終わりまでに育ってほしい姿」は、幼稚園教育要領第２章に示すねらい及び内容に基づいて、各幼稚園で、幼児期にふさわしい遊びや生活を積み重ねることにより、幼稚園教育において育みたい資質・能力が育まれている幼児の具体的な姿であり、特に５歳児後半に見られるようになる姿である。「幼児期の終わりまでに育ってほしい姿」は、とりわけ幼児の自発的な活動としての遊びを通して、一人一人の発達の特性に応じて、これらの姿が育っていくものであり、全ての幼児に同じように見られるものではないことに留意すること。';
+
+DOC_MAKERS.yorokuShido = function (ci, kids) {
+  var grade = ci.grade || ci.name.charAt(0);
+  return { size: 'a4', pages: haruKids(kids).map(function (k) { return grade === '月' ? saishuPage(ci, k) : shidoPage(ci, k, grade); }) };
+};
+DOC_MAKERS.yorokuGakuseki = function (ci, kids) {
+  var grade = ci.grade || ci.name.charAt(0), from = S.year + '-04-01';
+  var list = haruKids(kids).filter(function (k) { return !docOpt.ykNew || docOpt.kid || kidStart(k) >= from; });
+  return { size: 'a4', pages: list.map(function (k) { return gakusekiPage(ci, k, grade); }) };
+};
+
+// 学籍に関する記録（今のExcel「指導要録（学籍）」と同じマス目。年度の列は今年の分だけ入れる）
+var GAKU_ROWS = { 1: 27, 2: 13.5, 3: 13.5, 4: 17.25, 5: 13.5, 6: 24, 7: 36, 8: 36, 9: 24, 10: 24, 11: 36, 12: 24, 13: 24, 14: 24, 15: 24, 16: 36, 17: 24, 18: 24,
+  19: 36, 20: 36, 21: 36, 22: 36, 23: 24, 24: 24, 25: 24, 26: 24, 27: 48, 28: 24, 29: 24 };
+function gakusekiPage(ci, k, grade) {
+  var g = xlGrid({ c1: 'B', c2: 'K', colW: function (c) { return c === 2 ? 7.9 : c === 3 ? 8.1 : 9; }, r1: 1, r2: 29, rowH: function (r) { return GAKU_ROWS[r] || 13.5; },
+    ky: 0.3528 * 0.91, x0: 13, y0: 17, width: 184 });
+  var gi = GRADES.indexOf(grade), fy = Number(S.year), set = S.settings || {};
+  var C = 'xc xf', h = '';
+  var cell = function (range, html, css, cls) { h += boxAt(g(range), html, css, cls === undefined ? C : cls); };
+  var left = function (range, html, css) { cell(range, html, 'justify-content:flex-start;text-align:left;padding:0 2mm;' + (css || '')); };
+  // 表題・年度の欄
+  cell('B4:K4', '幼稚園幼児指導要録（学籍に関する記録）', 'font-size:14pt;font-weight:bold', 'xf');
+  cell('G6', '<svg viewBox="0 0 10 10" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:100%"><line x1="0" y1="0" x2="10" y2="10" stroke="#000" stroke-width="0.12"/></svg>' +
+    '<span style="position:absolute;right:1.5mm;top:0.6mm;font-size:8pt">年度</span><span style="position:absolute;left:1.5mm;bottom:0.6mm;font-size:8pt">区分</span>', '', 'xc');
+  cell('G7', '学　　級'); cell('G8', '整理番号');
+  ['H', 'I', 'J', 'K'].forEach(function (c, i) {
+    var on = i === gi;
+    cell(c + '6', on ? esc(nendo(fy)) : '');
+    cell(c + '7', on ? fi(ci.name) : '');
+    cell(c + '8', on ? esc(k.enroll.no) : '');
+  });
+  // 幼児
+  cell('B10:B14', '幼　児');
+  cell('C10', 'ふりがな', 'font-size:9pt'); left('D10:I10', fi(k.kana), 'font-size:10pt');
+  cell('J10:J12', '性　別'); cell('K10:K12', esc(k.sex));
+  cell('C11:C12', '氏　名'); left('D11:I11', fi(k.name), 'font-size:15pt');
+  cell('D12:I12', esc(wareki(k.birth)) + (k.birth ? '生' : ''), 'justify-content:flex-end;padding-right:6mm');
+  cell('C13:C14', '現住所'); left('D13:K14', fi(k.address));
+  // 保護者
+  cell('B15:B18', '保護者');
+  cell('C15', 'ふりがな', 'font-size:9pt'); left('D15:K15', fi(parentFull(k, true)), 'font-size:10pt');
+  cell('C16', '氏　名'); left('D16:K16', fi(parentFull(k, false)), 'font-size:14pt');
+  cell('C17:C18', '現住所'); left('D17:K18', fi(k.parentAddress || '幼児の欄に同じ'));
+  // 入園・転入園・転退園・修了
+  var grad = grade === '月' && !k.leaveDate && set.gradDate && set.gradDate >= fy + '-04-01' && set.gradDate <= (fy + 1) + '-03-31' ? set.gradDate : '';
+  [['B19', 'C19:D19', '入　　園', k.enterDate], ['B20', 'C20:D20', '転 入 園', k.transferIn], ['B21', 'C21:D21', '転・退園', k.leaveDate], ['B22', 'C22:D22', '修　　了', grad]].forEach(function (x) {
+    cell(x[0], x[2]); cell(x[1], esc(wareki(x[3])));
+  });
+  cell('E19:E20', '入園前の<br>状　　況'); left('F19:K20', '<div class="ft" style="height:100%;overflow:hidden;white-space:pre-wrap;display:flex;align-items:center">' + esc(k.beforeEnter || '特記事項なし') + '</div>', 'font-size:13pt');
+  cell('E21:E22', '進学先等'); left('F21:K22', grade === '月' ? fi(k.school) : '', 'font-size:13pt');
+  // 幼稚園名
+  cell('B23:C24', '幼 稚 園 名<br>及び所在地');
+  left('D23:K24', '<div>' + esc(set.yorokuName || '') + '<br>' + esc(set.yorokuAddress || '') + '</div>', 'line-height:1.9');
+  // 年度ごとの欄（年度・年齢・園長・担任）
+  cell('B25:C26', '<span style="font-size:8.5pt;line-height:1.5">年度及び入園（転入園）<br>・進級時の幼児の年齢</span>');
+  cell('B27:C27', '園　　長<br>氏　　名'); cell('B28:C29', '学級担任者<br>氏　　名');
+  var start = kidStart(k) > fy + '-04-01' ? kidStart(k) : fy + '-04-01';
+  var age = ageAt(k.birth, start), slot = function (w, v) { return '<span style="display:inline-block;width:' + w + 'mm;text-align:center">' + v + '</span>'; };
+  var teachers = [ci.teacher, ci.sub1, ci.sub2].filter(Boolean);
+  [['D', 'E'], ['F', 'G'], ['H', 'I'], ['J', 'K']].forEach(function (p, i) {
+    var on = i === gi;
+    cell(p[0] + '25:' + p[1] + '25', '令和' + slot(9, on ? fy - 2018 : '') + '年度');
+    cell(p[0] + '26:' + p[1] + '26', slot(7, on && age ? age.y : '') + '歳' + slot(8, on && age ? age.m : '') + 'か月');
+    cell(p[0] + '27:' + p[1] + '27', on ? fi(set.principal || '') : '');
+    if (i === 0) cell('D28:E29', on ? '<div style="line-height:1.35">' + teachers.map(esc).join('<br>') + '</div>' : '', 'font-size:10pt');
+    else { cell(p[0] + '28:' + p[1] + '28', on ? fi(ci.teacher || '') : ''); cell(p[0] + '29:' + p[1] + '29', on ? fi(ci.sub1 || '') : ''); }
+  });
+  return '<div class="page a4 mincho yk-page" style="padding:0">' + h + '</div>';
+}
+
+// 指導に関する記録（星・花・雪の3列。今のExcel「指導要録（指導に関する記録）」と同じマス目）
+var SHIDO_ROWS = { 2: 15, 3: 15, 4: 22.5, 5: 7.5, 6: 15, 7: 11.25, 8: 18.75, 9: 7.5, 10: 7.5, 11: 15, 12: 15, 13: 15, 31: 20.25, 37: 20.25, 44: 5.7, 45: 5.7, 46: 18.75, 47: 18.75, 48: 18.75, 49: 6 };
+function shidoRowH(r) { return SHIDO_ROWS[r] || (r >= 14 && r <= 36 ? 15.75 : r >= 38 && r <= 43 ? 12 : r >= 50 ? 8.25 : 15); }
+function shidoColW(c) { return c <= 6 ? 2.5 : c <= 9 ? 3.1 : c === 10 ? 1.9 : c === 11 ? 1.2 : c <= 29 ? 2.5 : c === 30 ? 1.2 : c === 31 ? 1.9 : c <= 39 ? 2.5 : 1.9; }
+function shidoPage(ci, k, grade) {
+  var g = xlGrid({ c1: 'D', c2: 'AN', colW: shidoColW, r1: 2, r2: 60, rowH: shidoRowH, ky: 0.3528, x0: 9, y0: 8, width: 193 });
+  var gi = GRADES.indexOf(grade), fy = Number(S.year), C = 'xc xf', h = '';
+  var cell = function (range, html, css, cls) { h += boxAt(g(range), html, css, cls === undefined ? C : cls); };
+  var row = growthRow(S.year, k.id, grade) || {}, days = yorokuDays(k, grade, ci.name);
+  cell('D2:AN3', '幼稚園幼児指導要録（指導に関する記録）', 'font-size:16pt;letter-spacing:1pt', 'xf');
+  // 左の上：名前など
+  cell('D4', fi('ふりがな'), 'font-size:7pt'); cell('E4:I4', fi(k.kana), 'font-size:8pt;justify-content:flex-start;padding:0 1mm');
+  cell('D5:D8', '氏名', 'font-size:9pt', 'xc xf xv');
+  cell('E5:I8', '', '', 'xc');
+  cell('E5:I7', fi(k.name), 'font-size:12pt', 'xf');
+  cell('E8:I8', esc(wareki(k.birth)) + (k.birth ? '生' : ''), 'font-size:7.5pt;justify-content:flex-end;padding-right:1mm', 'xf');
+  cell('D9:D11', fi('性別'), 'font-size:8pt'); cell('E9:I11', esc(k.sex), 'font-size:9pt');
+  cell('D12:I13', 'ねらい<br>（発達を捉える視点）', 'font-size:8pt;line-height:1.3');
+  // ねらい（5つの領域）
+  var rr = [[14, 19], [20, 25], [26, 31], [32, 37], [38, 44]];
+  NERAI.forEach(function (d, i) {
+    cell('D' + rr[i][0] + ':D' + rr[i][1], d[0], 'font-size:9pt', 'xc xf xv');
+    var sub = i === 4 ? [[38, 39], [40, 41], [42, 44]] : [[rr[i][0], rr[i][0] + 1], [rr[i][0] + 2, rr[i][0] + 3], [rr[i][0] + 4, rr[i][1]]];
+    d[1].forEach(function (t, j) { cell('E' + sub[j][0] + ':I' + sub[j][1], esc(t), 'font-size:5.8pt;line-height:1.3;justify-content:flex-start;text-align:left;padding:0 0.8mm'); });
+  });
+  // 出欠状況
+  cell('D45:D48', '出欠状況', 'font-size:7.5pt', 'xc xf xv');
+  cell('E45:F46', '年度', 'font-size:7.5pt'); cell('E47:F47', fi('教育日数'), 'font-size:7.5pt'); cell('E48:F48', fi('出席日数'), 'font-size:7.5pt');
+  ['G', 'H', 'I'].forEach(function (c, i) {
+    var on = i === gi;
+    cell(c + '45:' + c + '46', on ? '令' + (fy - 2018) : '', 'font-size:7.5pt');
+    cell(c + '47', on ? esc(days.edu) : '', 'font-size:8pt'); cell(c + '48', on ? esc(days.att) : '', 'font-size:8pt');
+  });
+  // 縦の見出し
+  cell('J4:J13', '指導の重点等', 'font-size:7.5pt', 'xc xf xv');
+  cell('J14:J44', '指導上参考となる事項', 'font-size:8.5pt;letter-spacing:3pt', 'xc xf xv');
+  cell('J45:J48', '備考', 'font-size:7.5pt', 'xc xf xv');
+  // 3つの年度の列（K～AN を3つに分ける）
+  var a = g('K4'), z = g('AN4'), x0 = a.l, bw = (z.l + z.w - x0) / 3;
+  var at = function (i, r1, r2, inset) { var t = g('K' + r1), b = g('K' + r2); inset = inset || 0; return { l: x0 + bw * i + inset, t: t.t, w: bw - inset * 2, h: b.t + b.h - t.t }; };
+  [0, 1, 2].forEach(function (i) {
+    var on = i === gi;
+    h += boxAt(at(i, 4, 4), on ? '令和　' + (fy - 2018) + '　年度' : '', 'font-size:9pt', C);
+    h += boxAt(at(i, 5, 13), '', '', 'xc');
+    h += boxAt(at(i, 6, 6, 1), '(学年の重点)', 'font-size:6.5pt');
+    if (on) h += ftBox(at(i, 7, 9, 1.2), gradeFocus(grade), 7.5);
+    h += boxAt(at(i, 10, 10, 1), '', 'border-top:0.5px dashed #000');
+    h += boxAt(at(i, 11, 11, 1), '(個人の重点)', 'font-size:6.5pt');
+    if (on) h += ftBox(at(i, 12, 13, 1.2), row.focus || '', 7.5);
+    h += boxAt(at(i, 14, 44), '', '', 'xc');
+    if (on) h += ftBox(at(i, 15, 43, 1.5), row.guidance || '', 8);
+    h += boxAt(at(i, 45, 48), '', '', 'xc');
+    if (on) h += ftBox(at(i, 45, 48, 1.2), row.remarks || '', 7.5, 'padding-top:0.6mm');
+  });
+  h += boxAt(g('D4:AN48'), '', '', 'xm');
+  // 下の説明
+  var notes = YK_NOTE.concat(YK_NOTE_END);
+  notes.forEach(function (n, i) { h += boxAt(g('D' + (50 + i) + ':AN' + (50 + i)), esc(n[1]), 'font-size:5.6pt;white-space:nowrap;line-height:1;display:flex;align-items:center;padding-left:' + (n[0] * 3) + 'mm'); });
+  return '<div class="page a4 mincho yk-page" style="padding:0">' + h + '</div>';
+}
+
+// 最終学年の指導に関する記録（月組。今のExcel「最終学年の指導に関する記録」と同じマス目）
+function saishuColW(c) { return c === 1 ? 1 : c === 2 ? 2.2 : c <= 12 ? 1.7 : c === 13 ? 2.2 : c === 14 ? 1.7 : c === 15 ? 1 : 1.7; }
+function saishuPage(ci, k) {
+  var g = xlGrid({ c1: 'A', c2: 'BE', colW: saishuColW, r1: 2, r2: 85, rowH: function () { return 10.5; }, ky: 0.3528 * 0.91, x0: 5, y0: 7, width: 199 });
+  var fy = Number(S.year), C = 'xc xf', h = '';
+  var cell = function (range, html, css, cls) { h += boxAt(g(range), html, css, cls === undefined ? C : cls); };
+  var row = growthRow(S.year, k.id, '月') || {}, days = yorokuDays(k, '月', ci.name);
+  cell('C2:BD4', '幼稚園幼児指導要録（最終学年の指導に関する記録）', 'font-size:16pt;font-weight:bold', 'xf');
+  // 左の上
+  cell('B6:B7', fi('ふりがな'), 'font-size:6.5pt', 'xc xf xv'); cell('C6:L7', fi(k.kana), 'font-size:7.5pt');
+  cell('B8:B12', '氏名', 'font-size:7.5pt', 'xc xf xv');
+  cell('C8:L12', '', '', 'xc');
+  cell('C8:L10', fi(k.name), 'font-size:11pt', 'xf');
+  cell('C11:L12', esc(wareki(k.birth)) + (k.birth ? '生' : ''), 'font-size:7pt;justify-content:flex-end;padding-right:1mm', 'xf');
+  cell('B13:B15', '性別', 'font-size:7.5pt', 'xc xf xv'); cell('C13:L15', esc(k.sex), 'font-size:9pt');
+  cell('B16:L19', 'ねらい<br>（発達を捉える視点）', 'font-size:8pt;line-height:1.35');
+  NERAI.forEach(function (d, i) {
+    var r0 = 20 + i * 9;
+    cell('B' + r0 + ':B' + (r0 + 8), d[0], 'font-size:8pt', 'xc xf xv');
+    d[1].forEach(function (t, j) { cell('C' + (r0 + j * 3) + ':L' + (r0 + j * 3 + 2), esc(t), 'font-size:5.5pt;line-height:1.3;justify-content:flex-start;text-align:left;padding:0 0.6mm'); });
+  });
+  // 出欠状況
+  cell('B65:B70', '出欠状況', 'font-size:7pt', 'xc xf xv');
+  cell('C65:F66', '', ''); cell('G65:L66', '令和' + '<span style="display:inline-block;width:5mm;text-align:center">' + (fy - 2018) + '</span>年度', 'font-size:7.5pt');
+  cell('C67:F68', fi('教育日数'), 'font-size:7.5pt'); cell('G67:L68', esc(days.edu), 'font-size:9pt');
+  cell('C69:F70', fi('出席日数'), 'font-size:7.5pt'); cell('G69:L70', esc(days.att), 'font-size:9pt');
+  // 縦の見出し
+  cell('M6:M19', '指導の重点等', 'font-size:7pt', 'xc xf xv');
+  cell('M20:M64', '指導上参考となる事項', 'font-size:8pt;letter-spacing:6pt', 'xc xf xv');
+  cell('M65:M70', '備考', 'font-size:7pt;letter-spacing:4pt', 'xc xf xv');
+  // 年度の列
+  cell('N6:AF7', '令和　' + (fy - 2018) + '　年度', 'font-size:9pt');
+  cell('N8:AF19', '', '', 'xc');
+  cell('N8:U9', '（学年の重点）', 'font-size:7.5pt', 'xf');
+  h += ftBox(g('O10:AE12'), gradeFocus('月'), 8);
+  cell('N13:AF13', '', 'border-bottom:0.5px dashed #000', '');
+  cell('N14:U15', '（個人の重点）', 'font-size:7.5pt', 'xf');
+  h += ftBox(g('O16:AE19'), row.focus || '', 8);
+  cell('N20:AF64', '', '', 'xc');
+  h += ftBox(g('O21:AE63'), row.guidance || '', 8.6);
+  cell('N65:AF70', '', '', 'xc');
+  h += ftBox(g('O66:AE70'), row.remarks || '', 8);
+  // 幼児期の終わりまでに育ってほしい姿
+  cell('AG6:BE7', '幼児期の終わりまでに育ってほしい姿', 'font-size:9.5pt');
+  cell('AG8:BE15', '<div style="padding:0 1mm;text-align:left;line-height:1.35">' + esc(SUGATA_NOTE) + '</div>', 'font-size:5.8pt');
+  SUGATA.forEach(function (s) {
+    cell('AG' + s[2] + ':AK' + s[3], '<div style="padding:0 0.6mm;text-align:left;line-height:1.3">' + esc(s[0]) + '</div>', 'font-size:' + (s[0].length > 14 ? 6.3 : 7.3) + 'pt');
+    cell('AL' + s[2] + ':BE' + s[3], '<div style="padding:0 1mm;text-align:left;line-height:1.35">' + esc(s[1]) + '</div>', 'font-size:6.3pt');
+  });
+  h += boxAt(g('B6:AF70'), '', '', 'xm') + boxAt(g('AG6:BE70'), '', '', 'xm');
+  // 下の説明
+  var notes = YK_NOTE.concat(YK_NOTE_LAST, YK_NOTE_END);
+  notes.forEach(function (n, i) { h += boxAt(g('B' + (72 + i) + ':BE' + (72 + i)), esc(n[1]), 'font-size:5.4pt;white-space:nowrap;line-height:1;display:flex;align-items:center;padding-left:' + (n[0] * 3) + 'mm'); });
+  return '<div class="page a4 mincho yk-page" style="padding:0">' + h + '</div>';
+}
 
 // ===== 出席簿（印刷）：今のExcel「出席簿_○月」の形。1枚目＝左（欠席した理由等・日々の数・21～30番）、2枚目＝右（1～20番） =====
 var AG = { top: 12, title: 11, no: 5, name: 27, day: 4.2, sums: [6.5, 10, 12.5, 4.2, 4.2, 4.2, 6], kw: 6.1, av: 5, aw: 6.5, ax: 5.5 };
@@ -2417,9 +2864,18 @@ function adminSettings() {
     '<div class="f"><label>クラス編成用名簿のいちばん右の列の名前</label><input id="stLabel" value="' + esc(s.schoolLabel) + '"></div>' +
     '<div class="f"><label>使わないと自動で閉じるまでの時間（分）</label><input id="stIdle" inputmode="numeric" value="' + esc(s.idleMinutes) + '"></div>' +
     '<div class="f wide"><label>欠席理由の候補（、で区切る。出席簿で理由を入れるときに出ます。候補にない理由も入れられます）</label><textarea id="stReasons" style="min-height:70px">' + esc((s.reasons || []).join('、')) + '</textarea></div>' +
+    '</div><h3 style="margin-top:18px">指導要録</h3><div class="form-grid">' +
+    '<div class="f"><label>幼稚園名（学籍に関する記録）</label><input id="stYkName" value="' + esc(s.yorokuName || '') + '"></div>' +
+    '<div class="f wide"><label>幼稚園の所在地</label><input id="stYkAddr" value="' + esc(s.yorokuAddress || '') + '"></div>' +
+    '<div class="f"><label>園長の名前</label><input id="stPrincipal" value="' + esc(s.principal || '') + '"></div>' +
+    '<div class="f"><label>修了の日（今年度の月組。学籍の「修了」に入ります）</label><input type="date" id="stGrad" value="' + esc(s.gradDate || '') + '"></div>' +
+    GRADES.map(function (g) { return '<div class="f wide"><label>学年の重点（' + g + '組・' + GRADE_NAMES[g] + '）</label><input id="stFocus' + g + '" value="' + esc(s[FOCUS_KEY[g]] || '') + '"></div>'; }).join('') +
     '</div><div class="row" style="margin-top:12px"><button class="btn main" id="stSave">💾 保存する</button></div>';
   $('stSave').onclick = function () {
-    call('saveSettings', { kindergarten: $('stKg').value, buses: $('stBus').value, schoolLabel: $('stLabel').value, idleMinutes: $('stIdle').value, reasons: $('stReasons').value })
+    var o = { kindergarten: $('stKg').value, buses: $('stBus').value, schoolLabel: $('stLabel').value, idleMinutes: $('stIdle').value, reasons: $('stReasons').value,
+      yorokuName: $('stYkName').value, yorokuAddress: $('stYkAddr').value, principal: $('stPrincipal').value, gradDate: $('stGrad').value };
+    GRADES.forEach(function (g) { o[FOCUS_KEY[g]] = $('stFocus' + g).value; });
+    call('saveSettings', o)
       .then(function (h) { S.settings = h.settings; renderTop(); toast('保存しました（自動で閉じる時間は、次に入ったときから）'); })
       .catch(function (e) { alert(e.message); });
   };
@@ -2615,7 +3071,9 @@ function parseClassBook(buf, fileName) {
       parent: val(r, '保護者名'), parentKana: val(r, '保護者ふりがな'), tel: val(r, '電話番号'), c1: val(r, '連絡先①'), t1: val(r, '電話番号①'),
       c2: val(r, '連絡先②'), t2: val(r, '電話番号②'), siblings: val(r, '兄弟関係'), enterDate: date(r, '入園年月日'), transferIn: date(r, '転入園年月日'),
       leaveDate: date(r, '転出園年月日'), leaveNote: val(r, '退園・転園') || val(r, '退園'), beforeEnter: val(r, '入園前の状況'), school: val(r, '進学先'),
-      therapy: val(r, '療育'), care: val(r, '指導上注意が必要な点'), diffSurname: val(r, '園児と保護者が別の姓') ? '○' : '', diffAddress: val(r, '園児と保護者が別の住所') ? '○' : '',
+      therapy: val(r, '療育'), care: val(r, '指導上注意が必要な点'), diffSurname: val(r, '園児と保護者が別の姓') && val(r, '園児と保護者が別の姓') !== '0' ? '○' : '', diffAddress: val(r, '園児と保護者が別の住所') && val(r, '園児と保護者が別の住所') !== '0' ? '○' : '',
+      // Excel の「園児と保護者が別の住所」の列には、保護者の住所そのものが入っている（要録の保護者の現住所に使う）
+      parentAddress: /^(○|〇|1|TRUE|true)$/.test(val(r, '園児と保護者が別の住所')) || val(r, '園児と保護者が別の住所') === '0' ? '' : val(r, '園児と保護者が別の住所'),
       note: val(r, '学籍備考')
     };
     var enroll = { no: val(r, '番号'), bus: val(r, 'バス'), officer: val(r, '役員') ? '役員' : '', nextBus: val(r, '来年度バス'), nextOfficer: val(r, '来年度役員') ? '役員' : '' };
@@ -2771,6 +3229,9 @@ var Demo = (function () {
   function me(token) { var m = sessions[token] || (token === 'demo-token' ? { name: '見本 管理者', role: '管理者' } : null); if (!m) throw new Error('AUTH|もう一度入ってください。'); return m; }
   function hello(m) {
     var ys = {}; db.classes.forEach(function (c) { ys[c.year] = 1; }); db.enrolls.forEach(function (e) { ys[e.year] = 1; }); ys[String(fy())] = 1;
+    var ykDef = { yorokuName: '学校法人見本学園　見本幼稚園', yorokuAddress: '見本県見本市見本町1-2-3', principal: '見本 園長', gradDate: (fy() + 1) + '-03-18',
+      focusHoshi: '園生活に慣れる。', focusHana: '園生活に慣れ自分の好きな遊びを見つける。', focusYuki: '友達と一緒に意欲的に遊ぶ。', focusTsuki: '自分の考えを出し、友達と協力して遊びを発展させる。' };
+    Object.keys(ykDef).forEach(function (k) { if (db.settings[k] === undefined) db.settings[k] = ykDef[k]; });
     if (!db.settings.reasons) db.settings.reasons = ['風邪', '頭痛', '発熱', '鼻水', '腹痛', '嘔吐・下痢', '大事をとって', 'インフルエンザ', '水痘', 'おたふく', '溶連菌', '手足口病', '感染性胃腸炎', 'コロナ', '怪我', '通院', '療育', '私用', '忌引'];
     return { me: { name: m.name, role: m.role, idleMinutes: Number(db.settings.idleMinutes) || 30 }, settings: db.settings, years: Object.keys(ys).sort().reverse(), currentYear: String(fy()), classes: JSON.parse(JSON.stringify(db.classes)) };
   }
@@ -2829,7 +3290,7 @@ var Demo = (function () {
       db.enrolls.forEach(function (e) { if (e.year === y && ren[e.cls]) e.cls = ren[e.cls]; });
       log(m.name, 'クラスを直す', y); keep(); return hello(m);
     },
-    saveSettings: function (m, s) { db.settings.kindergarten = s.kindergarten; db.settings.buses = String(s.buses).split(/[、,]/).map(function (x) { return x.trim(); }).filter(String); db.settings.schoolLabel = s.schoolLabel; db.settings.idleMinutes = s.idleMinutes; if (s.reasons !== undefined) db.settings.reasons = String(s.reasons).split(/[、,\n]/).map(function (x) { return x.trim(); }).filter(String); keep(); return hello(m); },
+    saveSettings: function (m, s) { ['yorokuName', 'yorokuAddress', 'principal', 'gradDate', 'focusHoshi', 'focusHana', 'focusYuki', 'focusTsuki'].forEach(function (k) { if (s[k] !== undefined) db.settings[k] = String(s[k]).trim(); }); db.settings.kindergarten = s.kindergarten; db.settings.buses = String(s.buses).split(/[、,]/).map(function (x) { return x.trim(); }).filter(String); db.settings.schoolLabel = s.schoolLabel; db.settings.idleMinutes = s.idleMinutes; if (s.reasons !== undefined) db.settings.reasons = String(s.reasons).split(/[、,\n]/).map(function (x) { return x.trim(); }).filter(String); keep(); return hello(m); },
     listStaff: function () { return db.staff.map(function (s) { return { name: s.name, id: s.id || '', role: s.role, state: s.state, lastLogin: s.lastLogin }; }); },
     addStaff: function (m, n, r, pw, id) { if (!n.trim()) throw new Error('名前を入れてください。'); db.staff.push({ name: n.trim(), id: String(id || '').trim().toLowerCase(), role: r, state: '使える', pw: pw, lastLogin: '' }); keep(); return api.listStaff(); },
     setStaffId: function (m, n, id) { db.staff.filter(function (x) { return x.name === n; })[0].id = String(id || '').trim().toLowerCase(); keep(); return api.listStaff(); },
@@ -2869,6 +3330,12 @@ var Demo = (function () {
       db.cal = (db.cal || []).filter(function (c) { return fyOfDate(c.date) !== y || c.cls; }).concat(list);
       log(m.name, '園の予定を直す', y); keep(); return db.cal.filter(function (c) { return fyOfDate(c.date) === y; });
     },
+    attendanceYear: function (m, y) {
+      var rows = [];
+      ymList(y).forEach(function (ym) { var r = api.attendance(m, ym); rows = rows.concat(r.rows); });
+      db.cal = db.cal || demoCal();
+      return { year: y, rows: rows, calendar: db.cal.filter(function (c) { return fyOfDate(c.date) === y; }) };
+    },
     growth: function (m, y) {
       db.growth = db.growth || seedGrowth();
       var ids = {}; db.enrolls.forEach(function (e) { if (e.year === y) ids[e.childId] = 1; });
@@ -2881,7 +3348,8 @@ var Demo = (function () {
       var anySport = false;
       changes.forEach(function (c) {
         var sp = SPORTS.filter(function (s) { return s.key === c.key; })[0];
-        if (['harunohi1', 'harunohi2', 'harunohi3'].indexOf(c.key) < 0 && !sp) throw new Error('この項目は直せません：' + c.key);
+        if (['harunohi1', 'harunohi2', 'harunohi3', 'focus', 'guidance', 'remarks', 'eduDays', 'attendDays'].indexOf(c.key) < 0 && !sp) throw new Error('この項目は直せません：' + c.key);
+        if ((c.key === 'eduDays' || c.key === 'attendDays') && !/^\d{0,3}$/.test(String(c.value))) throw new Error('日数は0～366の数で入れてください。');
         var e = db.enrolls.filter(function (x) { return x.year === y && x.childId === c.childId; })[0];
         if (!e) throw new Error('この年度のクラスにいない園児です。');
         var g = e.cls.charAt(0);
@@ -2936,6 +3404,14 @@ var Demo = (function () {
       var gi = GRADES.indexOf(e.cls.charAt(0));
       for (var j = 1; j < gi; j++) put(e.childId, GRADES[j], Number(y) - (gi - j));
       if (gi >= 1 && i % 2 === 0) put(e.childId, GRADES[gi], Number(y));
+    });
+    // 見本の要録の文（3人に1人くらい）
+    var gd = '　入園当初は、登園時に涙を見せることもあったが、担任が気持ちを受け止めて関わるうちに安心して過ごせるようになった。\n　好きな遊びを見つけると、友達のそばで同じ遊びを楽しむ姿が見られた。砂場では、友達と一緒に山を作り、トンネルがつながると喜び合っていた。\n　友達とのかかわりの中で、自分の思いを言葉で伝えようとする姿が増えてきている。次年度も、思いを出し合いながら遊ぶ楽しさを味わえるよう援助していきたい。';
+    db.enrolls.filter(function (e) { return e.year === y; }).forEach(function (e, i) {
+      if (i % 3 !== 0) return;
+      var g = e.cls.charAt(0), row = out.filter(function (r) { return r.childId === e.childId && r.grade === g; })[0];
+      if (!row) { row = { childId: e.childId, grade: g, year: y, updatedAt: '', updatedBy: '見本' }; out.push(row); }
+      row.focus = '友達とかかわりながら、自分の思いを表現する。'; row.guidance = gd; row.remarks = i % 2 ? '' : '預かり保育を週２回利用。';
     });
     return out;
   }
