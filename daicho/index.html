@@ -241,7 +241,7 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
   html, body { background: #fff; }
   body > *:not(#print) { display: none !important; }
   #print { display: block; }
-  .page { box-shadow: none; margin: 0; }
+  .page { box-shadow: none; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 </style>
 </head>
@@ -1535,8 +1535,13 @@ function haruPage(ci, k, term, text) {
   var stamp = function (top, label) {
     return abs('left:155mm;top:' + top + 'mm;width:29mm;height:20.5mm;border:1.3px solid #000', '<div style="border-bottom:1px solid #000;height:5mm;line-height:5mm;font-size:9pt;font-weight:bold;text-align:center">' + label + '</div>');
   };
-  var lines = '';
-  for (var i = 1; i <= 4; i++) lines += abs('left:0;top:' + (i * 10.4) + 'mm;width:' + (i >= 3 ? 129 : 158) + 'mm;border-top:1px dotted #000', '');
+  // 「お家の人より」の罫線：「担任より」と同じ手描き風の線。保護者印の左は短くする
+  var lines = '<svg viewBox="0 0 158 52" style="position:absolute;left:0;top:0;width:158mm;height:52mm">';
+  for (var i = 1; i <= 5; i++) {
+    var ly = i * 52 / 6;
+    lines += '<path d="' + wobblyPath(6, ly > 29 ? 125 : 152, ly, 'p' + k.enroll.no + i) + '" fill="none" stroke="#777" stroke-width="0.32" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  lines += '</svg>';
   return '<div class="page a4" style="padding:0">' +
     '<img src="' + IMG.sun + '" alt="" style="position:absolute;left:26mm;top:27mm;width:43mm">' +
     abs('left:83mm;top:27mm;font-size:28pt;letter-spacing:1.5pt;white-space:nowrap', '春の陽だより') +
@@ -1551,7 +1556,7 @@ function haruPage(ci, k, term, text) {
       '<div class="ft-ruled mincho" data-seed="' + esc(k.enroll.no) + '" style="position:absolute;left:10mm;right:9mm;top:' + RULE.top + 'mm;height:' + RULE.h + 'mm;overflow:hidden;white-space:pre-wrap;word-break:break-all;' +
         'line-height:' + (RULE.h / RULE.rows) + 'mm;font-size:' + (RULE.h / RULE.rows * RULE.font) + 'mm">' + esc(text) + '</div>') +
     stamp(180, '担任印') +
-    '<img src="' + IMG.bear + '" alt="" style="position:absolute;left:84mm;top:184mm;width:62mm">' +
+    '<img src="' + IMG.bear + '" alt="" style="position:absolute;left:81.6mm;top:181.8mm;height:30mm;width:auto">' +
     abs('left:35mm;top:213.5mm;font-size:12pt;font-weight:bold;white-space:nowrap', '【　お家の人より　】') +
     abs('left:26mm;top:220mm;width:158mm;height:52mm;border:1.5px solid #000', lines) +
     stamp(251.2, '保護者印') +
@@ -1673,8 +1678,8 @@ function sportsCardPage(k, grade, mode) {
       td('border-left:' + B + ';border-bottom:' + b + ';writing-mode:vertical-rl;text-align:center;font-size:10pt;letter-spacing:1pt', '記録') +
       SPORT_GRADES.map(function (g) { return td('border:' + b + ';border-left:' + B + ';text-align:center;font-size:18pt', cell(g, sp, false)); }).join('') + '</tr>' +
       '<tr style="' + rh + '">' +
-      td('border-left:' + B + ';border-bottom:' + B + ';writing-mode:vertical-rl;text-align:center;font-size:9pt;letter-spacing:0.5pt', '学年平均') +
-      SPORT_GRADES.map(function (g) { return td('border:' + b + ';border-left:' + B + ';border-bottom:' + B + ';text-align:center;font-size:16pt', cell(g, sp, true)); }).join('') + '</tr>';
+      td('border-left:' + B + ';border-bottom:' + B + ';writing-mode:vertical-rl;text-align:center;font-size:9pt;letter-spacing:0.5pt;color:#d00', '学年平均') +
+      SPORT_GRADES.map(function (g) { return td('border:' + b + ';border-left:' + B + ';border-bottom:' + B + ';text-align:center;font-size:16pt;color:#d00', cell(g, sp, true)); }).join('') + '</tr>';
   });
   return h + '</table></div>';
 }
