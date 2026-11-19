@@ -1155,6 +1155,7 @@ function fitAll(root) {
     var base = parseFloat(getComputedStyle(el).fontSize), size = base;
     while (el.scrollHeight > el.clientHeight + 1 && size > base * 0.5) { size *= 0.96; el.style.fontSize = size + 'px'; }
   });
+  Array.prototype.forEach.call(root.querySelectorAll('.ft-ruled'), fitRuled);
 }
 function chunk(list, n) { var out = []; for (var i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); if (!out.length) out.push([]); return out; }
 function slots(list, n) { var a = list.slice(0, n); while (a.length < n) a.push(null); return a; }
@@ -1349,8 +1350,10 @@ function haruPage(ci, k, term, text) {
       abs('left:0;width:78mm;bottom:0.8mm;text-align:center;font-size:24pt;font-weight:bold;line-height:1.2', fi(k.name)) +
       abs('right:9mm;bottom:1.5mm;font-size:12pt', 'さん')) +
     abs('left:35mm;top:77mm;font-size:12pt;font-weight:bold;white-space:nowrap', '【　担任より　】') +
-    abs('left:26mm;top:83mm;width:158mm;height:97mm;border:1.5px solid #000;display:flex;align-items:center',
-      '<div class="ft mincho" style="width:100%;max-height:93mm;overflow:hidden;padding:0 10mm;font-size:16pt;line-height:1.42;white-space:pre-wrap;word-break:break-all">' + esc(text) + '</div>') +
+    abs('left:26mm;top:83mm;width:158mm;height:97mm;border:1.5px solid #000',
+      '<svg class="rule" viewBox="0 0 158 97" style="position:absolute;left:0;top:0;width:158mm;height:97mm">' + ruledLines(RULE.rows, RULE.h / RULE.rows, k.enroll.no) + '</svg>' +
+      '<div class="ft-ruled mincho" data-seed="' + esc(k.enroll.no) + '" style="position:absolute;left:10mm;right:9mm;top:' + RULE.top + 'mm;height:' + RULE.h + 'mm;overflow:hidden;white-space:pre-wrap;word-break:break-all;' +
+        'line-height:' + (RULE.h / RULE.rows) + 'mm;font-size:' + (RULE.h / RULE.rows * RULE.font) + 'mm">' + esc(text) + '</div>') +
     stamp(180, '担任印') +
     '<img src="' + IMG.bear + '" alt="" style="position:absolute;left:84mm;top:184mm;width:62mm">' +
     abs('left:35mm;top:213.5mm;font-size:12pt;font-weight:bold;white-space:nowrap', '【　お家の人より　】') +
@@ -1358,6 +1361,40 @@ function haruPage(ci, k, term, text) {
     stamp(251.2, '保護者印') +
     '</div>';
 }
+// 「担任より」の便箋のような罫線：top＝枠の上から1行目までの余白、h＝文を書く高さ（mm）、rows＝ふつうの行数、font＝行の高さに対する字の大きさ
+var RULE = { top: 3, h: 91.2, rows: 12, maxRows: 26, font: 0.74, x1: 6, x2: 152 };
+// 手で引いたような、ゆるく波打つ線（行ごとに少しずつちがう形。同じ子は毎回同じ形）
+function wobblyPath(x1, x2, y, seed) {
+  var r = (Number(String(seed).replace(/\D/g, '')) || 7) * 7919 + Math.round(y * 131);
+  var rnd = function () { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+  var pts = [], x = x1;
+  while (x < x2) { pts.push([x, y + (rnd() - 0.5) * 0.8]); x += 5 + rnd() * 4; }
+  pts.push([x2, y + (rnd() - 0.5) * 0.8]);
+  var f = function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); };
+  var d = 'M' + f(pts[0]);
+  for (var i = 1; i < pts.length - 1; i++) d += ' Q' + f(pts[i]) + ' ' + f([(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2]);
+  return d + ' L' + f(pts[pts.length - 1]);
+}
+function ruledLines(rows, pitch, seed) {
+  var h = '';
+  for (var i = 1; i <= rows; i++) {
+    h += '<path d="' + wobblyPath(RULE.x1, RULE.x2, RULE.top + pitch * i + pitch * 0.04, seed + '' + i) + '" fill="none" stroke="#777" stroke-width="0.32" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  return h;
+}
+// 文が多いときは、行の高さと字を一緒に小さくして行を増やす（罫線もその行数で引き直す）
+function fitRuled(el) {
+  var rows = RULE.rows, pitch = RULE.h / rows;
+  for (; rows <= RULE.maxRows; rows++) {
+    pitch = RULE.h / rows;
+    el.style.lineHeight = pitch + 'mm'; el.style.fontSize = (pitch * RULE.font) + 'mm';
+    if (el.scrollHeight <= el.clientHeight + 1) break;
+  }
+  if (rows > RULE.maxRows) rows = RULE.maxRows;
+  var svg = el.parentNode.querySelector('svg.rule');
+  if (svg) svg.innerHTML = ruledLines(rows, RULE.h / rows, el.getAttribute('data-seed') || '');
+}
+
 // 今のExcel「春の陽下書き」と同じ並び（B5）。選んだ学期の欄だけに文が入る
 function haruDraftPage(k, term, text) {
   var tops = [0, 39, 107, 175];
