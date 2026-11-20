@@ -30,6 +30,18 @@ button { cursor: pointer; }
 #top .tbtn { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 5px 10px; white-space: nowrap; }
 #top .tbtn:hover { background: rgba(255,255,255,.28); }
 #top .tbtn.on { background: #fff; color: var(--main); font-weight: bold; }
+#top .tbtn.work { background: #fff; color: var(--main-d); font-weight: bold; border-color: #fff; }
+#top .tbtn.work:hover { background: var(--main-l); }
+.pick-card { max-width: 860px; margin: 24px auto; }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pick { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 14px 12px; text-align: left; display: flex; flex-direction: column; gap: 3px; min-height: 92px; }
+.pick:hover { border-color: var(--main); background: var(--main-l); }
+.pick b { font-size: 22px; color: var(--main-d); }
+.pick span { font-size: 13px; color: var(--sub); }
+.pick.mine { border: 2px solid var(--main); padding: 13px 11px; }
+.pick .mine-b { align-self: flex-start; background: var(--main); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
+.pick.all { grid-column: 1 / -1; min-height: 0; flex-direction: row; align-items: baseline; gap: 10px; border-style: dashed; }
+.pick.all b { font-size: 17px; }
 #who { font-size: 13px; opacity: .9; white-space: nowrap; }
 #demoBadge { background: var(--accent); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 12px; }
 
@@ -267,6 +279,7 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
   <h1>📘 園児台帳</h1>
   <span id="demoBadge" class="hidden">見本</span>
   <select id="yearSel" title="年度"></select>
+  <button class="tbtn work" id="workBtn" title="作業するクラスを選び直す"></button>
   <button class="tbtn" data-go="list">👧 園児</button>
   <button class="tbtn" data-go="att">📅 出席簿</button>
   <button class="tbtn" data-go="grow">🌱 成長の記録</button>
@@ -293,6 +306,15 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
       <button class="btn main" type="submit">入る</button>
     </form>
     <p class="muted" style="margin-top:14px">・パスワードは職員ひとりずつちがいます。人に教えないでください。<br>・使い終わったら「出る」を押してください。しばらく使わないと自動で閉じます。</p>
+  </section>
+
+  <!-- 作業するクラスを選ぶ -->
+  <section id="vPick" class="hidden">
+    <div class="card pick-card">
+      <h2 style="margin:0 0 4px">🏫 どのクラスの作業をしますか？</h2>
+      <p class="muted" style="margin:0 0 14px" id="pickNote"></p>
+      <div class="pick-grid" id="pickGrid"></div>
+    </div>
   </section>
 
   <!-- 一覧 -->
@@ -492,6 +514,9 @@ var S = {
   att: {}, calendar: {}, growth: {}
 };
 try { S.token = sessionStorage.getItem('daicho_token') || ''; } catch (e) {}
+// 作業するクラス：null＝まだ選んでいない／''＝全クラス（管理者だけ）／クラス名
+S.work = null;
+try { var w0 = sessionStorage.getItem('daicho_work'); if (w0 !== null) S.work = w0; } catch (e) {}
 
 // ===== サーバーとのやりとり =====
 function call(fn) {
@@ -533,7 +558,7 @@ function start() {
     idleLimit = (Number(S.me.idleMinutes) || 30) * 60 * 1000;
     renderTop();
     show('vLogin', false); show('top', true);
-    return loadRoster().then(function () { go('list'); });
+    return loadRoster().then(function () { go(workOk() ? 'list' : 'pick'); });
   }).catch(function (e) {
     if (S.token) $('loginMsg').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>';
     showLogin();
@@ -541,7 +566,7 @@ function start() {
 }
 
 function showLogin(msg) {
-  ['vList', 'vEdit', 'vDocs', 'vAdmin', 'vAtt', 'vGrow', 'top'].forEach(function (id) { show(id, false); });
+  ['vPick', 'vList', 'vEdit', 'vDocs', 'vAdmin', 'vAtt', 'vGrow', 'top'].forEach(function (id) { show(id, false); });
   show('vLogin', true);
   if (msg) $('loginMsg').innerHTML = '<div class="msg warn">' + esc(msg) + '</div>';
   $('print').innerHTML = ''; $('preview').innerHTML = '';
@@ -556,8 +581,9 @@ function clearAll() {
   A.pending = []; clearTimeout(A.timer);
   G.pending = {}; G.conflicts = {}; clearTimeout(G.timer);
   $('attTable').innerHTML = ''; $('attReasons').innerHTML = ''; $('growBody').innerHTML = '';
-  try { sessionStorage.removeItem('daicho_token'); } catch (e) {}
-  $('kidTable').innerHTML = '';
+  try { sessionStorage.removeItem('daicho_token'); sessionStorage.removeItem('daicho_work'); } catch (e) {}
+  S.work = null; S.view = '';
+  $('kidTable').innerHTML = ''; $('pickGrid').innerHTML = '';
 }
 function forceLogout(msg) { clearAll(); hideIdleWarn(); showLogin(msg); }
 
@@ -599,25 +625,83 @@ function renderTop() {
   if (ys.indexOf(S.year) < 0) ys.unshift(S.year);
   $('yearSel').innerHTML = ys.map(function (y) { return '<option value="' + y + '"' + (y === S.year ? ' selected' : '') + '>' + nendo(y) + '</option>'; }).join('');
   $('busList').innerHTML = (S.settings.buses || []).map(function (b) { return '<option value="' + esc(b) + '">'; }).join('');
+  renderWorkBtn();
+}
+function isAdmin() { return !!S.me && S.me.role === '管理者'; }
+// 選んだクラスが、今の年度にちゃんとあるか
+function workOk() {
+  if (S.work === null) return false;
+  if (S.work === '') return isAdmin();
+  return yearClasses().some(function (c) { return c.name === S.work; });
+}
+// 画面のクラスの選び先：クラスを選んでいるときは、そのクラスだけ
+function pickClasses() {
+  var cs = yearClasses();
+  return S.work ? cs.filter(function (c) { return c.name === S.work; }) : cs;
+}
+function renderWorkBtn() {
+  $('workBtn').textContent = '🏫 ' + (S.work === null ? 'クラスを選ぶ' : S.work === '' ? '全クラス' : S.work) + ' ▾';
+}
+function setWork(name) {
+  S.work = name;
+  try { sessionStorage.setItem('daicho_work', name); } catch (e) {}
+  S.cls = name; G.cls = name; A.cls = name; docOpt.cls = name; docOpt.kid = '';
+  if (name) docOpt.grade = gradeOfCls(name);
+  renderWorkBtn();
+  go('list');
+}
+$('workBtn').onclick = function () { go('pick'); };
+function isMine(c) {
+  var me = String(S.me && S.me.name || '').replace(/[\s　]+/g, '');
+  if (!me) return false;
+  return [c.teacher, c.sub1, c.sub2].some(function (t) { return t && String(t).replace(/[\s　]+/g, '') === me; });
+}
+function renderPick() {
+  var classes = yearClasses();
+  var all = S.roster ? S.roster.children : [];
+  var cnt = function (n) { return all.filter(function (k) { return k.enroll.cls === n && !isLeft(k); }).length; };
+  $('pickNote').textContent = nendo(S.year) + '　選んだクラスの園児・出席簿・成長の記録・書類だけが出ます。あとで上の「🏫」から選び直せます。';
+  var h = classes.map(function (c) {
+    var t = [c.teacher, c.sub1, c.sub2].filter(Boolean);
+    return '<button class="pick' + (isMine(c) ? ' mine' : '') + '" data-w="' + esc(c.name) + '">' +
+      (isMine(c) ? '<span class="mine-b">あなたのクラス</span>' : '') +
+      '<b>' + esc(c.name) + '</b><span>' + (t.length ? '担任 ' + esc(t.join('・')) : '担任 －') + '</span><span>' + cnt(c.name) + '人</span></button>';
+  }).join('');
+  if (isAdmin() && classes.length) h += '<button class="pick all" data-w="*"><b>📚 全クラス</b><span>管理者だけ。全部のクラスの情報を見て、直せます（' + all.filter(function (k) { return !isLeft(k); }).length + '人）</span></button>';
+  if (!classes.length) h = '<div class="empty" style="grid-column:1/-1">' + nendo(S.year) + 'のクラスがまだありません。' +
+    (isAdmin() ? '<br><button class="btn main" id="pickAdmin" style="margin-top:10px">⚙ 管理の「クラス」で作る</button>' : '管理者に知らせてください。') + '</div>';
+  $('pickGrid').innerHTML = h;
+  Array.prototype.forEach.call(document.querySelectorAll('#pickGrid [data-w]'), function (b) {
+    b.onclick = function () { var w = b.getAttribute('data-w'); setWork(w === '*' ? '' : w); };
+  });
+  if ($('pickAdmin')) $('pickAdmin').onclick = function () { setWork(''); go('admin'); };
 }
 $('yearSel').onchange = function () {
   if (S.dirty && !confirm('保存していない変更があります。年度を変えますか？')) { this.value = S.year; return; }
   flushGrow();
   S.year = this.value; S.cls = ''; S.dirty = false;
-  loadRoster().then(function () { go(S.view === 'edit' ? 'list' : S.view); });
+  loadRoster().then(function () {
+    // 選んでいたクラスがこの年度にないときは、選び直してもらう
+    if (S.work !== null && !workOk()) { S.work = null; try { sessionStorage.removeItem('daicho_work'); } catch (e) {} renderWorkBtn(); }
+    go(S.view === 'edit' ? 'list' : S.view);
+  });
 };
 Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), function (b) {
   b.onclick = function () { go(b.getAttribute('data-go')); };
 });
 
 function go(v) {
+  if (!workOk() && v !== 'admin') v = 'pick';   // クラスを選ぶまでは、ほかの画面に行かない（管理者の管理画面は行ける）
+  if (v === 'admin' && !isAdmin()) v = 'list';
   if (S.view === 'edit' && v !== 'edit' && S.dirty && !confirm('保存していない変更があります。保存しないで移りますか？')) return;
   if (v !== 'edit') S.dirty = false;
   if (S.view === 'att' && v !== 'att') flushAtt();
   if (S.view === 'grow' && v !== 'grow') flushGrow();
   S.view = v;
-  show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin'); show('vAtt', v === 'att'); show('vGrow', v === 'grow');
+  show('vPick', v === 'pick'); show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin'); show('vAtt', v === 'att'); show('vGrow', v === 'grow');
   Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), function (b) { b.classList.toggle('on', b.getAttribute('data-go') === v); });
+  $('workBtn').classList.toggle('on', v === 'pick');
+  if (v === 'pick') renderPick();
   if (v === 'list') renderList();
   if (v === 'att') renderAtt();
   if (v === 'grow') renderGrow();
@@ -672,6 +756,8 @@ function renderList() {
   var classes = yearClasses();
   var showLeft = $('showLeft').checked;
   var all = S.roster ? S.roster.children : [];
+  if (S.work) S.cls = S.work;
+  show('clsChips', !S.work);   // クラスを選んでいるときは、クラスの切りかえを出さない
   var chips = '<button class="chip' + (!S.cls ? ' on' : '') + '" data-c="">全クラス<small>' + all.filter(function (k) { return !isLeft(k); }).length + '</small></button>';
   classes.forEach(function (c) {
     var n = all.filter(function (k) { return k.enroll.cls === c.name && !isLeft(k); }).length;
@@ -744,8 +830,8 @@ function fillEdit(c) {
   });
   var en = (c.enrolls || []).filter(function (e) { return e.year === S.year; })[0] || { cls: c.id ? '' : S.cls };
   $('enrollHead').textContent = nendo(S.year) + 'のクラス';
-  var opts = '<option value="">（この年度はクラスなし）</option>' + yearClasses().map(function (k) { return '<option>' + esc(k.name) + '</option>'; }).join('');
-  if (en.cls && !yearClasses().some(function (k) { return k.name === en.cls; })) opts += '<option>' + esc(en.cls) + '</option>';
+  var opts = '<option value="">（この年度はクラスなし）</option>' + pickClasses().map(function (k) { return '<option>' + esc(k.name) + '</option>'; }).join('');
+  if (en.cls && !pickClasses().some(function (k) { return k.name === en.cls; })) opts += '<option>' + esc(en.cls) + '</option>';
   $('enCls').innerHTML = opts;
   $('enCls').value = en.cls || '';
   $('enNo').value = en.no || '';
@@ -875,7 +961,7 @@ function haruCount(text) {
   return { text: t.replace(/\n/g, '').length + '字・約' + lines + '行' + note, over: lines > HARU_ROWS };
 }
 function renderHaru() {
-  var classes = yearClasses();
+  var classes = pickClasses();
   var has = function (n) { return classes.some(function (c) { return c.name === n; }); };
   if (!has(G.cls)) G.cls = has(S.cls) ? S.cls : (classes[0] || {}).name || '';
   if (!G.term) G.term = defaultTerm();
@@ -998,7 +1084,7 @@ function fmtAvg(a) { return a ? (Math.round(a.sum / a.n * 10) / 10).toFixed(1) :
 function fmtNum(v) { return Math.round(Number(v) * 10) / 10 + ''; }
 
 function renderSports() {
-  var classes = yearClasses();
+  var classes = pickClasses();
   var has = function (n) { return classes.some(function (c) { return c.name === n; }); };
   if (!has(G.cls)) G.cls = has(S.cls) ? S.cls : (classes[0] || {}).name || '';
   var year = S.year;
@@ -1205,7 +1291,7 @@ function yorokuDays(k, grade, cls) {
 function mdText(d) { var m = String(d || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? (+m[1]) + '月' + (+m[2]) + '日' : ''; }
 
 function renderYoroku() {
-  var classes = yearClasses();
+  var classes = pickClasses();
   var has = function (n) { return classes.some(function (c) { return c.name === n; }); };
   if (!has(G.cls)) G.cls = has(S.cls) ? S.cls : (classes[0] || {}).name || '';
   var year = S.year;
@@ -1370,9 +1456,9 @@ function renderDocs() {
   });
   var d = DOCS.filter(function (x) { return x.id === S.doc; })[0];
   if (docOpt.includeLeft === null) docOpt.includeLeft = d.left;
-  if (!docOpt.cls || (docOpt.cls !== '*' && !yearClasses().some(function (c) { return c.name === docOpt.cls; }))) docOpt.cls = S.cls || (yearClasses()[0] || {}).name || '';
-  var h = '<div class="row"><b>クラス</b><select id="optCls">' + yearClasses().map(function (c) { return '<option' + (docOpt.cls === c.name ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
-    '<option value="*"' + (docOpt.cls === '*' ? ' selected' : '') + '>全クラス（クラスごとに次の紙へ）</option></select>' +
+  if (!docOpt.cls || (docOpt.cls === '*' && S.work) || (docOpt.cls !== '*' && !pickClasses().some(function (c) { return c.name === docOpt.cls; }))) docOpt.cls = S.work || S.cls || (pickClasses()[0] || {}).name || '';
+  var h = '<div class="row"><b>クラス</b><select id="optCls">' + pickClasses().map(function (c) { return '<option' + (docOpt.cls === c.name ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') +
+    (S.work ? '' : '<option value="*"' + (docOpt.cls === '*' ? ' selected' : '') + '>全クラス（クラスごとに次の紙へ）</option>') + '</select>' +
     '<label><input type="checkbox" id="optLeft"' + (docOpt.includeLeft ? ' checked' : '') + '> 退園した子も入れる</label></div>';
   if (S.doc === 'attendance') {
     if (!docOpt.ym || ymList(S.year).indexOf(docOpt.ym) < 0) docOpt.ym = defaultYm();
@@ -1909,7 +1995,7 @@ function boxAt(b, html, css, cls) {
 function ftBox(b, text, pt, css) {
   return boxAt(b, '<div class="ft" style="height:100%;overflow:hidden;white-space:pre-wrap;word-break:break-all">' + esc(text) + '</div>', 'font-size:' + pt + 'pt;line-height:1.42;' + (css || ''));
 }
-function ageAt(birth, on) {
+function ageYM(birth, on) {
   var b = String(birth || '').match(/^(\d{4})-(\d{2})-(\d{2})/), d = String(on || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!b || !d) return null;
   var y = +d[1] - +b[1], m = +d[2] - +b[2];
@@ -2023,7 +2109,7 @@ function gakusekiPage(ci, k, grade) {
   cell('B25:C26', '<span style="font-size:8.5pt;line-height:1.5">年度及び入園（転入園）<br>・進級時の幼児の年齢</span>');
   cell('B27:C27', '園　　長<br>氏　　名'); cell('B28:C29', '学級担任者<br>氏　　名');
   var start = kidStart(k) > fy + '-04-01' ? kidStart(k) : fy + '-04-01';
-  var age = ageAt(k.birth, start), slot = function (w, v) { return '<span style="display:inline-block;width:' + w + 'mm;text-align:center">' + v + '</span>'; };
+  var age = ageYM(k.birth, start), slot = function (w, v) { return '<span style="display:inline-block;width:' + w + 'mm;text-align:center">' + v + '</span>'; };
   var teachers = [ci.teacher, ci.sub1, ci.sub2].filter(Boolean);
   [['D', 'E'], ['F', 'G'], ['H', 'I'], ['J', 'K']].forEach(function (p, i) {
     var on = i === gi;
@@ -2488,7 +2574,7 @@ function markSummary(marks) {
 
 function renderAtt() {
   if (!A.ym || ymList(S.year).indexOf(A.ym) < 0) A.ym = defaultYm();
-  var cls = yearClasses();
+  var cls = pickClasses();
   if (!A.cls || !cls.some(function (c) { return c.name === A.cls; })) A.cls = S.cls || (cls[0] || {}).name || '';
   $('attCls').innerHTML = cls.map(function (c) { return '<option' + (c.name === A.cls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
   $('attYm').innerHTML = ymList(S.year).map(function (ym) { return '<option value="' + ym + '"' + (ym === A.ym ? ' selected' : '') + '>' + ymLabel(ym) + '</option>'; }).join('');
