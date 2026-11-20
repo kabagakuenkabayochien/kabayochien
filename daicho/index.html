@@ -43,6 +43,15 @@ button { cursor: pointer; }
 .pick .mine-b { align-self: flex-start; background: var(--main); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
 .pick.all { grid-column: 1 / -1; min-height: 0; flex-direction: row; align-items: baseline; gap: 10px; border-style: dashed; }
 .pick.all b { font-size: 17px; }
+table.shin input.grp { width: 3em; text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; padding: 4px; border: 1px solid #b8c4cc; border-radius: 6px; }
+table.shin input.nbus { width: 7em; padding: 5px 6px; border: 1px solid #b8c4cc; border-radius: 6px; }
+table.shin input.bad { border-color: #d33; background: #fff0f0; }
+table.shin input[type=checkbox] { width: 18px; height: 18px; }
+table.sum td, table.sum th { text-align: center; }
+table.sum tr.yet td { color: var(--sub); }
+.shin-map { margin: 12px 0; }
+.shin-map table.list { width: auto; min-width: 360px; margin-top: 4px; }
+.shin-map select { padding: 4px 6px; }
 #who { font-size: 13px; opacity: .9; white-space: nowrap; }
 #demoBadge { background: var(--accent); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: 12px; }
 
@@ -285,6 +294,7 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
   <button class="tbtn" data-go="att">📅 出席簿</button>
   <button class="tbtn" data-go="grow">🌱 成長の記録</button>
   <button class="tbtn" data-go="docs">🖨 書類</button>
+  <button class="tbtn" data-go="shin">🎓 進級</button>
   <button class="tbtn" data-go="admin" id="adminBtn">⚙ 管理</button>
   <span class="grow"></span>
   <span id="who"></span>
@@ -468,6 +478,12 @@ table.edit input, table.edit select { width: 100%; padding: 5px 6px; border: 1px
     <div id="preview"></div>
   </section>
 
+  <!-- 進級 -->
+  <section id="vShin" class="hidden">
+    <div class="card" id="shinPrep"></div>
+    <div class="card hidden" id="shinRun"></div>
+  </section>
+
   <!-- 管理 -->
   <section id="vAdmin" class="hidden">
     <div class="card">
@@ -567,7 +583,7 @@ function start() {
 }
 
 function showLogin(msg) {
-  ['vPick', 'vList', 'vEdit', 'vDocs', 'vAdmin', 'vAtt', 'vGrow', 'top'].forEach(function (id) { show(id, false); });
+  ['vPick', 'vList', 'vEdit', 'vDocs', 'vAdmin', 'vAtt', 'vGrow', 'vShin', 'top'].forEach(function (id) { show(id, false); });
   show('vLogin', true);
   if (msg) $('loginMsg').innerHTML = '<div class="msg warn">' + esc(msg) + '</div>';
   $('print').innerHTML = ''; $('preview').innerHTML = '';
@@ -581,6 +597,7 @@ function clearAll() {
   S.token = ''; S.me = null; S.roster = null; S.edit = null; S.dirty = false; S.heights = {}; S.att = {}; S.calendar = {}; S.growth = {};
   A.pending = []; clearTimeout(A.timer);
   G.pending = {}; G.conflicts = {}; clearTimeout(G.timer);
+  H.pending = {}; H.ny = null; H.map = {}; H.redo = false; clearTimeout(H.timer); $('shinPrep').innerHTML = ''; $('shinRun').innerHTML = '';
   $('attTable').innerHTML = ''; $('attReasons').innerHTML = ''; $('growBody').innerHTML = '';
   try { sessionStorage.removeItem('daicho_token'); sessionStorage.removeItem('daicho_work'); } catch (e) {}
   S.work = null; S.view = '';
@@ -681,7 +698,7 @@ function renderPick() {
 }
 $('yearSel').onchange = function () {
   if (S.dirty && !confirm('保存していない変更があります。年度を変えますか？')) { this.value = S.year; return; }
-  flushGrow();
+  flushGrow(); flushShin(); H.ny = null;
   S.year = this.value; S.cls = ''; S.dirty = false;
   loadRoster().then(function () {
     // 選んでいたクラスがこの年度にないときは、選び直してもらう
@@ -700,14 +717,16 @@ function go(v) {
   if (v !== 'edit') S.dirty = false;
   if (S.view === 'att' && v !== 'att') flushAtt();
   if (S.view === 'grow' && v !== 'grow') flushGrow();
+  if (S.view === 'shin' && v !== 'shin') flushShin();
   S.view = v;
-  show('vPick', v === 'pick'); show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin'); show('vAtt', v === 'att'); show('vGrow', v === 'grow');
+  show('vPick', v === 'pick'); show('vList', v === 'list'); show('vEdit', v === 'edit'); show('vDocs', v === 'docs'); show('vAdmin', v === 'admin'); show('vAtt', v === 'att'); show('vGrow', v === 'grow'); show('vShin', v === 'shin');
   Array.prototype.forEach.call(document.querySelectorAll('#top [data-go]'), function (b) { b.classList.toggle('on', b.getAttribute('data-go') === v); });
   $('workBtn').classList.toggle('on', v === 'pick');
   if (v === 'pick') renderPick();
   if (v === 'list') renderList();
   if (v === 'att') renderAtt();
   if (v === 'grow') renderGrow();
+  if (v === 'shin') renderShin();
   if (v === 'docs') renderDocs();
   if (v === 'admin') renderAdmin();
   window.scrollTo(0, 0);
@@ -808,7 +827,7 @@ $('q').oninput = renderList;
 $('showLeft').onchange = renderList;
 $('renumBtn').onclick = function () {
   if (!S.cls) return;
-  if (!confirm(S.cls + ' の番号を、ふりがなの「あいうえお順」に付け直します。\n（退園した子も含めて並べます）\nよいですか？')) return;
+  if (!confirm(S.cls + ' の番号を、ふりがなの「あいうえお順」（男女まぜて）に付け直します。\n（退園した子も含めて並べます。5月1日より後に入園・転入園した子は、入った順に最後に付けます）\nよいですか？')) return;
   busy(true, '付け直しています…');
   call('renumber', S.year, S.cls).then(function (r) { S.roster = r; renderList(); toast('番号を付け直しました'); })
     .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
@@ -896,8 +915,8 @@ $('delBtn').onclick = function () {
     .catch(function (e) { alert(e.message); }).then(function () { busy(false); });
 };
 window.addEventListener('beforeunload', function (e) {
-  var growWait = Object.keys(G.pending).length > 0;
-  if (growWait) flushGrow();
+  var growWait = Object.keys(G.pending).length > 0 || Object.keys(H.pending).length > 0;
+  if (growWait) { flushGrow(); flushShin(); }
   if (S.dirty || growWait) { e.preventDefault(); e.returnValue = ''; }
 });
 
@@ -2822,6 +2841,203 @@ function drawCalendar() {
   };
 }
 
+// ===== 進級 =====
+// 学年の先生：子どもに「来年度の組（仮）」A・B…と、来年度のバス・役員を入れる
+// 管理者：組の記号を来年度のクラスに当てはめて「進級する」→ 来年度の在籍を作り、番号を五十音順に付ける
+var H = { grade: '', pending: {}, pendingYear: '', timer: null, map: {}, redo: false, ny: null };
+var NEXT_GRADE = { '星': '花', '花': '雪', '雪': '月' };
+function gradeKids(g) { return kidsOf('', false).filter(function (k) { return gradeOfCls(k.enroll.cls) === g; }); }
+function shinVal(k, f) { var p = H.pending[k.id]; return p && p[f] !== undefined ? p[f] : (k.enroll[f] || ''); }
+function normGroup(v) { return String(v || '').trim().replace(/[Ａ-Ｚａ-ｚ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).toUpperCase(); }
+function shinStatus(t) { var el = $('shinStatus'); if (el) el.textContent = t; }
+
+function renderShin() {
+  var ny = String(Number(S.year) + 1), g, kids;
+  if (S.work) { g = gradeOfCls(S.work); kids = kidsOf(S.work, false); }
+  else { if (!NEXT_GRADE[H.grade]) H.grade = '花'; g = H.grade; kids = gradeKids(g); }
+  var h = '<div class="row" style="justify-content:space-between"><h2 style="margin:0">🎓 進級の準備（' + nendo(S.year) + ' → ' + nendo(ny) + '）</h2><span id="shinStatus" class="muted"></span></div>';
+  if (!S.work) h += '<div class="chips" style="margin-top:8px">' + ['星', '花', '雪'].map(function (x) { return '<button class="chip' + (x === g ? ' on' : '') + '" data-g="' + x + '">' + x + '組</button>'; }).join('') + '</div>';
+  if (g === '月') {
+    h += '<div class="empty">月組は修了するので、進級の準備はありません。</div>';
+  } else {
+    h += '<p class="muted" style="margin:8px 0">「来年度の組」には、学年の先生で決めた組の記号（A・B・C…）を入れます。本当のクラス名（' + NEXT_GRADE[g] + '１組など）は、管理者が「進級する」ときに当てはめます。<br>' +
+      '来年度のバス・役員は、決まったら入れてください。入れたものは自動で保存されます。春の陽・要録・体力測定などの記録は、進級してもそのまま引き継がれます。</p>';
+    h += '<div class="tbl-wrap"><table class="list shin"><tr><th>番号</th><th>園児名</th>' + (S.work ? '' : '<th>クラス</th>') + '<th>性別</th><th>今のバス</th><th>来年度の組</th><th>来年度のバス</th><th>来年度の役員</th></tr>';
+    kids.forEach(function (k) {
+      h += '<tr data-id="' + esc(k.id) + '"><td class="c">' + esc(k.enroll.no) + '</td><td><div class="kana">' + esc(k.kana) + '</div><span class="nm">' + esc(k.name) + '</span></td>' +
+        (S.work ? '' : '<td>' + esc(k.enroll.cls) + '</td>') +
+        '<td class="' + (k.sex === '男' ? 'sex-m' : k.sex === '女' ? 'sex-f' : '') + '">' + esc(k.sex) + '</td><td>' + esc(k.enroll.bus) + '</td>' +
+        '<td><input class="grp" data-f="nextGroup" maxlength="1" autocomplete="off" value="' + esc(shinVal(k, 'nextGroup')) + '"></td>' +
+        '<td><input class="nbus" data-f="nextBus" list="busList" value="' + esc(shinVal(k, 'nextBus')) + '"></td>' +
+        '<td class="c"><input type="checkbox" data-f="nextOfficer"' + (shinVal(k, 'nextOfficer') ? ' checked' : '') + '></td></tr>';
+    });
+    if (!kids.length) h += '<tr><td colspan="8" class="empty">園児がいません。</td></tr>';
+    h += '</table></div><h3 style="margin-top:18px">' + g + '組ぜんたいの組分け（人数）</h3><div id="shinSum"></div>';
+  }
+  $('shinPrep').innerHTML = h;
+  Array.prototype.forEach.call(document.querySelectorAll('#shinPrep [data-g]'), function (b) { b.onclick = function () { flushShin(); H.grade = b.getAttribute('data-g'); renderShin(); }; });
+  var inputs = document.querySelectorAll('#shinPrep tr[data-id] [data-f]');
+  Array.prototype.forEach.call(inputs, function (el) {
+    var id = el.closest('tr').getAttribute('data-id'), f = el.getAttribute('data-f');
+    var put = function () {
+      var v = el.type === 'checkbox' ? (el.checked ? '役員' : '') : el.value.trim();
+      if (f === 'nextGroup') {
+        v = normGroup(v);
+        var bad = v && !/^[A-Z]$/.test(v);
+        el.classList.toggle('bad', !!bad);
+        if (bad) { shinStatus('組は A～Z の1文字で入れてください'); return; }
+        if (el.value !== v) el.value = v;
+      }
+      if (H.pendingYear && H.pendingYear !== S.year) flushShin();
+      H.pendingYear = S.year;
+      var p = H.pending[id] = H.pending[id] || { childId: id };
+      p[f] = v;
+      shinStatus('入れています…');
+      if ($('shinSum')) $('shinSum').innerHTML = shinSummary(g);
+      clearTimeout(H.timer); H.timer = setTimeout(flushShin, 1200);
+    };
+    el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', put);
+    if (f === 'nextGroup') el.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      var all = document.querySelectorAll('#shinPrep input.grp'), i = Array.prototype.indexOf.call(all, el);
+      if (all[i + 1]) all[i + 1].focus(); else el.blur();
+    });
+    if (f === 'nextGroup') el.addEventListener('focus', function () { el.select(); });
+  });
+  if ($('shinSum')) $('shinSum').innerHTML = shinSummary(g);
+  renderShinRun();
+}
+
+// 学年ぜんたいの、組ごとの人数（男・女・今のクラス別）
+function shinSummary(g) {
+  var gk = gradeKids(g);
+  var classes = yearClasses().filter(function (c) { return c.grade === g; });
+  var groups = {};
+  gk.forEach(function (k) { var L = shinVal(k, 'nextGroup') || ''; (groups[L] = groups[L] || []).push(k); });
+  var letters = Object.keys(groups).filter(String).sort();
+  if (groups['']) letters.push('');
+  if (!gk.length) return '<div class="empty">この学年の園児はいません。</div>';
+  var h = '<div class="tbl-wrap"><table class="list sum"><tr><th>組</th><th>男</th><th>女</th><th>計</th>' + classes.map(function (c) { return '<th>' + esc(c.name) + 'から</th>'; }).join('') + '</tr>';
+  letters.forEach(function (L) {
+    var ks = groups[L], n = function (fn) { return ks.filter(fn).length; };
+    h += '<tr' + (L ? '' : ' class="yet"') + '><td class="c"><b>' + (L ? esc(L) : 'まだ') + '</b></td><td class="c sex-m">' + n(function (k) { return k.sex === '男'; }) + '</td><td class="c sex-f">' + n(function (k) { return k.sex === '女'; }) + '</td><td class="c"><b>' + ks.length + '</b></td>' +
+      classes.map(function (c) { var x = n(function (k) { return k.enroll.cls === c.name; }); return '<td class="c">' + (x || '') + '</td>'; }).join('') + '</tr>';
+  });
+  return h + '</table></div><p class="muted" style="margin:6px 0 0">退園した子は数えていません。ほかのクラスの子の組は、そのクラスの担任が入れます。</p>';
+}
+
+function flushShin() {
+  clearTimeout(H.timer);
+  var ids = Object.keys(H.pending);
+  if (!ids.length) return Promise.resolve();
+  var list = ids.map(function (id) { return H.pending[id]; }), year = H.pendingYear;
+  H.pending = {};
+  shinStatus('保存しています…');
+  return call('saveNext', year, list).then(function (r) {
+    if (S.roster && S.roster.year === year) {
+      var byId = {}; S.roster.children.forEach(function (k) { byId[k.id] = k; });
+      r.saved.forEach(function (e) { var k = byId[e.childId]; if (k) { k.enroll.nextGroup = e.nextGroup; k.enroll.nextBus = e.nextBus; k.enroll.nextOfficer = e.nextOfficer; } });
+    }
+    shinStatus('保存しました（' + timeNow() + '）');
+    if (S.view === 'shin') renderShinRun();
+  }).catch(function (e) {
+    list.forEach(function (p) { if (!H.pending[p.childId]) H.pending[p.childId] = p; });
+    H.pendingYear = year;
+    shinStatus('保存できませんでした');
+    alert('保存できませんでした：' + e.message);
+  });
+}
+
+// 管理者：進級する
+function renderShinRun() {
+  var box = $('shinRun');
+  show('shinRun', isAdmin());
+  if (!isAdmin()) return;
+  var ny = String(Number(S.year) + 1);
+  var nyCls = S.classes.filter(function (c) { return c.year === ny; }).sort(function (a, b) { return a.order - b.order; });
+  var h = '<h2 style="margin-top:0">🏫 進級する（管理者）</h2>';
+  if (!nyCls.length) {
+    box.innerHTML = h + '<p>先に、' + nendo(ny) + 'のクラス（クラス名・担任）を作ってください。</p><button class="btn main" id="shinMkCls">⚙ 管理の「クラス」で' + nendo(ny) + 'のクラスを作る</button>';
+    $('shinMkCls').onclick = function () { clsYear = ny; adminTab = 'classes'; go('admin'); };
+    return;
+  }
+  if (!H.ny || H.ny.year !== ny) {
+    box.innerHTML = h + '<p class="muted">読み込んでいます…</p>';
+    call('roster', ny).then(function (r) { H.ny = r; if (S.view === 'shin') renderShinRun(); }).catch(function (e) { box.innerHTML = h + '<div class="msg err">' + esc(e.message) + '</div>'; });
+    return;
+  }
+  var inNy = {}; H.ny.children.forEach(function (k) { inNy[k.id] = k.enroll.cls; });
+  h += '<p class="muted" style="margin-top:0">組の記号を、' + nendo(ny) + 'のクラスに当てはめます。「進級する」を押すと、' + nendo(ny) + 'の名簿に入り、番号は男女まぜて五十音順に付きます（5月1日より後に入園・転入園した子は最後）。<br>' +
+    'バスは「来年度のバス」（空なら今のバス）、役員は「来年度の役員」が入ります。月組の子と、3月までに退園する子は入りません。</p>';
+  var total = 0, done = 0, missing = [];
+  ['星', '花', '雪'].forEach(function (g) {
+    var gk = gradeKids(g).filter(function (k) { return !(k.leaveDate && k.leaveDate < ny + '-04-01'); });
+    if (!gk.length) return;
+    var targets = nyCls.filter(function (c) { return c.grade === NEXT_GRADE[g]; });
+    var letters = {}; gk.forEach(function (k) { var L = shinVal(k, 'nextGroup'); if (L) letters[L] = (letters[L] || 0) + 1; });
+    var ls = Object.keys(letters).sort();
+    var m = H.map[g] = H.map[g] || {};
+    ls.forEach(function (L, i) { if (m[L] === undefined || (m[L] && !targets.some(function (c) { return c.name === m[L]; }))) m[L] = (targets[i] || {}).name || ''; });
+    var no = gk.filter(function (k) { return !shinVal(k, 'nextGroup'); });
+    no.forEach(function (k) { missing.push(k.enroll.cls + '　' + k.name); });
+    gk.forEach(function (k) { if (shinVal(k, 'nextGroup') && m[shinVal(k, 'nextGroup')]) { total++; if (inNy[k.id]) done++; } });
+    h += '<div class="shin-map"><b>' + g + '組 → ' + NEXT_GRADE[g] + '組</b>';
+    if (!targets.length) h += '<div class="msg warn">' + nendo(ny) + 'に' + NEXT_GRADE[g] + '組のクラスがありません。</div>';
+    h += '<table class="list"><tr><th>組</th><th>人数</th><th>' + nendo(ny) + 'のクラス</th></tr>' +
+      ls.map(function (L) {
+        return '<tr><td class="c"><b>' + esc(L) + '</b></td><td class="c">' + letters[L] + '人</td><td><select data-mg="' + g + '" data-ml="' + esc(L) + '"><option value="">（入れない）</option>' +
+          targets.map(function (c) { return '<option' + (m[L] === c.name ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select>' +
+          (targets.length ? '' : '') + '</td></tr>';
+      }).join('') + (ls.length ? '' : '<tr><td colspan="3" class="empty">まだ組が入っていません。</td></tr>') + '</table>' +
+      (no.length ? '<div class="muted">組が入っていない子：' + no.length + '人</div>' : '') + '</div>';
+  });
+  // 来年度のクラスごとの人数（もう入っている子＋これから入る子）
+  var cnt = {}; nyCls.forEach(function (c) { cnt[c.name] = { now: 0, add: 0 }; });
+  H.ny.children.forEach(function (k) { if (cnt[k.enroll.cls] && !isLeft(k)) cnt[k.enroll.cls].now++; });
+  ['星', '花', '雪'].forEach(function (g) {
+    gradeKids(g).forEach(function (k) {
+      if (k.leaveDate && k.leaveDate < ny + '-04-01') return;
+      var to = (H.map[g] || {})[shinVal(k, 'nextGroup')];
+      if (!to || !cnt[to]) return;
+      if (inNy[k.id] === to) return;
+      if (inNy[k.id] && !H.redo) return;
+      if (inNy[k.id] && cnt[inNy[k.id]]) cnt[inNy[k.id]].now--;
+      cnt[to].add++;
+    });
+  });
+  h += '<h3>' + nendo(ny) + 'のクラスの人数（進級したあと）</h3><div class="tbl-wrap"><table class="list"><tr><th>クラス</th><th>担任</th><th>いま入っている子</th><th>進級で入る子</th><th>合計</th></tr>' +
+    nyCls.map(function (c) { var x = cnt[c.name]; return '<tr><td>' + esc(c.name) + '</td><td>' + esc(c.teacher) + '</td><td class="c">' + x.now + '</td><td class="c">' + (x.add ? '＋' + x.add : '') + '</td><td class="c"><b>' + (x.now + x.add) + '</b></td></tr>'; }).join('') + '</table></div>' +
+    '<p class="muted" style="margin:4px 0 0">「いま入っている子」は、' + nendo(ny) + 'にもう入れてある子（新しく入園する子や、前に進級した子）です。</p>';
+  if (missing.length) h += '<details class="msg warn" style="margin-top:10px"><summary>組が入っていない子が ' + missing.length + '人います（この子たちは進級しません）</summary><div style="margin-top:6px">' + missing.map(esc).join('<br>') + '</div></details>';
+  if (done) h += '<label style="display:block;margin-top:10px"><input type="checkbox" id="shinRedo"' + (H.redo ? ' checked' : '') + '> もう' + nendo(ny) + 'のクラスに入っている ' + done + '人も、クラスを入れ直す</label>' +
+    '<p class="muted" style="margin:2px 0 0">チェックしないと、その子たちはそのままにします（あとから組を直した子だけ入れ直したいときは、チェックします）。</p>';
+  h += '<div class="row" style="margin-top:12px"><button class="btn main" id="shinGo">🎓 進級する</button><span class="muted">押す前に、毎日のバックアップがあるか確かめておくと安心です。</span></div>';
+  box.innerHTML = h;
+  Array.prototype.forEach.call(box.querySelectorAll('[data-mg]'), function (sel) {
+    sel.onchange = function () { H.map[sel.getAttribute('data-mg')][sel.getAttribute('data-ml')] = sel.value; renderShinRun(); };
+  });
+  if ($('shinRedo')) $('shinRedo').onchange = function () { H.redo = this.checked; renderShinRun(); };
+  $('shinGo').onclick = function () {
+    var willAdd = total - (H.redo ? 0 : done);
+    if (!willAdd) { alert('進級する子がいません。組の記号と、当てはめるクラスを確かめてください。'); return; }
+    var lines = [];
+    Object.keys(H.map).forEach(function (g) { Object.keys(H.map[g]).sort().forEach(function (L) { if (H.map[g][L]) lines.push('　' + g + '組の ' + L + ' → ' + H.map[g][L]); }); });
+    if (!confirm(nendo(S.year) + 'の子を、' + nendo(ny) + 'のクラスに進級させます。\n\n' + lines.join('\n') + '\n\n' + willAdd + '人が入ります。' + (missing.length ? '\n組が入っていない ' + missing.length + '人は進級しません。' : '') + '\nよいですか？')) return;
+    flushShin().then(function () {
+      if (Object.keys(H.pending).length) throw new Error('入れた組がまだ保存できていません。もう一度押してください。');
+      busy(true, '進級しています…');
+      return call('promote', S.year, H.map, H.redo);
+    }).then(function (r) {
+      busy(false);
+      H.ny = null;
+      alert('進級しました。\n\n' + nendo(r.year) + 'に新しく入った子：' + r.added + '人' + (r.updated ? '\nクラスを入れ直した子：' + r.updated + '人' : '') + (r.skipped ? '\nそのままにした子：' + r.skipped + '人' : '') +
+        (r.unassigned.length ? '\n組がなくて進級しなかった子：' + r.unassigned.length + '人' : '') + '\n\n' + nendo(r.year) + 'の名簿は、上の年度を「' + nendo(r.year) + '」にすると見られます。');
+      return call('hello').then(function (hh) { S.years = hh.years; S.classes = hh.classes; renderTop(); renderShinRun(); });
+    }).catch(function (e) { busy(false); alert(e.message); });
+  };
+}
+
 // ===== 管理 =====
 var adminTab = 'classes';
 Array.prototype.forEach.call(document.querySelectorAll('#adminTabs .tab'), function (b) {
@@ -3359,10 +3575,41 @@ var Demo = (function () {
       return getChild(o.id);
     },
     renumber: function (m, y, cls) {
-      var byId = {}; db.children.forEach(function (c) { byId[c.id] = c; });
-      db.enrolls.filter(function (e) { return e.year === y && e.cls === cls; }).sort(function (a, b) { return byId[a.childId].kana.localeCompare(byId[b.childId].kana, 'ja'); })
-        .forEach(function (e, i) { e.no = String(i + 1); });
+      demoNumber(y, cls);
       log(m.name, '番号を付け直す', cls); keep(); return roster(y);
+    },
+    saveNext: function (m, y, changes) {
+      var out = [];
+      changes.forEach(function (c) {
+        var e = db.enrolls.filter(function (x) { return x.year === y && x.childId === c.childId; })[0];
+        if (!e) throw new Error('この年度のクラスにいない園児です。');
+        if (c.nextGroup !== undefined) { var g = normGroup(c.nextGroup); if (g && !/^[A-Z]$/.test(g)) throw new Error('来年度の組は、A～Z の1文字で入れてください：' + c.nextGroup); e.nextGroup = g; }
+        if (c.nextBus !== undefined) e.nextBus = String(c.nextBus).trim();
+        if (c.nextOfficer !== undefined) e.nextOfficer = c.nextOfficer ? '役員' : '';
+        out.push(JSON.parse(JSON.stringify(e)));
+      });
+      log(m.name, '進級の準備', y + '（' + out.length + '人）'); keep();
+      return { saved: out };
+    },
+    promote: function (m, y, map, redo) {
+      var ny = String(Number(y) + 1), byId = {}, touched = {}, added = 0, updated = 0, skipped = 0, un = [];
+      db.children.forEach(function (c) { byId[c.id] = c; });
+      var nyCls = {}; db.classes.forEach(function (c) { if (c.year === ny) nyCls[c.name] = c.name.charAt(0); });
+      Object.keys(map).forEach(function (g) { Object.keys(map[g]).forEach(function (L) { var to = map[g][L]; if (to && nyCls[to] !== NEXT_GRADE[g]) throw new Error('「' + to + '」には入れられません。'); }); });
+      db.enrolls.filter(function (e) { return e.year === y; }).forEach(function (e) {
+        var g = e.cls.charAt(0), c = byId[e.childId];
+        if (!map[g] || g === '月' || !c) return;
+        if (c.leaveDate && c.leaveDate < ny + '-04-01') return;
+        var to = map[g][e.nextGroup || ''];
+        if (!to) { un.push(e.cls + ' ' + c.name); return; }
+        var ex = db.enrolls.filter(function (x) { return x.year === ny && x.childId === e.childId; })[0];
+        if (ex) { if (!redo) { skipped++; return; } touched[ex.cls] = 1; ex.cls = to; ex.bus = e.nextBus || ex.bus || e.bus; ex.officer = e.nextOfficer || ex.officer || ''; updated++; }
+        else { db.enrolls.push({ year: ny, childId: e.childId, cls: to, no: '', bus: e.nextBus || e.bus || '', officer: e.nextOfficer || '', nextBus: '', nextOfficer: '', nextGroup: '' }); added++; }
+        touched[to] = 1;
+      });
+      Object.keys(touched).forEach(function (cls) { demoNumber(ny, cls); });
+      log(m.name, '進級', y + '→' + ny); keep();
+      return { year: ny, added: added, updated: updated, skipped: skipped, unassigned: un };
     },
     logPrint: function (m, w) { log(m.name, '書類', w); keep(); return true; },
     changeMyPassword: function (m, a, b) {
@@ -3504,6 +3751,17 @@ var Demo = (function () {
     });
     return out;
   }
+  // 番号：男女まぜて五十音順、5月1日より後に入った子は最後（サーバーと同じ）
+  function demoNumber(y, cls) {
+    var byId = {}; db.children.forEach(function (c) { byId[c.id] = c; });
+    var late = function (c) { var d = [c.enterDate || '', c.transferIn || ''].sort().pop(); return d && d >= y + '-05-01' ? d : ''; };
+    db.enrolls.filter(function (e) { return e.year === y && e.cls === cls; }).sort(function (a, b) {
+      var ca = byId[a.childId] || {}, cb = byId[b.childId] || {}, la = late(ca), lb = late(cb);
+      if (!la !== !lb) return la ? 1 : -1;
+      if (la !== lb) return la < lb ? -1 : 1;
+      return String(ca.kana || '').localeCompare(String(cb.kana || ''), 'ja');
+    }).forEach(function (e, i) { e.no = String(i + 1); });
+  }
   function demoAvg() {
     var sex = {}, out = {};
     db.children.forEach(function (c) { sex[c.id] = c.sex; });
@@ -3521,7 +3779,7 @@ var Demo = (function () {
     });
     return out;
   }
-  var ADMIN = ['deleteChild', 'saveClasses', 'saveSettings', 'saveCalendar', 'importAttendance', 'listStaff', 'addStaff', 'setStaffId', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
+  var ADMIN = ['deleteChild', 'saveClasses', 'promote', 'saveSettings', 'saveCalendar', 'importAttendance', 'listStaff', 'addStaff', 'setStaffId', 'updateStaff', 'resetPassword', 'importRows', 'readLog'];
   return {
     call: function (fn, args, token) {
       load();
