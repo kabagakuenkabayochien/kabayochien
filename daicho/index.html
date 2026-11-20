@@ -38,6 +38,7 @@ button { cursor: pointer; }
 .pick:hover { border-color: var(--main); background: var(--main-l); }
 .pick b { font-size: 22px; color: var(--main-d); }
 .pick span { font-size: 13px; color: var(--sub); }
+.pick span.nw { font-size: inherit; white-space: nowrap; }
 .pick.mine { border: 2px solid var(--main); padding: 13px 11px; }
 .pick .mine-b { align-self: flex-start; background: var(--main); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: 11px; }
 .pick.all { grid-column: 1 / -1; min-height: 0; flex-direction: row; align-items: baseline; gap: 10px; border-style: dashed; }
@@ -662,10 +663,12 @@ function renderPick() {
   var cnt = function (n) { return all.filter(function (k) { return k.enroll.cls === n && !isLeft(k); }).length; };
   $('pickNote').textContent = nendo(S.year) + '　選んだクラスの園児・出席簿・成長の記録・書類だけが出ます。あとで上の「🏫」から選び直せます。';
   var h = classes.map(function (c) {
-    var t = [c.teacher, c.sub1, c.sub2].filter(Boolean);
+    var subs = [c.sub1, c.sub2].filter(Boolean);
     return '<button class="pick' + (isMine(c) ? ' mine' : '') + '" data-w="' + esc(c.name) + '">' +
       (isMine(c) ? '<span class="mine-b">あなたのクラス</span>' : '') +
-      '<b>' + esc(c.name) + '</b><span>' + (t.length ? '担任 ' + esc(t.join('・')) : '担任 －') + '</span><span>' + cnt(c.name) + '人</span></button>';
+      '<b>' + esc(c.name) + '</b><span>担任 ' + esc(c.teacher || '－') + '</span>' +
+      (subs.length ? '<span>副担任 ' + subs.map(function (s) { return '<span class="nw">' + esc(s) + '</span>'; }).join('・') + '</span>' : '') +
+      '<span>' + cnt(c.name) + '人</span></button>';
   }).join('');
   if (isAdmin() && classes.length) h += '<button class="pick all" data-w="*"><b>📚 全クラス</b><span>管理者だけ。全部のクラスの情報を見て、直せます（' + all.filter(function (k) { return !isLeft(k); }).length + '人）</span></button>';
   if (!classes.length) h = '<div class="empty" style="grid-column:1/-1">' + nendo(S.year) + 'のクラスがまだありません。' +
