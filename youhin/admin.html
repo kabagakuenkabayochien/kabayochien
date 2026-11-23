@@ -1,0 +1,3061 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<title>注文の管理</title>
+<style>
+  :root {
+    --bg: #f3faf8;
+    --card: #ffffff;
+    --text: #2d3a37;
+    --sub: #6b7c78;
+    --accent: #2a9d8f;
+    --accent-dark: #1f6f64;
+    --accent-soft: #e0f2ef;
+    --border: #d5e6e2;
+    --red: #c62828;
+    --red-bg: #fdecea;
+    --green: #15803d;
+    --green-bg: #e7f6ec;
+    --orange: #b45309;
+    --orange-bg: #fff4e0;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+    font-size: 14px; line-height: 1.5; display: flex; flex-direction: column;
+  }
+  button { font-family: inherit; }
+  .demo { background: #fff3cd; color: #7a5b00; padding: 6px 12px; font-size: 0.85rem; flex: none; }
+  .hidden { display: none !important; }
+
+  /* 一番上の合計 */
+  .summary { display: flex; gap: 10px; padding: 12px 12px 0; flex: none; }
+  .tile { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+  .tile .label { color: var(--sub); font-size: 0.8rem; }
+  .tile .value { font-size: 1.35rem; font-weight: bold; line-height: 1.3; }
+  .tile .split { color: var(--sub); font-size: 0.75rem; }
+  .s-split { display: block; font-size: 0.75rem; }
+  table.items tr.split td { color: var(--sub); font-size: 0.85rem; padding-top: 2px; padding-bottom: 2px; border-bottom: none; }
+  .tile.red .value { color: var(--red); }
+  .tile.green .value { color: var(--green); }
+  .tile.orange .value { color: var(--orange); }
+
+  .tabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--border); flex: none; }
+  .tab { font-size: 14px; font-weight: bold; padding: 8px 18px; border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; background: #eef5f3; color: var(--sub); cursor: pointer; margin-bottom: -1px; }
+  .tab.on { background: var(--bg); color: var(--accent-dark); border-bottom: 1px solid var(--bg); }
+  .tab .badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 10px; background: var(--orange); color: #fff; font-size: 0.75rem; }
+  .view { flex: 1; min-height: 0; padding: 12px; display: flex; gap: 14px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; min-height: 0; }
+
+  /* 左：注文の一覧 */
+  .list-panel { width: 420px; flex: none; }
+  .tools { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .tools input, .tools select { font-size: 14px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; background: #fff; color: var(--text); }
+  .tools input { width: 100%; }
+  .tool-row { display: flex; gap: 6px; margin-top: 8px; }
+  .tool-row select { flex: 1; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { border: 1px solid var(--border); background: #fff; border-radius: 16px; padding: 4px 12px; cursor: pointer; font-size: 13px; color: var(--text); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
+  .count { color: var(--sub); font-size: 0.8rem; margin-top: 6px; }
+  .list { overflow-y: auto; flex: 1; }
+  .order { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; border-left: 4px solid transparent; background: var(--age-bg, #fff); }
+  .order:hover { filter: brightness(0.97); }
+  .order.sel { border-left-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+  /* 学年（入園する年齢）の色。背景・しるしの地・しるしの字 */
+  .age-tag { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 0 7px; border-radius: 10px; background: var(--age-tag, #eee); color: var(--age-text, #555); white-space: nowrap; }
+  .age-legend { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .order-top { display: flex; align-items: baseline; gap: 8px; }
+  .order-no { color: var(--sub); font-size: 0.8rem; flex: none; }
+  .order-name { font-weight: bold; font-size: 1.05rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .order-sum { font-weight: bold; flex: none; }
+  .order-bottom { display: flex; gap: 6px; margin-top: 4px; align-items: center; }
+  .order-sub { color: var(--sub); font-size: 0.8rem; flex: 1; }
+  .st { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
+  .st.red { background: var(--red-bg); color: var(--red); }
+  .st.green { background: var(--green-bg); color: var(--green); }
+  .st.orange { background: var(--orange-bg); color: var(--orange); }
+  .empty { padding: 30px 20px; text-align: center; color: var(--sub); }
+
+  /* 右：選んだ注文 */
+  .detail-panel { flex: 1; min-width: 0; overflow-y: auto; padding: 18px 22px; }
+  .d-head { display: flex; align-items: flex-start; gap: 12px; }
+  .d-name { font-size: 1.7rem; font-weight: bold; line-height: 1.2; }
+  .d-age { display: inline-block; background: var(--age-tag, var(--accent-soft)); color: var(--age-text, var(--accent-dark)); font-weight: bold; padding: 2px 10px; border-radius: 6px; font-size: 0.9rem; margin-left: 8px; vertical-align: 5px; }
+  .d-no { margin-left: auto; text-align: right; color: var(--sub); font-size: 0.85rem; flex: none; }
+  .d-no b { display: block; color: var(--text); font-size: 1.05rem; }
+  .d-contact { color: var(--sub); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  .d-contact b { color: var(--text); font-weight: normal; }
+
+  .status-row { display: flex; gap: 12px; margin: 16px 0; }
+  .event-bar { display: flex; align-items: center; gap: 8px; margin: -6px 0 16px; padding: 8px 12px; border: 1px dashed var(--border); border-radius: 10px; background: #fafafa; color: var(--sub); }
+  .event-bar .r-text { flex: 1; }
+  .event-bar.on { border-color: #c9b6ea; background: #f4effc; color: #5b3a9e; }
+  .event-tag { display: inline-block; margin-left: 6px; font-size: 0.75rem; font-weight: bold; color: #5b3a9e; background: #ece4f8; border-radius: 4px; padding: 0 6px; white-space: nowrap; }
+  .receipt-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -6px 0 16px; padding: 8px 12px; border: 1px dashed #a9dcb9; border-radius: 10px; background: #f6fbf7; }
+  .receipt-bar .r-text { flex: 1; min-width: 200px; color: var(--green); font-weight: bold; font-size: 0.9rem; }
+  .status { flex: 1; border-radius: 10px; padding: 12px 14px; border: 2px solid; display: flex; align-items: center; gap: 12px; }
+  .status.red { border-color: #f3b9b9; background: var(--red-bg); }
+  .status.green { border-color: #a9dcb9; background: var(--green-bg); }
+  .status.orange { border-color: #f5cf95; background: var(--orange-bg); }
+  .status .s-label { font-size: 0.8rem; color: var(--sub); }
+  .status .s-value { font-size: 1.2rem; font-weight: bold; }
+  .status.red .s-value { color: var(--red); }
+  .status.green .s-value { color: var(--green); }
+  .status.orange .s-value { color: var(--orange); }
+  .status .s-text { flex: 1; }
+
+  .btn { font-size: 14px; font-weight: bold; padding: 9px 16px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--text); white-space: nowrap; }
+  .btn:disabled { opacity: 0.5; cursor: wait; }
+  .btn-main { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-small { font-size: 13px; padding: 5px 10px; font-weight: normal; }
+  .btn-link { border: none; background: none; color: var(--sub); text-decoration: underline; padding: 4px; font-weight: normal; font-size: 13px; }
+  .btn-danger { color: var(--red); border-color: #f0c4c4; background: #fff; }
+
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items th { text-align: left; color: var(--sub); font-weight: normal; font-size: 0.85rem; padding: 6px 8px; border-bottom: 2px solid var(--border); }
+  table.items td { padding: 9px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.items td.num, table.items th.num { text-align: right; white-space: nowrap; }
+  table.items td.name { font-weight: bold; }
+
+  /* 分類ごとの色（園服＝青、用品＝黄、その他の用品＝緑） */
+  tr.cat-clothes td { background: #eaf3fc; }
+  tr.cat-goods td { background: #fdf6e0; }
+  tr.cat-other td { background: #ebf6ee; }
+  .cat { display: inline-block; font-size: 0.75rem; font-weight: bold; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+  .cat-clothes .cat, .cat.cat-clothes { background: #cfe3f7; color: #1d5a8f; }
+  .cat-goods .cat, .cat.cat-goods { background: #f7e3a6; color: #7a5a00; }
+  .cat-other .cat, .cat.cat-other { background: #c9e8d2; color: #276b3c; }  table.items tr.total td { font-weight: bold; font-size: 1.15rem; border-bottom: none; padding-top: 12px; }
+  .hand { border-radius: 16px; padding: 4px 12px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--sub); white-space: nowrap; }
+  .hand.done { background: var(--green-bg); border-color: #a9dcb9; color: var(--green); font-weight: bold; }
+  .hand:hover { border-color: var(--accent); }
+  .note { margin-top: 14px; background: #fafdfc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; }
+  .note .s-label { color: var(--sub); font-size: 0.8rem; }
+  .changed { display: inline-block; margin-left: 6px; font-size: 0.75rem; font-weight: bold; color: #7a4a14; background: #fff1d6; border-radius: 4px; padding: 0 6px; white-space: nowrap; }
+  .d-foot { margin-top: 22px; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: flex-end; }
+  .placeholder { color: var(--sub); text-align: center; margin-top: 120px; font-size: 1.05rem; }
+
+  /* 業者への発注 */
+  .vendor-view { flex-direction: column; overflow-y: auto; }
+  .vendor-intro { color: var(--sub); }
+  .vendor-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .vendor-top .vendor-intro { flex: 1; min-width: 240px; }
+
+  /* これまでの注文履歴 */
+  .modal-box.wide { max-width: 760px; }
+  .h-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .h-tools select { font-size: 14px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); }
+  .h-tools .count { margin-top: 0; }
+  .h-list { display: flex; flex-direction: column; gap: 10px; }
+  .hcard { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: #fafdfc; }
+  .hcard .h-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .hcard .h-date { font-weight: bold; }
+  .hcard .h-vendor { font-weight: bold; color: var(--accent-dark); font-size: 1.05rem; }
+  .hcard .h-sub { color: var(--sub); font-size: 0.8rem; margin-left: auto; }
+  .hcard table { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
+  .hcard th:nth-child(2) { width: 30%; }
+  .hcard th:nth-child(3) { width: 7em; }
+  .hcard th { text-align: left; color: var(--sub); font-weight: normal; font-size: 0.8rem; padding: 3px 6px; border-bottom: 1px solid var(--border); }
+  .hcard td { padding: 5px 6px; border-bottom: 1px solid var(--border); }
+  .hcard td.num, .hcard th.num { text-align: right; white-space: nowrap; }
+  .h-tools { flex-wrap: wrap; }
+  .h-tools select { max-width: 100%; }
+  .h-tools .count { flex: 1; white-space: nowrap; }
+  .vendors { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+  .vcard { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .vcard h3 { margin: 0 0 4px; font-size: 1.1rem; color: var(--accent-dark); }
+  .vcard .v-sub { color: var(--sub); font-size: 0.85rem; margin-bottom: 8px; }
+  .vcard table { width: 100%; border-collapse: collapse; }
+  .vcard th { text-align: left; color: var(--sub); font-weight: normal; font-size: 0.8rem; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  .vcard td { padding: 6px; border-bottom: 1px solid var(--border); }
+  .vcard td.num, .vcard th.num { text-align: right; }
+  .vcard td.qty { font-weight: bold; font-size: 1.05rem; }
+  .vcard .v-actions { display: flex; gap: 8px; margin-top: 12px; }
+  /* 業者名が長いときは、ボタンの中で折り返す（カードからはみ出さないように） */
+  .vcard .v-actions .btn { flex: none; }
+  .vcard .v-actions .btn-main { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+
+  /* 園児・保護者の情報を直す */
+  .info-form { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; align-items: center; background: #fafdfc; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-top: 8px; }
+  .info-form label { font-weight: bold; color: var(--sub); font-size: 0.85rem; }
+  .info-form input, .info-form select, .info-form textarea { width: 100%; font-size: 14px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; background: #fff; color: var(--text); }
+  .info-form textarea { min-height: 54px; resize: vertical; }
+  .info-form .full { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .info-form .full .hint { flex: 1; color: var(--sub); font-size: 0.8rem; }
+
+  /* 用品・発注業者の登録 */
+  .reg-list { flex: 1.25; min-width: 0; }
+  .reg-edit { flex: 1; min-width: 0; overflow-y: auto; padding: 14px 16px; }
+  .reg-edit h2 { font-size: 1rem; margin: 0 0 10px; color: var(--accent-dark); }
+  .reg .tool-row input { flex: 1; width: auto; }
+  .reg .tool-row select { flex: none; width: 150px; }
+  .reg .tools .tool-row { margin-top: 0; }
+  table.plist { width: 100%; border-collapse: collapse; }
+  table.plist th { position: sticky; top: 0; background: var(--accent-soft); text-align: left; font-weight: bold; padding: 6px 8px; font-size: 0.85rem; z-index: 1; }
+  table.plist td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.plist tr.row { cursor: pointer; }
+  table.plist tr.row:hover td { background: #f6fbfa; }
+  table.plist tr.row.sel td { background: #d9f0ec; }
+  table.plist tr.row.off td { color: #9aa9a6; }
+  table.plist td.num { text-align: right; white-space: nowrap; }
+  table.plist td.mv-cell { white-space: nowrap; width: 1%; padding: 4px 6px; }  .mv { border: 1px solid var(--border); background: #fff; border-radius: 6px; width: 30px; height: 28px; cursor: pointer; color: var(--accent-dark); font-size: 12px; padding: 0; }
+  .mv:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+  .mv:disabled { opacity: 0.25; cursor: default; }
+  .order-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; background: var(--orange-bg); border: 1px solid #f5cf95; border-radius: 8px; padding: 8px 10px; color: var(--orange); font-size: 0.85rem; }
+  .order-bar span { flex: 1; min-width: 180px; }
+  .count-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+  .count-row .count { margin-top: 0; }
+  tr.moved td { animation: moved 0.8s; }
+  @keyframes moved { from { background: #fff1c2; } to { background: transparent; } }
+  .tag.recycle { background: #dff3e4; color: #276b3c; font-weight: bold; }
+  .tag { display: inline-block; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; background: #eee; color: #666; margin-left: 4px; }
+  .reg label.field { display: block; font-weight: bold; margin: 12px 0 4px; }
+  .reg label.field:first-of-type { margin-top: 0; }
+  .reg .req { color: var(--red); font-size: 0.75rem; margin-left: 6px; font-weight: normal; }
+  .reg .opt { color: var(--sub); font-size: 0.75rem; margin-left: 6px; font-weight: normal; }
+  .reg .hint { color: var(--sub); font-size: 0.8rem; margin-top: 3px; }
+  .reg-edit input[type=text], .reg-edit select, .reg-edit textarea { width: 100%; font-size: 14px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); font-family: inherit; }
+  .reg-edit textarea { min-height: 60px; resize: vertical; }
+  .reg .check { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; cursor: pointer; font-weight: bold; }
+  .reg .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .reg-edit input.price-in { width: 120px; text-align: right; }
+  .reg .ages { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .reg .ages label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .reg .ages input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .req-tag { display: inline-block; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; background: #fde9d4; color: #a0521a; margin: 0 4px 2px 0; white-space: nowrap; }
+  .reg .yen { margin-left: 4px; }
+  .size-box { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 6px; background: #fafdfc; }
+  .sub-label { font-weight: bold; font-size: 0.85rem; color: var(--accent-dark); margin: 4px 0 6px; }
+  .size-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .size-checks label { display: flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px 4px 8px; background: #fff; cursor: pointer; user-select: none; }
+  .size-checks label.on { border-color: var(--accent); background: var(--accent-soft); font-weight: bold; }
+  .size-checks input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+  .custom { display: flex; gap: 6px; margin: 8px 0 14px; }
+  .reg-edit .custom input { width: 200px; }
+  .quick { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .reg-edit .quick input.price-in { width: 90px; }
+  table.sizes { border-collapse: collapse; margin-top: 8px; }
+  table.sizes th { text-align: left; font-size: 0.8rem; color: var(--sub); font-weight: normal; padding: 2px 10px 2px 0; }
+  table.sizes td { padding: 3px 10px 3px 0; }
+  table.sizes td.size-name { font-weight: bold; min-width: 60px; }
+  .actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .actions .spacer { flex: 1; }
+  .msg { border-radius: 6px; padding: 8px 10px; margin-top: 12px; display: none; white-space: pre-wrap; }
+  .msg.show { display: block; }
+  .msg.err { background: var(--red-bg); color: var(--red); }
+  .msg.ok { background: var(--green-bg); color: var(--green); }
+  .mode { font-size: 0.8rem; font-weight: normal; color: var(--sub); margin-left: 6px; }
+
+  /* 設定 */
+  .settings-view { overflow-y: auto; justify-content: center; }
+  .settings-card { width: 100%; max-width: 760px; align-self: flex-start; padding: 18px 22px; }
+  .settings-card h3 { margin: 18px 0 2px; font-size: 1rem; color: var(--accent-dark); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .settings-card h3:first-child { margin-top: 0; }
+  .settings-card textarea { min-height: 80px; }
+  .settings-card.event-card { max-width: 960px; }
+  .deadline-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .deadline-row input { width: auto; flex: 0 1 180px; }
+  .deadline-passed { color: #c0392b; }
+  .deadline-open { color: #1e7e34; }
+  .ev-head { display: flex; gap: 14px; align-items: flex-start; }
+  .ev-head .hint { flex: 1; margin: 0; }
+  .ev-tiles { padding: 12px 0 0; }
+  table.ev { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  table.ev th { text-align: left; color: var(--sub); font-weight: normal; font-size: 0.8rem; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  table.ev td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.ev td.num, table.ev th.num { text-align: right; white-space: nowrap; }
+  table.ev tr.total td { font-weight: bold; border-bottom: none; }
+  table.ev tr.row { cursor: pointer; }
+  table.ev tr.row:hover td { background: #f6fbfa; }
+  .pack-steps { margin: 8px 0 0; padding-left: 1.4em; line-height: 1.8; }
+  .pack-buttons { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+  .pack-btn { flex: 1; min-width: 240px; }
+  .pack-btn .btn { width: 100%; padding: 12px; font-size: 15px; white-space: normal; }
+  .choice { display: flex; gap: 10px; flex-wrap: wrap; }
+  .choice label { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; cursor: pointer; background: #fff; }
+  .choice label.on { border-color: var(--accent); background: var(--accent-soft); font-weight: bold; }
+  .choice input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  .stamp-row { display: flex; gap: 14px; align-items: flex-start; }
+  .stamp-box { width: 96px; height: 96px; flex: none; border: 1px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 0.8rem; background: #fff; }
+  .stamp-box img { max-width: 88px; max-height: 88px; }
+  .choice label.stop.on { border-color: #f3b9b9; background: var(--red-bg); color: var(--red); }
+
+  /* アプリとして開いたときの上の帯 */
+  .appbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--accent); color: #fff; flex: none; }
+  .appbar h1 { font-size: 1.15rem; margin: 0; }
+  .appbar .kg { opacity: 0.85; font-size: 0.9rem; }
+  .appbar .spacer { flex: 1; }
+  .appbar .updated { font-size: 0.8rem; opacity: 0.85; }
+  .appbar button { background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.5); border-radius: 7px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .appbar button:hover { background: rgba(255,255,255,0.3); }
+  .appbar .year-select { background: #fff; color: var(--accent-dark); border: none; border-radius: 7px; padding: 5px 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+
+  /* 締めた年度を見ているとき（見るだけ） */
+  .archive-bar { display: flex; align-items: center; gap: 12px; background: #5b3a9e; color: #fff; padding: 7px 16px; font-weight: bold; flex: none; }
+  .archive-bar span { flex: 1; }
+  .archive-bar button { background: #fff; color: #5b3a9e; border: none; border-radius: 7px; padding: 5px 12px; font-weight: bold; cursor: pointer; }
+  body.archive #detail [data-act], body.archive #vendors button[data-g], body.archive #yearCloseBtn { display: none !important; }
+
+  .backup-status { margin: 8px 0 4px; padding: 10px 12px; border-radius: 8px; background: #f4f8f7; font-size: 14px; white-space: pre-wrap; }
+  .backup-status.warn { background: #fdecea; color: var(--red); }
+  .backup-status.ok { background: var(--green-bg); color: var(--green); }
+
+  /* 合言葉の入力 */
+  .login { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+  .login-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 30px; width: 100%; max-width: 440px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+  .login-box h2 { margin: 0 0 6px; color: var(--accent-dark); font-size: 1.3rem; }
+  .login-box p { color: var(--sub); margin: 0 0 16px; }
+  .login-box input { width: 100%; font-size: 20px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; letter-spacing: 2px; font-family: monospace; }
+  .login-box .btn { width: 100%; margin-top: 12px; padding: 12px; font-size: 15px; }
+  .login-err { color: var(--red); background: var(--red-bg); border-radius: 6px; padding: 8px 10px; margin-top: 10px; display: none; }
+  .login-err.show { display: block; }
+  .login-demo { text-align: center; margin-top: 14px; }
+
+  /* 注文画面のURLとQRコード */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
+  .modal-box { background: var(--card); border-radius: 14px; padding: 22px 26px; width: 100%; max-width: 520px; max-height: 100%; overflow-y: auto; box-shadow: 0 6px 30px rgba(0,0,0,0.2); }
+  .modal-box h2 { margin: 0 0 4px; font-size: 1.2rem; color: var(--accent-dark); }
+  .modal-box .sub { color: var(--sub); margin: 0 0 14px; font-size: 0.9rem; }
+  .url-row { display: flex; gap: 8px; }
+  .url-row input { flex: 1; min-width: 0; font-size: 14px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; background: #fafdfc; color: var(--text); }
+  .qr-wrap { display: flex; justify-content: center; margin: 18px 0 10px; }
+  .qr-wrap #qr { padding: 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+  .qr-wrap #qr img, .qr-wrap #qr canvas { display: block; }
+  .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .modal-actions a.btn { text-decoration: none; }
+  .modal-close { display: block; margin: 14px auto 0; }
+
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #2d3a37; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px; z-index: 10; white-space: pre-wrap; max-width: 80%; }
+  .toast.err { background: var(--red); }
+
+  .year-status { margin: 10px 0 4px; padding: 10px 12px; border-radius: 8px; background: #f4f8f7; font-size: 14px; white-space: pre-wrap; }
+  .year-status.warn { background: #fdecea; color: var(--red); }
+
+  .qty-opts { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .qty-opts label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .qty-opts input { width: 5.5em; }
+
+  .age-colors { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .age-colors label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .age-colors input { width: 6em; }
+</style>
+</head>
+<body>
+<!-- アプリとして開いたとき（スプレッドシートの外）だけ出す帯 -->
+<div class="appbar hidden" id="appbar">
+  <h1>📋 用品注文の管理</h1><span class="kg" id="kgName"></span>
+  <select id="yearSelect" class="year-select" title="締めた年度を選ぶと、その年度の注文を見られます（見るだけ）"></select>
+  <span class="spacer"></span>
+  <span class="updated" id="updated"></span>
+  <button type="button" id="qrBtn">📱 注文画面のQRコード</button>
+  <button type="button" id="reloadBtn">🔄 最新にする</button>
+  <button type="button" id="logoutBtn">合言葉を入れ直す</button>
+</div>
+
+<div id="demoBox" class="demo hidden">見本の表示です。ボタンを押しても、本物の注文には何も書き込まれません。</div>
+<div id="archiveBox" class="archive-bar hidden"><span id="archiveText"></span><button type="button" id="archiveBack">今の年度に戻る</button></div>
+
+<!-- 合言葉の入力（アプリとして初めて開いたとき） -->
+<div class="login hidden" id="login">
+  <div class="login-box">
+    <h2>📋 用品注文の管理</h2>
+    <p>合言葉を入れてください。<br>合言葉は、スプレッドシートのメニュー「用品注文 → 🔑 管理アプリの合言葉を表示」で確かめられます。</p>
+    <input type="text" id="keyInput" autocomplete="off" placeholder="合言葉">
+    <div class="login-err" id="loginErr"></div>
+    <button type="button" class="btn btn-main" id="loginBtn">開く</button>
+    <div class="login-demo"><button type="button" class="btn-link" id="demoBtn">合言葉なしで見本を見る</button></div>
+  </div>
+</div>
+
+<div class="summary" id="summary">
+  <div class="tile"><div class="label">注文件数</div><div class="value" id="sCount">—</div></div>
+  <div class="tile"><div class="label">総額</div><div class="value" id="sTotal">—</div><div class="split" id="sTotalSplit"></div></div>
+  <div class="tile green"><div class="label">代金受領済み</div><div class="value" id="sPaid">—</div><div class="split" id="sPaidSplit"></div></div>
+  <div class="tile red"><div class="label">まだ受け取っていない額</div><div class="value" id="sUnpaid">—</div><div class="split" id="sUnpaidSplit"></div></div>
+  <div class="tile orange"><div class="label">まだ全部渡していない注文</div><div class="value" id="sUnhanded">—</div></div>
+</div>
+
+<div class="tabs">
+  <button type="button" class="tab on" data-view="orderView">👧 園児ごとの注文</button>
+  <button type="button" class="tab" data-view="vendorView">📦 業者への発注<span class="badge hidden" id="vendorBadge"></span></button>
+  <button type="button" class="tab" data-view="packView">🎁 袋詰め</button>
+  <button type="button" class="tab" data-view="eventView">🛍 用品販売<span class="badge hidden" id="eventBadge"></span></button>
+  <button type="button" class="tab" data-view="productView">🧺 用品の登録</button>
+  <button type="button" class="tab" data-view="vendorRegView">🏢 発注業者の登録</button>
+  <button type="button" class="tab" data-view="settingsView">⚙ 設定</button>
+</div>
+
+<!-- ===== 園児ごとの注文 ===== -->
+<div class="view" id="orderView">
+  <div class="panel list-panel">
+    <div class="tools">
+      <input type="text" id="search" placeholder="🔍 園児名・保護者名・注文番号・電話番号で探す">
+      <div class="chips" id="filters">
+        <button type="button" class="chip on" data-f="all">すべて</button>
+        <button type="button" class="chip" data-f="unpaid">代金がまだ</button>
+        <button type="button" class="chip" data-f="unhanded">渡していない</button>
+        <button type="button" class="chip" data-f="done">ぜんぶ済み</button>
+        <button type="button" class="chip" data-f="event">🛍 用品販売</button>
+      </div>
+      <div class="tool-row">
+        <select id="ageFilter"></select>
+        <select id="sort">
+          <option value="no">注文が来た順</option>
+          <option value="noDesc">新しい注文から</option>
+          <option value="name">園児名の順</option>
+        </select>
+      </div>
+      <div class="count" id="count">読み込んでいます…</div>
+      <div class="age-legend" id="ageLegend"></div>
+    </div>
+    <div class="list" id="list"></div>
+  </div>
+  <div class="panel detail-panel" id="detail">
+    <div class="placeholder">左の一覧から注文を選んでください</div>
+  </div>
+</div>
+
+<!-- ===== 業者への発注 ===== -->
+<div class="view vendor-view hidden" id="vendorView">
+  <div class="vendor-top">
+    <div class="vendor-intro">まだ業者に発注していない用品を、業者ごとにまとめています。発注したら「発注した」を押すと、この一覧から消えて、注文履歴に残ります。</div>
+    <button type="button" class="btn" id="historyBtn">📜 これまでの注文履歴を確認する</button>
+  </div>
+  <div class="vendors" id="vendors"></div>
+</div>
+
+<!-- ===== 袋詰め（中身リスト・配り表の印刷） ===== -->
+<div class="view reg settings-view hidden" id="packView">
+  <div class="panel reg-edit settings-card">
+    <h3>🎁 袋詰めの進め方</h3>
+    <div class="hint">袋詰めするのは、<b>用品販売で扱う子（🛍 の印が付いた子）だけ</b>です。</div>
+    <ol class="pack-steps">
+      <li>品物が全部届いたら、数を確かめる（「品目・サイズ別の集計」シートや、業者への発注の注文履歴と比べる）</li>
+      <li><b>中身リスト</b>を印刷して切り分け、袋に1枚ずつ入れる。袋は<b>注文番号の順</b>に並べる</li>
+      <li><b>配り表</b>を品物ごとに切り分け、担当の人に配る。担当の人は配り表の順に袋へ入れ、配り表と中身リストの □ にチェックする</li>
+      <li>詰めた人とは別の人が、中身リストと袋の中身を見比べて「確認した人」の欄にサインする</li>
+      <li>保護者に渡したら、「園児ごとの注文」で「全部渡した」を押す</li>
+    </ol>
+
+    <h3>印刷する分</h3>
+    <label class="field" for="packTarget">品物</label>
+    <select id="packTarget">
+      <option value="unhanded">まだ渡していない品物だけ</option>
+      <option value="all">渡した品物もすべて</option>
+    </select>
+    <label class="field" for="packAge">入園する年齢</label>
+    <select id="packAge"></select>
+    <label class="field" for="packSort">袋の並べ方</label>
+    <select id="packSort">
+      <option value="no">注文番号の順</option>
+      <option value="age">年齢ごとに、注文番号の順</option>
+    </select>
+    <div class="hint">中身リストと配り表は、同じ並べ方で印刷されます。</div>
+    <div class="year-status" id="packStatus"></div>
+
+    <div class="pack-buttons">
+      <div class="pack-btn">
+        <button type="button" class="btn btn-main" id="packSlipBtn">🖨 A. 中身リストを印刷（1人分ずつ）</button>
+        <div class="hint">A4の用紙に2人分ずつ印刷されます。点線で切って袋に入れます。</div>
+      </div>
+      <div class="pack-btn">
+        <button type="button" class="btn btn-main" id="packPickBtn">🖨 B. 品物ごとの配り表を印刷</button>
+        <div class="hint">品物ごとに、袋の順で「誰に・どのサイズを・いくつ」入れるかが並びます。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 用品販売（園のイベント）で扱う人だけの集計 ===== -->
+<div class="view reg settings-view hidden" id="eventView">
+  <div class="panel reg-edit settings-card event-card">
+    <div class="ev-head">
+      <div class="hint">「👧 園児ごとの注文」の詳細で <b>「🛍 用品販売で扱う」</b> を押した人だけを集計しています。一覧の「🛍 用品販売」で、その人たちだけを表示できます。</div>
+      <button type="button" class="btn btn-main" id="eventPrintBtn" title="代金を受け取った分の会計用の明細を印刷します">🖨 A4で印刷する</button>
+    </div>
+    <div class="summary ev-tiles">
+      <div class="tile"><div class="label">人数</div><div class="value" id="eCount">—</div></div>
+      <div class="tile"><div class="label">合計金額</div><div class="value" id="eTotal">—</div><div class="split" id="eTotalSplit"></div></div>
+      <div class="tile green"><div class="label">代金受領済み</div><div class="value" id="ePaid">—</div><div class="split" id="ePaidSplit"></div></div>
+      <div class="tile red"><div class="label">まだ受け取っていない額</div><div class="value" id="eUnpaid">—</div><div class="split" id="eUnpaidSplit"></div></div>
+    </div>
+    <h3>分類ごとの代金</h3>
+    <div id="eCats"></div>
+  </div>
+</div>
+
+<!-- ===== 用品の登録 ===== -->
+<div class="view reg hidden" id="productView">
+  <div class="panel reg-list">
+    <div class="tools">
+      <div class="tool-row">
+        <input type="text" id="pSearch" placeholder="🔍 用品名・備考で探す">
+        <select id="catFilter"></select>
+        <select id="vendorFilter"></select>
+      </div>
+      <div class="count-row">
+        <div class="count" id="pCount">読み込んでいます…</div>
+        <button type="button" class="btn btn-small" id="sortBtn">↕ 順番を並べ替える</button>
+      </div>
+      <div class="order-bar hidden" id="orderBar">
+        <span id="orderMsg"></span>
+        <button type="button" class="btn btn-main btn-small" id="orderSaveBtn">並び順を保存する</button>
+        <button type="button" class="btn btn-small" id="orderUndoBtn">やめる</button>
+      </div>
+    </div>
+    <div class="list" id="pList"></div>
+  </div>
+
+  <div class="panel reg-edit">
+    <h2 id="editTitle">新しい用品を登録</h2>
+
+    <label class="field">分類<span class="req">必須</span></label>
+    <div class="ages" id="categoryBox"></div>
+    <div class="hint">注文画面では「園服」→「用品」→「その他の用品」の順にまとめて表示されます。</div>
+
+    <label class="field" for="pName">用品名<span class="req">必須</span></label>
+    <input type="text" id="pName" placeholder="例：体操服（上）">
+
+    <label class="check"><input type="checkbox" id="hasSize"> サイズがある</label>
+    <div class="hint" style="margin-top:0">「園服」を選ぶと自動でチェックが入ります。帽子などサイズのない園服は外してください。<br>はさみ（右きき用・左きき用）など、種類を選ぶ「用品」もここにチェックして、種類をサイズの欄に入れます。注文画面では「種類を選ぶ」と出ます。</div>
+
+    <div id="noSizeBox">
+      <label class="field" for="pPrice">単価<span class="req">必須</span></label>
+      <input type="text" id="pPrice" class="price-in" inputmode="numeric" placeholder="例：800"><span class="yen">円</span>
+    </div>
+
+    <div id="sizeBox" class="size-box hidden">
+      <div class="sub-label">① 注文できるサイズにチェック</div>
+      <div class="size-checks" id="sizeChecks"></div>
+      <div class="custom">
+        <input type="text" id="customSize" placeholder="一覧にないサイズ（例：95）">
+        <button type="button" class="btn btn-small" id="customBtn">追加</button>
+      </div>
+      <div class="sub-label">② 単価を入れる</div>
+      <div class="quick">
+        <input type="text" id="bulkPrice" class="price-in" inputmode="numeric" placeholder="単価">円
+        <button type="button" class="btn btn-small" id="bulkBtn">チェックしたサイズすべてに入れる</button>
+      </div>
+      <table class="sizes">
+        <thead><tr><th>サイズ</th><th>単価</th></tr></thead>
+        <tbody id="sizeRows"></tbody>
+      </table>
+      <div class="hint">サイズによって値段が違うときは、表の単価を直してください。</div>
+    </div>
+
+    <label class="field" for="pVendor">発注業者<span class="opt">任意</span></label>
+    <select id="pVendor"></select>
+    <div class="hint">一覧にない業者は、「🏢 発注業者の登録」のタブで先に登録してください。</div>
+
+    <label class="field">必ず用意する用品<span class="opt">任意</span></label>
+    <div class="ages" id="requiredBox"></div>
+    <div class="hint">チェックした年齢で入園するお子さまは、注文画面で最初から1点入った状態になります。</div>
+    <label class="check"><input type="checkbox" id="pRecycle"> ♻ リサイクル品可（園で買わずに、ご家庭で用意してもよい）</label>
+    <div class="hint">チェックなし：必ず用意する年齢では園で購入（保護者は0にできません）。<br>チェックあり：最初に1点入りますが、リサイクル品などを用意する保護者は0にできます。注文画面に「♻ リサイクル品可」の印が出ます。</div>
+
+    <label class="field">注文画面に出さない年齢<span class="opt">任意</span></label>
+    <div class="ages" id="hideAgesBox"></div>
+    <div class="hint">買わなくてよい年齢にチェックすると、その年齢を選んだ保護者の注文画面には出ません。</div>
+
+    <label class="field">数の数え方<span class="opt">任意</span></label>
+    <div class="qty-opts">
+      <label>単位 <input type="text" id="pUnit" placeholder="点"></label>
+      <label>最初に入れる数 <input type="text" id="pStartQty" inputmode="numeric" placeholder="1"></label>
+      <label>上限 <input type="text" id="pMaxQty" inputmode="numeric" placeholder="20"></label>
+    </div>
+    <div class="hint">肝油のように月数で注文するものは、単位「ヶ月分」・最初に入れる数「12」・上限「12」のようにします。最初に入れる数は、必ず用意する年齢で最初から入る数です（保護者が減らせます）。空欄なら「点」・1・20。</div>
+
+    <label class="check"><input type="checkbox" id="pAgeColor"> 色は入園する年齢で決まる（色帽子・上靴など）</label>
+    <div class="hint">チェックすると、保護者の注文画面に「上靴（赤）」のように、選んだ年齢の色を付けて出ます。年齢ごとの色は「⚙ 設定」で決めます（毎年そこを直すだけ）。</div>
+
+    <label class="field" for="pNote">備考<span class="opt">任意</span></label>
+    <textarea id="pNote" placeholder="例：10枚単位で発注、入荷まで約2週間"></textarea>
+    <div class="hint">園の中だけのメモです。保護者の注文画面には出ません。</div>
+
+    <label class="field" for="pCaption">注釈<span class="opt">任意</span></label>
+    <textarea id="pCaption" placeholder="例：大きめのサイズをおすすめします"></textarea>
+    <div class="hint">保護者の注文画面で、用品名の下に出ます。</div>
+
+    <label class="check"><input type="checkbox" id="pHidden"> 注文画面に出さない（お休み）</label>
+    <label class="check"><input type="checkbox" id="pNoPack"> 袋詰めしない</label>
+    <div class="hint">チェックすると、「🎁 袋詰め」の中身リスト・配り表に出なくなります（注文や代金はそのままです）。</div>
+
+    <div id="pMsg" class="msg"></div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-main" id="pSaveBtn">登録する</button>
+      <button type="button" class="btn" id="pNewBtn">新しい用品を入力</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-danger hidden" id="pDeleteBtn">この用品を消す</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 発注業者の登録 ===== -->
+<div class="view reg hidden" id="vendorRegView">
+  <div class="panel reg-list">
+    <div class="tools"><div class="count" id="vCount" style="margin-top:0"></div></div>
+    <div class="list" id="vList"></div>
+  </div>
+
+  <div class="panel reg-edit">
+    <h2 id="vEditTitle">新しい業者を登録</h2>
+
+    <label class="field" for="vName">業者名<span class="req">必須</span></label>
+    <input type="text" id="vName" placeholder="例：○○制服店">
+    <div class="hint">名前を変えると、この業者を選んでいる用品も新しい名前に変わります。</div>
+
+    <label class="field" for="vTel">電話番号<span class="opt">任意</span></label>
+    <input type="text" id="vTel" inputmode="tel" placeholder="例：03-1234-5678">
+
+    <label class="field" for="vFax">FAX番号<span class="opt">任意</span></label>
+    <input type="text" id="vFax" inputmode="tel" placeholder="例：03-1234-5679">
+    <div class="hint">「📦 業者への発注」で印刷する注文書の宛先に出ます。</div>
+
+    <label class="field" for="vNote">備考<span class="opt">任意</span></label>
+    <textarea id="vNote" placeholder="例：担当 ○○さん、FAXで発注"></textarea>
+
+    <div id="vMsg" class="msg"></div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-main" id="vSaveBtn">登録する</button>
+      <button type="button" class="btn" id="vNewBtn">新しい業者を入力</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-danger hidden" id="vDeleteBtn">この業者を消す</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 設定 ===== -->
+<div class="view reg settings-view hidden" id="settingsView">
+  <div class="panel reg-edit settings-card">
+    <h3>受付</h3>
+    <div class="choice" id="sOpen">
+      <label><input type="radio" name="sOpen" value="受付中"> 受付中（注文できる）</label>
+      <label class="stop"><input type="radio" name="sOpen" value="受付終了"> 受付終了（注文できない）</label>
+    </div>
+    <div class="hint">「受付終了」にすると、保護者の注文画面で注文できなくなります。</div>
+
+    <label class="field" for="sDeadlineDate">オンラインで注文・変更・取り消しができる締切<span class="opt">任意</span></label>
+    <div class="deadline-row">
+      <input type="date" id="sDeadlineDate">
+      <input type="time" id="sDeadlineTime" step="60">
+      <button type="button" class="btn" id="sDeadlineClear">締切なしにする</button>
+    </div>
+    <div class="hint">この日時を過ぎると、保護者の注文画面で新しく注文できなくなり、確認メールのリンクからの変更・取り消しもできなくなります（注文の中身を見ることはできます）。時刻を空けるとその日の終わり（23:59）まで。空欄なら締切はありません。締切を過ぎたあと、また注文を受けたいときは、締切を先の日にするか空欄にしてください。</div>
+    <div class="hint" id="sDeadlineState"></div>
+
+    <h3>注文画面に出す文</h3>
+    <label class="field" for="sKg">園の名前<span class="req">必須</span></label>
+    <input type="text" id="sKg">
+    <div class="hint">注文画面の上と、確認メールの差出人に出ます。</div>
+
+    <label class="field" for="sTitle">注文画面の題名<span class="opt">任意</span></label>
+    <input type="text" id="sTitle" placeholder="例：入園用品の注文">
+
+    <label class="field" for="sNotice">お知らせ<span class="opt">任意</span></label>
+    <textarea id="sNotice"></textarea>
+    <div class="hint">注文画面の上に出ます。</div>
+
+    <label class="field" for="sPay">代金の支払い方法<span class="opt">任意</span></label>
+    <textarea id="sPay"></textarea>
+    <div class="hint">注文の完了画面と確認メールに出ます。</div>
+
+    <label class="field">注文画面の「用品販売の日に購入する」の最初の状態</label>
+    <div class="choice" id="sEventDefault">
+      <label><input type="radio" name="sEventDefault" value="チェックあり"> チェックあり</label>
+      <label><input type="radio" name="sEventDefault" value="チェックなし"> チェックなし</label>
+    </div>
+    <div class="hint">保護者が注文画面を開いたときに、最初からチェックを入れておくかどうかです。保護者は自分で付けたり外したりできます。</div>
+
+    <h3>メール</h3>
+    <label class="field">保護者に確認メールを送る</label>
+    <div class="choice" id="sMail">
+      <label><input type="radio" name="sMail" value="送る"> 送る</label>
+      <label><input type="radio" name="sMail" value="送らない"> 送らない</label>
+    </div>
+
+    <label class="field" for="sAdminMail">注文が入ったら知らせるメールアドレス<span class="opt">任意</span></label>
+    <input type="text" id="sAdminMail" inputmode="email" placeholder="空欄なら送りません">
+
+    <h3>選択肢</h3>
+    <label class="field" for="sAges">入園する年齢の選択肢<span class="req">必須</span></label>
+    <input type="text" id="sAges" placeholder="例：3歳児、4歳児、5歳児">
+    <div class="hint">「、」で区切ります。保護者が選ぶ年齢と、用品の「必ず用意する用品」に出ます。</div>
+
+    <label class="field" for="sSizes">園服のサイズの選択肢<span class="req">必須</span></label>
+    <input type="text" id="sSizes" placeholder="例：90、100、110、120">
+    <div class="hint">小さい順に「、」で区切ります。用品の登録で、サイズのチェックボックスに出ます。</div>
+
+    <label class="field">入園する年齢ごとの色<span class="opt">任意</span></label>
+    <div class="age-colors" id="sAgeColors"></div>
+    <div class="hint">「色は入園する年齢で決まる」にチェックした用品（色帽子・上靴など）は、保護者の画面に「上靴（赤）」のように、ここの色を付けて出ます。<b>年度が変わったら、ここを直してください。</b>色が空欄の年齢では、その用品は出ません。</div>
+
+    <h3>領収書</h3>
+    <label class="field" for="sReceiptNote">但し書き</label>
+    <input type="text" id="sReceiptNote" placeholder="例：入園用品代として">
+    <label class="field" for="sReceiptAddress">園の住所<span class="opt">任意</span></label>
+    <textarea id="sReceiptAddress" style="min-height:54px" placeholder="例：〒000-0000&#10;○○市○○町1-2-3"></textarea>
+    <label class="field" for="sReceiptTel">園の電話番号<span class="opt">任意</span></label>
+    <input type="text" id="sReceiptTel" inputmode="tel" placeholder="例：03-1234-5678">
+    <div class="hint">領収書の右下に、園の名前と一緒に出ます。</div>
+    <label class="field">角印（はんこ）の画像<span class="opt">任意</span></label>
+    <div class="stamp-row">
+      <div class="stamp-box" id="stampBox">なし</div>
+      <div>
+        <input type="file" id="stampFile" accept="image/png,image/jpeg" class="hidden">
+        <button type="button" class="btn btn-small" id="stampPick">画像を選ぶ</button>
+        <button type="button" class="btn btn-small btn-danger hidden" id="stampDelete">角印を消す</button>
+        <div class="hint">選ぶとすぐに保存されます。背景が透明なPNGだと、きれいに出ます。</div>
+      </div>
+    </div>
+
+    <h3>保護者向けのお知らせ（印刷）</h3>
+    <label class="field" for="sGuideNote">お知らせに足す文<span class="opt">任意</span></label>
+    <textarea id="sGuideNote" placeholder="例：用品販売は 3月○日（○）10:00〜12:00、ホールで行います。&#10;上靴のサイズは、少し大きめをおすすめします。"></textarea>
+    <div class="hint">「📱 注文画面のQRコード」→「🖨 保護者向けのお知らせを印刷」のいちばん下に、枠に入れて出ます。空欄なら出ません。</div>
+
+    <h3>年度</h3>
+    <label class="field" for="sYear">今の年度</label>
+    <div class="quick">令和 <input type="text" id="sYear" inputmode="numeric" style="width:5em;text-align:right"> 年度</div>
+    <div class="hint">管理アプリのいちばん上に出ます。「年度を締める」をすると、自動で次の年度になります。</div>
+
+    <div id="sMsg" class="msg"></div>
+    <div class="actions">
+      <button type="button" class="btn btn-main" id="sSaveBtn">設定を保存する</button>
+      <button type="button" class="btn" id="sResetBtn">保存せずに元に戻す</button>
+    </div>
+
+    <h3>📁 年度を締める</h3>
+    <div class="hint">新しい年度の受付を始める前に、年に1回だけ使います。今の注文を全部「控え」のシートに移して、管理アプリを空にし、注文番号・領収書番号を No.0001・R-0001 から始め直します。
+      控えはスプレッドシートのいちばん右に「令和8年度_注文」「令和8年度_注文者別の一覧」「令和8年度_取り消した注文」として残ります。控えに移した注文は、保護者の変更リンクからは開けなくなります。
+      締めた年度の注文は、いちばん上の年度の欄で選ぶと見られます（見るだけ）。</div>
+    <div id="yearStatus" class="year-status"></div>
+    <label class="field" for="yearLabel">控えの名前</label>
+    <input type="text" id="yearLabel" placeholder="例：令和8年度" style="max-width:220px">
+    <div class="actions">
+      <button type="button" class="btn btn-danger" id="yearCloseBtn">📁 今の注文を締めて、控えに移す</button>
+    </div>
+
+    <h3>💾 バックアップ</h3>
+    <div class="hint">毎日夜中の2時ごろに、スプレッドシートを丸ごと写して、Googleドライブの「用品注文のバックアップ」フォルダに置きます。新しい30回分を残し、古いものは自動でゴミ箱に入れます。
+      始めるときは、スプレッドシートのメニュー「用品注文 → 💾 毎日の自動バックアップを始める」を1回だけ実行します。</div>
+    <div id="backupStatus" class="backup-status">読み込んでいます…</div>
+    <div class="actions">
+      <button type="button" class="btn" id="backupNowBtn">💾 今すぐバックアップをとる</button>
+      <a class="btn hidden" id="backupFolder" target="_blank" rel="noopener" style="text-decoration:none">📂 バックアップのフォルダを開く</a>
+    </div>
+  </div>
+</div>
+
+<!-- 注文画面のURLとQRコード -->
+<div class="modal hidden" id="qrModal">
+  <div class="modal-box">
+    <h2>📱 注文画面のURLとQRコード</h2>
+    <p class="sub">保護者にお知らせするものです。お便りに貼ったり、メールで送ったりしてください。</p>
+    <div class="url-row">
+      <input type="text" id="orderUrl" readonly>
+      <button type="button" class="btn" id="copyUrlBtn">📋 URLをコピー</button>
+    </div>
+    <div class="qr-wrap"><div id="qr"></div></div>
+    <div class="modal-actions">
+      <a class="btn btn-main" id="qrSave" download="注文画面のQRコード.png">⬇ QRコードを画像で保存</a>
+      <a class="btn" id="openOrder" target="_blank" rel="noopener">注文画面を開いてみる</a>
+    </div>
+    <div class="modal-actions" style="margin-top:10px">
+      <button type="button" class="btn btn-main" id="guidePrintBtn">🖨 保護者向けのお知らせを印刷（A4・QRコードと注文のしかた）</button>
+    </div>
+    <p class="sub" style="margin:12px 0 0;text-align:center">QRコードを右クリック →「画像をコピー」で、お便りの文書に直接貼ることもできます。</p>
+    <button type="button" class="btn modal-close" id="qrClose">閉じる</button>
+  </div>
+</div>
+
+<!-- これまでの注文履歴（業者への発注） -->
+<div class="modal hidden" id="historyModal">
+  <div class="modal-box wide">
+    <h2>📜 これまでの注文履歴</h2>
+    <p class="sub">「○○に発注した」を押した分です。新しい順に並んでいます。</p>
+    <div class="h-tools">
+      <select id="historyVendor"></select>
+      <span class="count" id="historyCount"></span>
+      <button type="button" class="btn" id="historyPrint">🖨 A4で印刷する</button>
+    </div>
+    <div class="h-list" id="historyList"></div>
+    <button type="button" class="btn modal-close" id="historyClose">閉じる</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="receiptModal">
+  <div class="modal-box">
+    <h2>🧾 領収書を送信しますか？</h2>
+    <p class="sub" id="receiptAsk"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-main" id="receiptNow">今すぐ送信する</button>
+      <button type="button" class="btn" id="receiptLater">あとで送信する</button>
+    </div>
+    <p class="sub" style="margin:12px 0 0;text-align:center">あとで送るときは、注文の詳細の「領収書をメールで送る」から送れます。</p>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+// スプレッドシートの外（アプリとして）開いたときに、注文をやりとりするウェブアプリのURL（最後が /exec）
+var API_URL = 'https://script.google.com/macros/s/AKfycbxvUiB_ojaCDwsOdV8EKtYNd0CGcC12fccDQXVm4-qojPeUKdv2ptWqhwSXNkrSpGCYlQ/exec';
+var KEY_STORE = 'youhin_admin_key';
+// 保護者が開く注文画面のURL（コード.gs の PUBLIC_URL と同じ）
+var ORDER_URL = 'https://kabagakuenkabayochien.github.io/kabayochien/youhin/';
+
+var IN_APPS_SCRIPT = !!(window.google && google.script && google.script.run);
+var DEMO = false; // 「合言葉なしで見本を見る」を押したときだけ true
+var adminKey = '';
+try { adminKey = localStorage.getItem(KEY_STORE) || ''; } catch (e) { /* 保存できないブラウザ */ }
+
+// ===== 見本のデータ（パソコンで直接開いたときだけ使う） =====
+var demoRow = 2;
+function demoItem(name, size, vendor, qty, price, handed, ordered) {
+  return { row: demoRow++, category: size && name !== '上靴' ? '園服' : '用品', name: name, size: size, vendor: vendor, qty: qty, price: price,
+    amount: qty * price, ordered: !!ordered, handed: !!handed, handedDate: handed ? '10/20' : '' };
+}
+var demoDb = {
+  ages: ['3歳児', '4歳児', '5歳児'],
+  orders: [
+    { no: 'No.0001', date: '10/18 9:12', child: 'やまだ はなこ', age: '3歳児', parent: '山田 花子', email: 'hanako@example.com', tel: '090-1234-5678', note: '',
+      paidFlag: true, items: [demoItem('長袖シャツ', '110', '○○制服店', 1, 3600, true, true), demoItem('上靴', '16cm', '△△靴店', 1, 2100, true, true), demoItem('ネームシール', '', '△△文具', 1, 1500, true, true)] },
+    { no: 'No.0002', date: '10/18 10:40', child: 'さとう たろう', age: '4歳児', parent: '佐藤 一郎', email: 'sato@example.com', tel: '080-2222-3333', note: '上靴は大きめでお願いします',
+      paidFlag: false, event: true, items: [demoItem('半袖シャツ', '120', '○○制服店', 2, 3200), demoItem('上靴', '18cm', '△△靴店', 1, 2100), demoItem('ネームシール', '', '△△文具', 1, 1500),
+        Object.assign(demoItem('お道具箱', '', '△△文具', 1, 800), { category: 'その他の用品' })] },
+    { no: 'No.0003', date: '10/19 8:05', child: 'すずき みく', age: '3歳児', parent: '鈴木 真理', email: 'suzuki@example.com', tel: '070-4444-5555', note: '',
+      paidFlag: true, event: true, items: [demoItem('長袖シャツ', '100', '○○制服店', 1, 3600, true, true), demoItem('日除け付き色帽子', '', '', 1, 1100), demoItem('ネームシール', '', '△△文具', 1, 1500),
+        Object.assign(demoItem('肝油', '', '△△文具', 10, 130), { unit: 'ヶ月分' })] }
+  ]
+};
+function demoData() {
+  return { ages: demoDb.ages, kindergarten: '○○幼稚園（見本）', year: '令和' + demoYear + '年度', archives: demoArchives.slice(), orders: demoDb.orders.map(function (o) {
+    var items = o.items.map(function (it) { return Object.assign({}, it); });
+    return { no: o.no, date: o.date, child: o.child, age: o.age, parent: o.parent, email: o.email, tel: o.tel, note: o.note,
+      changed: o.no === 'No.0002' ? '10/19 7:30' : '', editUrl: ORDER_URL + '?k=' + 'x'.repeat(64),
+      receiptNo: o.receiptNo || '', receiptSent: o.receiptSent || '', event: !!o.event,
+      qty: items.reduce(function (a, x) { return a + (x.unit ? 1 : x.qty); }, 0), amount: items.reduce(function (a, x) { return a + x.amount; }, 0),
+      paid: o.paidFlag, handed: items.filter(function (x) { return x.handed; }).length, count: items.length, items: items };
+  }) };
+}
+// 見本の発注の履歴（No.0001・No.0003 で発注済みにした分）
+var demoHistory = [
+  { time: 2, date: '2026/10/20 9:30', vendor: '○○制服店', orders: ['No.0003'], lines: [{ category: '園服', name: '長袖シャツ', size: '100', qty: 1, unit: '' }] },
+  { time: 1, date: '2026/10/18 16:05', vendor: '○○制服店', orders: ['No.0001'], lines: [{ category: '園服', name: '長袖シャツ', size: '110', qty: 1, unit: '' }] },
+  { time: 1, date: '2026/10/18 16:04', vendor: '△△靴店', orders: ['No.0001'], lines: [{ category: '用品', name: '上靴', size: '16cm', qty: 1, unit: '' }] },
+  { time: 0, date: '2026/10/18 16:02', vendor: '△△文具', orders: ['No.0001'], lines: [{ category: '用品', name: 'ネームシール', size: '', qty: 1, unit: '' }] }
+];
+// 見本の年度と、締めた年度の控え
+var demoYear = 8;
+var demoArchives = ['令和7年度'];
+var demoBackup = { on: true, needAuth: false, last: '2026年10月27日 2:03', error: '', folderUrl: 'https://drive.google.com/' };
+function demoArchiveData(label) {
+  var d = demoData();
+  d.archive = label;
+  d.orders = [
+    { no: 'No.0001', date: '11/2 9:00', child: 'むかし はると', age: '4歳児', parent: '昔 春人', email: 'old@example.com', tel: '090-0000-1111', note: '',
+      changed: '', editUrl: '', receiptNo: 'R-0001', receiptSent: '3/1 10:00', qty: 2, amount: 5700, paid: true, handed: 2, count: 2,
+      items: [Object.assign(demoItem('長袖シャツ', '110', '○○制服店', 1, 3600, true, true), { handedDate: '3/5' }), Object.assign(demoItem('上靴', '17cm', '△△靴店', 1, 2100, true, true), { handedDate: '3/5' })] }
+  ];
+  return d;
+}
+function demoFind(no) { return demoDb.orders.filter(function (o) { return o.no === no; })[0]; }
+var demoApi = {
+  getAdminData: function () { return demoData(); },
+  getArchiveData: function (a) { return demoArchiveData(a[0]); },
+  getBackupStatus: function () { return Object.assign({}, demoBackup); },
+  backupNow: function () { demoBackup.last = '今'; return Object.assign({}, demoBackup); },
+  setOrderPaid: function (a) { demoFind(a[0]).paidFlag = a[1]; return demoData(); },
+  setOrderEvent: function (a) { demoFind(a[0]).event = a[1]; return demoData(); },
+  setItemsHanded: function (a) {
+    demoFind(a[0]).items.forEach(function (it) {
+      if (!a[1].length || a[1].indexOf(it.row) >= 0) { it.handed = a[2]; it.handedDate = a[2] ? '10/20' : ''; }
+    });
+    return demoData();
+  },
+  setItemsOrdered: function (a) {
+    var rows = a[0].map(function (x) { return x.row; });
+    var d = new Date();
+    var g = { time: d.getTime(), date: d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2),
+      vendor: '', lines: [], orders: [] };
+    demoDb.orders.forEach(function (o) {
+      o.items.forEach(function (it) {
+        if (rows.indexOf(it.row) < 0 || it.ordered) return;
+        it.ordered = true;
+        g.vendor = it.vendor;
+        var l = g.lines.filter(function (x) { return x.name === it.name && x.size === it.size; })[0];
+        if (!l) { l = { category: it.category, name: it.name, size: it.size, qty: 0, unit: it.unit || '' }; g.lines.push(l); }
+        l.qty += it.qty;
+        if (g.orders.indexOf(o.no) < 0) g.orders.push(o.no);
+      });
+    });
+    if (!g.lines.length) throw new Error('この分は、もう発注済みになっています。画面を開き直してください。');
+    demoHistory.unshift(g);
+    return demoData();
+  },
+  getPurchaseHistory: function () { return JSON.parse(JSON.stringify(demoHistory)); },
+  cancelOrder: function (a) { demoDb.orders = demoDb.orders.filter(function (o) { return o.no !== a[0]; }); return demoData(); },
+  updateOrderInfo: function (a) {
+    var f = a[1];
+    if (!/^[ぁ-ゖー]+ [ぁ-ゖー]+$/.test(String(f.child).replace(/[　\s]+/g, ' ').trim())) throw new Error('園児のお名前は、ひらがなで、姓と名の間にスペースを入れてください。');
+    var o = demoFind(a[0]);
+    ['child', 'age', 'parent', 'email', 'tel', 'note'].forEach(function (k) { o[k] = String(f[k] || '').replace(/　/g, ' ').trim(); });
+    return demoData();
+  },
+  changeOrderNo: function (a) {
+    var s = String(a[1]).replace(/[！-～]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/\s+/g, '');
+    var m = s.match(/^(?:no\.?)?(\d+)$/i);
+    var no = m ? 'No.' + ('000' + Number(m[1])).slice(-4) : s;
+    if (no !== a[0] && demoFind(no)) throw new Error('「' + no + '」は、ほかの注文で使っています。別の番号にしてください。');
+    demoFind(a[0]).no = no;
+    var d = demoData(); d.changedNo = no; return d;
+  },
+  getProductAdminData: function () { return demoProductData(); },
+  saveProductOrder: function (a) {
+    var pos = {};
+    a[0].forEach(function (id, i) { pos[id] = i; });
+    demoProducts.products.sort(function (x, y) { return catRank(x.category) - catRank(y.category) || pos[x.id] - pos[y.id]; });
+    return demoProductData();
+  },
+  saveVendor: function (a) {
+    var v = a[0];
+    if (!v.name) throw new Error('業者名を入力してください。');
+    var i = demoProducts.vendors.findIndex(function (x) { return x.name === v.oldName; });
+    if (demoProducts.vendors.some(function (x, k) { return x.name === v.name && k !== i; })) throw new Error('「' + v.name + '」はもう登録されています。');
+    var rec = { name: v.name, tel: v.tel, fax: v.fax, note: v.note };
+    if (i >= 0) demoProducts.vendors[i] = rec; else demoProducts.vendors.push(rec);
+    if (v.oldName && v.oldName !== v.name) demoProducts.products.forEach(function (p) { if (p.vendor === v.oldName) p.vendor = v.name; });
+    var d = demoProductData(); d.savedName = v.name; return d;
+  },
+  deleteVendor: function (a) {
+    var used = demoProducts.products.filter(function (p) { return p.vendor === a[0]; });
+    if (used.length) throw new Error('「' + a[0] + '」を発注業者にしている用品が ' + used.length + ' 件あるので消せません。\n先に用品の発注業者を変えてください（例：' + used[0].name + '）。');
+    demoProducts.vendors = demoProducts.vendors.filter(function (x) { return x.name !== a[0]; });
+    return demoProductData();
+  },
+  saveProduct: function (a) {
+    var p = a[0];
+    if (!p.name) throw new Error('用品名を入力してください。');
+    var id = p.id || demoProducts.products.reduce(function (m, x) { return Math.max(m, x.id); }, 0) + 1;
+    var hiddenMust = p.required.filter(function (a) { return p.hideAges.indexOf(a) >= 0; });
+    if (hiddenMust.length) throw new Error(hiddenMust.join('、') + 'は必ず用意する年齢なので、「注文画面に出さない年齢」にはできません。');
+    var g = { id: id, category: p.category, name: p.name, vendor: p.vendor, required: p.required, note: p.note, caption: p.caption, ageColor: p.ageColor, hideAges: p.hideAges, hidden: p.hidden, noPack: p.noPack, recycle: p.recycle,
+      unit: p.unit, startQty: Number(p.startQty) || 0, maxQty: Number(p.maxQty) || 0,
+      sizes: p.sizes.map(function (s) { return { size: s.size, price: Number(String(s.price).replace(/[,円]/g, '')) }; }) };
+    var i = demoProducts.products.findIndex(function (x) { return x.id === id; });
+    if (i >= 0) demoProducts.products[i] = g; else demoProducts.products.push(g);
+    var d = demoProductData(); d.savedId = id; return d;
+  },
+  deleteProduct: function (a) {
+    demoProducts.products = demoProducts.products.filter(function (x) { return x.id !== a[0]; });
+    return demoProductData();
+  },
+  saveReceiptStamp: function (a) { demoSettings.stamp = a[0]; return Object.assign({}, demoSettings); },
+  deleteReceiptStamp: function () { demoSettings.stamp = ''; return Object.assign({}, demoSettings); },
+  sendReceipt: function (a) {
+    var o = demoFind(a[0]);
+    o.receiptNo = o.receiptNo || 'R-0001';
+    o.receiptSent = '10/20 10:15';
+    return demoData();
+  },
+  closeYear: function (a) {
+    if (a[1] !== demoDb.orders.length) throw new Error('画面を見ている間に注文が変わりました。');
+    demoDb.orders = [];
+    demoArchives.unshift(a[0]);
+    demoYear++;
+    return demoData();
+  },
+  getSettingsForAdmin: function () { return Object.assign({}, demoSettings, { year: demoYear }); },
+  saveSettings: function (a) {
+    if (!String(a[0].kindergarten).trim()) throw new Error('園の名前を入力してください。');
+    Object.assign(demoSettings, a[0]);
+    demoYear = Number(a[0].year) || demoYear;
+    demoSettings.editDeadlinePassed = !!demoSettings.editDeadline && new Date(demoSettings.editDeadline.replace(/\//g, '-').replace(' ', 'T')) < new Date();
+    return Object.assign({}, demoSettings, { year: demoYear });
+  }
+};
+var demoSettings = { kindergarten: '○○幼稚園（見本）', title: '入園用品の注文', open: '受付中', notice: '入園する年齢を選ぶと、必ず購入する用品が1点ずつ入ります。',
+  payNote: '代金は現金で園にお持ちください。', sendMail: '送る', adminMail: '', ages: '3歳児、4歳児、5歳児', sizes: '90、100、110、120、130、140、S、M、L、LL',
+  receiptNote: '入園用品代として', receiptAddress: '', receiptTel: '', stamp: '', ageColors: '3歳児＝赤、4歳児＝青、5歳児＝緑', guideNote: '', eventDefault: 'チェックあり' };
+var demoProducts = {
+  products: [
+    { id: 1, category: '園服', name: '長袖シャツ', vendor: '○○制服店', required: ['3歳児', '4歳児', '5歳児'], note: '', hidden: false,
+      sizes: [{ size: '100', price: 3600 }, { size: '110', price: 3600 }, { size: '120', price: 3800 }] },
+    { id: 2, category: '用品', name: '上靴', vendor: '△△靴店', required: ['3歳児'], ageColor: true, note: '', hidden: false,
+      sizes: [{ size: '14cm', price: 2100 }, { size: '15cm', price: 2100 }, { size: '21cm', price: 2400 }] },
+    { id: 3, category: '用品', name: 'ネームシール', vendor: '△△文具', required: [], note: '名前は保護者が記入', caption: 'お名前は届いてからご家庭で書いてください。', hidden: false, sizes: [{ size: '', price: 1500 }] },
+    { id: 4, category: 'その他の用品', name: 'お道具箱', vendor: '△△文具', required: [], note: '', hidden: false, sizes: [{ size: '', price: 800 }] }
+  ],
+  vendors: [
+    { name: '○○制服店', tel: '03-1234-5678', fax: '03-1234-5679', note: '' },
+    { name: '△△靴店', tel: '', note: '' },
+    { name: '△△文具', tel: '', note: 'FAXで発注' }
+  ]
+};
+function demoProductData() {
+  return { products: JSON.parse(JSON.stringify(demoProducts.products)), categories: CATEGORY_ORDER.slice(),
+    vendors: JSON.parse(JSON.stringify(demoProducts.vendors)), ages: ['3歳児', '4歳児', '5歳児'],
+    sizes: ['90', '100', '110', '120', '130', '140', 'S', 'M', 'L', 'LL'] };
+}
+
+// 締めた年度の控えを見ているときの、その年度の名前（'' なら今の年度）。控えは見るだけ
+var viewingArchive = '';
+// 今の年度の注文を書き換える操作（控えを見ているときは止める）
+var ORDER_WRITES = ['setOrderPaid', 'setOrderEvent', 'setItemsHanded', 'setItemsOrdered', 'cancelOrder', 'updateOrderInfo', 'changeOrderNo',
+  'previewReceipt', 'sendReceipt', 'closeYear'];
+
+// サーバー（Apps Script）を呼ぶ。args は配列
+function call(fn, args) {
+  args = args || [];
+  if (viewingArchive && ORDER_WRITES.indexOf(fn) >= 0) {
+    return Promise.reject(new Error('締めた年度（' + viewingArchive + '）は見るだけです。書き換えるときは「今の年度に戻る」を押してください。'));
+  }
+  return new Promise(function (resolve, reject) {
+    if (DEMO) {
+      setTimeout(function () { try { resolve(demoApi[fn](args)); } catch (e) { reject(e); } }, 250);
+      return;
+    }
+    if (IN_APPS_SCRIPT) {
+      var run = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      run[fn].apply(run, args);
+      return;
+    }
+    // アプリとして開いたとき：合言葉を付けて /exec にPOSTする
+    // （Content-Type を text/plain にして、ブラウザの事前確認（プリフライト）が起きないようにする）
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'admin', key: adminKey, fn: fn, args: args })
+    })
+      .then(function (r) { return r.json(); }, function () {
+        throw new Error('通信できませんでした。インターネットにつながっているか確かめてください。');
+      })
+      .then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.error) || '時間をおいて、もう一度お試しください。');
+        resolve(res.result);
+      })
+      .catch(reject);
+  });
+}
+
+// ===== 共通 =====
+
+var $ = function (id) { return document.getElementById(id); };
+var data = { orders: [], ages: [] };
+var selectedNo = '';
+var editingInfo = ''; // 名前・連絡先を直している注文の番号
+var filter = 'all';
+var busyNow = false;
+var writeCount = 0;   // 書き込んだ回数（自動の読み直しの途中で書き込んだら、古い読み直しの結果は捨てる）
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function yen(n) { return Number(n || 0).toLocaleString('ja-JP') + '円'; }
+// 事務処理のため、肝油の代金を分けて見せる（保護者が見る領収書などは合計のまま。コード.gs の SEPARATE_WORD と同じ）
+var SEPARATE_WORD = '肝油';
+// 品物の一覧 → { kanyu: 肝油の代金, other: 肝油を除いた代金 }（足すと合計になる）
+function splitAmount(items) {
+  var s = { kanyu: 0, other: 0 };
+  items.forEach(function (it) {
+    if (String(it.name).indexOf(SEPARATE_WORD) >= 0) s.kanyu += it.amount; else s.other += it.amount;
+  });
+  return s;
+}
+function splitText(s) { return SEPARATE_WORD + ' ' + yen(s.kanyu) + '／その他 ' + yen(s.other); }
+// 学年（入園する年齢）の色。「設定」の選択肢の順に割り当てる（背景・しるしの地・しるしの字）
+var AGE_COLORS = [
+  ['#fdeef3', '#f8cfdc', '#a3285a'],  // ピンク
+  ['#edf7ea', '#cfe9c6', '#2f6b1f'],  // みどり
+  ['#f2eefb', '#dcd2f3', '#5b3a9e'],  // むらさき
+  ['#fff1e3', '#fbd9b5', '#9a4a00'],  // オレンジ
+  ['#e6f6f8', '#bfe6ec', '#135f6b']   // 水色
+];
+function ageStyle(age) {
+  var i = data.ages.indexOf(age);
+  if (i < 0) return '';
+  var c = AGE_COLORS[i % AGE_COLORS.length];
+  return '--age-bg:' + c[0] + ';--age-tag:' + c[1] + ';--age-text:' + c[2];
+}
+// 分類の色分けに使う class
+function catClass(c) { return c === '園服' || c === '衣服' ? 'cat-clothes' : c === 'その他の用品' ? 'cat-other' : 'cat-goods'; }
+// 分類の並び順（コード.gs の CATEGORIES と同じ。ほかの分類は最後）
+var CATEGORY_ORDER = ['園服', '用品', 'その他の用品'];
+function catRank(c) { var i = CATEGORY_ORDER.indexOf(c); return i < 0 ? CATEGORY_ORDER.length : i; }
+function errMsg(e) { return String((e && e.message) || e).replace(/^Error:\s*/, ''); }
+
+var toastTimer = null;
+function toast(text, isErr) {
+  var t = $('toast');
+  t.textContent = text;
+  t.className = 'toast' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.add('hidden'); }, isErr ? 6000 : 2500);
+}
+
+// 受け渡しの状態：done（全部渡した）/ part（一部）/ none（まだ）
+function handState(o) { return o.handed >= o.count ? 'done' : o.handed > 0 ? 'part' : 'none'; }
+function handLabel(o) {
+  var s = handState(o);
+  return s === 'done' ? '全部渡した' : s === 'part' ? '一部渡した（' + o.handed + '/' + o.count + '）' : 'まだ';
+}
+
+// ボタンを押したときの共通の手順：書き込み中は他のボタンを止め、終わったら画面を描き直す
+function act(fn, args, okText, onOk) {
+  if (busyNow) return Promise.resolve();
+  busyNow = true;
+  Array.prototype.forEach.call(document.querySelectorAll('button'), function (b) { b.disabled = true; });
+  writeCount++;
+  return call(fn, args).then(function (d) {
+    if (onOk) onOk(d);
+    data = d;
+    renderAll();
+    if (okText) toast(okText);
+  }).catch(function (e) {
+    toast(errMsg(e), true);
+  }).then(function () {
+    busyNow = false;
+    Array.prototype.forEach.call(document.querySelectorAll('button'), function (b) { b.disabled = false; });
+    renderProductList(); // 一番上・一番下の「▲」「▼」は押せないままにする
+    if (sortMode) setOrderMsg();
+  });
+}
+
+// ===== 年度を締める =====
+
+// 締める前に、終わっていない注文がないか数える
+function yearStats() {
+  var s = { orders: data.orders.length, unpaid: 0, unhanded: 0, unordered: 0 };
+  data.orders.forEach(function (o) {
+    if (!o.paid) s.unpaid++;
+    if (o.handed < o.count) s.unhanded++;
+    s.unordered += o.items.filter(function (it) { return !it.ordered; }).length;
+  });
+  return s;
+}
+function yearLeftText(s) {
+  return [s.unpaid ? '代金をまだ受け取っていない注文が ' + s.unpaid + ' 件' : '',
+    s.unhanded ? 'まだ全部渡していない注文が ' + s.unhanded + ' 件' : '',
+    s.unordered ? '業者にまだ発注していない品物が ' + s.unordered + ' 行' : ''].filter(String).join('\n');
+}
+function renderYearClose() {
+  var s = yearStats();
+  var left = yearLeftText(s);
+  $('yearStatus').textContent = !s.orders ? '今は注文がありません（締めるものはありません）。'
+    : '今の注文：' + s.orders + ' 件' + (left ? '\n' + left : '\nすべて済んでいます。');
+  $('yearStatus').classList.toggle('warn', !!left);
+  // 控えの名前の初め：今の年度（例：令和8年度）
+  if (!$('yearLabel').value && data.year) $('yearLabel').value = data.year;
+}
+$('yearCloseBtn').addEventListener('click', function () {
+  var s = yearStats();
+  if (!s.orders) { toast('締める注文がありません。', true); return; }
+  var label = $('yearLabel').value.trim();
+  if (!label) { toast('控えの名前を入れてください。', true); $('yearLabel').focus(); return; }
+  var left = yearLeftText(s);
+  if (left && !confirm('まだ終わっていない注文があります。\n\n' + left + '\n\n締めると、これらも控えに移り、管理アプリから見えなくなります。それでも締めますか？')) return;
+  if (!confirm('今の注文 ' + s.orders + ' 件を「' + label + '」の控えに移して、管理アプリを空にします。\n'
+    + '注文番号・領収書番号は No.0001・R-0001 から始め直します。\n\nこの操作は元に戻せません。よろしいですか？')) return;
+  act('closeYear', [label, s.orders], '「' + label + '」の控えに移しました。新しい年度の注文を受け付けられます。', function () {
+    $('yearLabel').value = '';
+  });
+});
+
+// ===== 年度（いちばん上の帯） =====
+
+// 注文を読む：今の年度なら getAdminData、控えを見ているならその年度の控え
+function ordersCall() {
+  return viewingArchive ? call('getArchiveData', [viewingArchive]) : call('getAdminData');
+}
+
+// 「令和8年度」→「令和8年度（令和9年度入園者用）」。秋に受け付ける注文は、次の年度に入園する子の分なので
+function yearWithEntry(label) {
+  var m = String(label || '').match(/^令和(\d+)年度$/);
+  return m ? label + '（令和' + (Number(m[1]) + 1) + '年度入園者用）' : String(label || '');
+}
+
+function renderYear() {
+  var archives = data.archives || [];
+  $('yearSelect').innerHTML = '<option value="">' + esc(yearWithEntry(data.year) || '今の年度') + '</option>'
+    + archives.map(function (a) { return '<option value="' + esc(a) + '">' + esc(yearWithEntry(a)) + '・控え</option>'; }).join('');
+  $('yearSelect').value = viewingArchive;
+  $('archiveBox').classList.toggle('hidden', !viewingArchive);
+  $('archiveText').textContent = viewingArchive ? '📁 ' + viewingArchive + ' の注文を見ています（締めた年度の控えなので、見るだけです）' : '';
+  document.body.classList.toggle('archive', !!viewingArchive);
+}
+
+function showYear(label) {
+  var before = viewingArchive;
+  viewingArchive = label;
+  selectedNo = '';
+  editingInfo = '';
+  $('count').textContent = '読み込んでいます…';
+  return ordersCall().then(function (d) {
+    data = d;
+    renderAll();
+  }).catch(function (e) {
+    viewingArchive = before;
+    renderYear();
+    toast(errMsg(e), true);
+  });
+}
+$('yearSelect').addEventListener('change', function () { showYear(this.value); });
+$('archiveBack').addEventListener('click', function () { showYear(''); });
+
+function renderAll() {
+  if (data.kindergarten) $('kgName').textContent = data.kindergarten;
+  renderYear();
+  var now = new Date();
+  $('updated').textContent = now.getHours() + ':' + ('0' + now.getMinutes()).slice(-2) + ' 現在';
+  renderSummary();
+  renderList();
+  renderDetail();
+  renderVendors();
+  renderPack();
+  renderEvent();
+  renderYearClose();
+}
+
+// ===== 一番上の合計 =====
+
+function renderSummary() {
+  var total = 0, paid = 0, unhanded = 0;
+  var all = { kanyu: 0, other: 0 }, got = { kanyu: 0, other: 0 };
+  data.orders.forEach(function (o) {
+    var s = splitAmount(o.items);
+    total += o.amount;
+    all.kanyu += s.kanyu; all.other += s.other;
+    if (o.paid) { paid += o.amount; got.kanyu += s.kanyu; got.other += s.other; }
+    if (handState(o) !== 'done') unhanded++;
+  });
+  $('sCount').textContent = data.orders.length + ' 件';
+  $('sTotal').textContent = yen(total);
+  $('sPaid').textContent = yen(paid);
+  $('sUnpaid').textContent = yen(total - paid);
+  $('sTotalSplit').textContent = splitText(all);
+  $('sPaidSplit').textContent = splitText(got);
+  $('sUnpaidSplit').textContent = splitText({ kanyu: all.kanyu - got.kanyu, other: all.other - got.other });
+  $('sUnhanded').textContent = unhanded + ' 件';
+}
+
+// ===== 左：注文の一覧 =====
+
+function shownOrders() {
+  var q = $('search').value.trim().toLowerCase().replace(/[\s　]+/g, '');
+  var age = $('ageFilter').value;
+  var list = data.orders.filter(function (o) {
+    if (age && o.age !== age) return false;
+    if (filter === 'unpaid' && o.paid) return false;
+    if (filter === 'unhanded' && handState(o) === 'done') return false;
+    if (filter === 'done' && !(o.paid && handState(o) === 'done')) return false;
+    if (filter === 'event' && !o.event) return false;
+    if (!q) return true;
+    return (o.child + o.parent + o.no + o.tel + o.tel.replace(/-/g, '')).toLowerCase().replace(/[\s　]+/g, '').indexOf(q) >= 0;
+  });
+  var sort = $('sort').value;
+  if (sort === 'noDesc') list.reverse();
+  if (sort === 'name') list.sort(function (a, b) { return a.child.localeCompare(b.child, 'ja'); });
+  return list;
+}
+
+function renderList() {
+  var cur = $('ageFilter').value;
+  $('ageFilter').innerHTML = '<option value="">すべての年齢</option>'
+    + data.ages.map(function (a) { return '<option' + (a === cur ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('');
+  $('ageLegend').innerHTML = data.ages.map(function (a) {
+    return '<span class="age-tag" style="' + ageStyle(a) + '">' + esc(a) + '</span>';
+  }).join('');
+  var list = shownOrders();
+  $('count').textContent = list.length === data.orders.length ? data.orders.length + ' 件' : data.orders.length + ' 件中 ' + list.length + ' 件を表示';
+  if (!data.orders.length) { $('list').innerHTML = '<div class="empty">まだ注文はありません。</div>'; return; }
+  if (!list.length) { $('list').innerHTML = '<div class="empty">当てはまる注文はありません。</div>'; return; }
+  $('list').innerHTML = list.map(function (o) {
+    var hs = handState(o);
+    return '<div class="order' + (o.no === selectedNo ? ' sel' : '') + '" data-no="' + esc(o.no) + '" style="' + ageStyle(o.age) + '">'
+      + '<div class="order-top"><span class="order-no">' + esc(o.no) + '</span>'
+      + '<span class="order-name">' + esc(o.child) + '</span><span class="order-sum">' + yen(o.amount) + '</span></div>'
+      + '<div class="order-bottom"><span class="order-sub"><span class="age-tag">' + esc(o.age) + '</span> ' + o.qty + '点・' + esc(o.date)
+      + (o.changed ? '<span class="changed" title="保護者が ' + esc(o.changed) + ' に変更">✏ 変更あり</span>' : '')
+      + (o.event ? '<span class="event-tag">🛍 用品販売</span>' : '') + '</span>'
+      + '<span class="st ' + (o.paid ? 'green' : 'red') + '">代金 ' + (o.paid ? '済' : 'まだ') + '</span>'
+      + '<span class="st ' + (hs === 'done' ? 'green' : 'orange') + '">' + (hs === 'done' ? '渡した' : hs === 'part' ? '一部渡した' : '渡していない') + '</span>'
+      + '</div></div>';
+  }).join('');
+}
+
+$('list').addEventListener('click', function (ev) {
+  var el = ev.target.closest('.order');
+  if (!el) return;
+  selectedNo = el.dataset.no;
+  renderList();
+  renderDetail();
+});
+$('search').addEventListener('input', renderList);
+$('ageFilter').addEventListener('change', renderList);
+$('sort').addEventListener('change', renderList);
+$('filters').addEventListener('click', function (ev) {
+  var b = ev.target.closest('.chip');
+  if (!b) return;
+  filter = b.dataset.f;
+  Array.prototype.forEach.call(document.querySelectorAll('#filters .chip'), function (c) { c.classList.toggle('on', c === b); });
+  renderList();
+});
+
+// ===== 右：選んだ注文 =====
+
+function renderDetail() {
+  var o = data.orders.filter(function (x) { return x.no === selectedNo; })[0];
+  if (!o) {
+    selectedNo = '';
+    $('detail').innerHTML = '<div class="placeholder">' + (data.orders.length ? '左の一覧から注文を選んでください' : 'まだ注文はありません') + '</div>';
+    return;
+  }
+  if (editingInfo !== o.no) editingInfo = '';
+  var hs = handState(o);
+  var sp = splitAmount(o.items);
+  var html = '<div class="d-head"><div><span class="d-name">' + esc(o.child) + '</span><span class="d-age" style="' + ageStyle(o.age) + '">' + esc(o.age) + '</span></div>'
+    + '<div class="d-no"><b>' + esc(o.no) + '</b>' + esc(o.date) + ' 注文'
+    + (o.changed ? '<br><span class="changed">✏ 保護者が ' + esc(o.changed) + ' に変更</span>' : '')
+    + '<br><button type="button" class="btn-link" data-act="changeNo">番号を変える</button></div></div>';
+  if (editingInfo) {
+    var ages = data.ages.indexOf(o.age) >= 0 ? data.ages : data.ages.concat([o.age]);
+    html += '<div class="info-form">'
+      + '<label for="iChild">園児名</label><input type="text" id="iChild" value="' + esc(o.child) + '" placeholder="ひらがな（例：やまだ はなこ）">'
+      + '<label for="iAge">入園する年齢</label><select id="iAge">'
+      + ages.map(function (a) { return '<option' + (a === o.age ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('') + '</select>'
+      + '<label for="iParent">保護者名</label><input type="text" id="iParent" value="' + esc(o.parent) + '">'
+      + '<label for="iTel">電話番号</label><input type="text" id="iTel" value="' + esc(o.tel) + '" inputmode="tel">'
+      + '<label for="iEmail">メールアドレス</label><input type="text" id="iEmail" value="' + esc(o.email) + '" inputmode="email">'
+      + '<label for="iNote">保護者からの備考</label><textarea id="iNote">' + esc(o.note) + '</textarea>'
+      + '<div class="full"><span class="hint">注文した用品と金額は変わりません。</span>'
+      + '<button type="button" class="btn" data-act="infoCancel">やめる</button>'
+      + '<button type="button" class="btn btn-main" data-act="infoSave">保存する</button></div></div>';
+  } else {
+    html += '<div class="d-contact"><span>保護者：<b>' + esc(o.parent) + '</b></span><span>☎ <b>' + esc(o.tel) + '</b></span><span>✉ <b>' + esc(o.email) + '</b></span>'
+      + '<button type="button" class="btn-link" data-act="infoEdit">✏ 名前・連絡先を直す</button></div>';
+  }
+
+  html += '<div class="status-row">'
+    + '<div class="status ' + (o.paid ? 'green' : 'red') + '"><div class="s-text"><div class="s-label">代金（' + yen(o.amount) + '）'
+    + (sp.kanyu ? '<span class="s-split">' + splitText(sp) + '</span>' : '') + '</div>'
+    + '<div class="s-value">' + (o.paid ? '受け取り済み' : 'まだ') + '</div></div>'
+    + (o.paid
+      ? '<button type="button" class="btn-link" data-act="unpay">取り消す</button>'
+      : '<button type="button" class="btn btn-main" data-act="pay">💴 代金を受け取った</button>')
+    + '</div>'
+    + '<div class="status ' + (hs === 'done' ? 'green' : 'orange') + '"><div class="s-text"><div class="s-label">用品の受け渡し</div>'
+    + '<div class="s-value">' + handLabel(o) + '</div></div>'
+    + (hs === 'done'
+      ? '<button type="button" class="btn-link" data-act="unhandAll">取り消す</button>'
+      : '<button type="button" class="btn btn-main" data-act="handAll">🎒 全部渡した</button>')
+    + '</div></div>';
+
+  // 用品販売（園のイベント）で扱う注文の印
+  html += '<div class="event-bar' + (o.event ? ' on' : '') + '"><span class="r-text">🛍 '
+    + (o.event ? '<b>用品販売で扱う</b>注文です' : '用品販売では扱いません') + '</span>'
+    + '<button type="button" class="btn btn-small' + (o.event ? '' : ' btn-main') + '" data-act="' + (o.event ? 'eventOff' : 'eventOn') + '">'
+    + (o.event ? '印を外す' : '用品販売で扱う') + '</button></div>';
+
+  // 領収書（代金を受け取った注文だけ）
+  if (o.paid) {
+    html += '<div class="receipt-bar"><span class="r-text">🧾 '
+      + (o.receiptSent ? '領収書 ' + esc(o.receiptNo) + ' を ' + esc(o.receiptSent) + ' に送りました' : '領収書はまだ送っていません')
+      + '</span><button type="button" class="btn btn-small" data-act="receiptView">中身を見る</button>'
+      + '<button type="button" class="btn btn-small' + (o.receiptSent ? '' : ' btn-main') + '" data-act="receiptSend">'
+      + (o.receiptSent ? '送り直す' : '領収書をメールで送る') + '</button></div>';
+  }
+
+  html += '<table class="items"><thead><tr><th>用品</th><th>サイズ・種類</th><th class="num">数</th><th class="num">単価</th><th class="num">金額</th><th>受け渡し</th></tr></thead><tbody>'
+    + o.items.map(function (it) {
+      return '<tr class="' + catClass(it.category) + '"><td class="name"><span class="cat">' + esc(it.category) + '</span> ' + esc(it.name) + '</td><td>' + esc(it.size || '—') + '</td>'
+        + '<td class="num">' + it.qty + esc(it.unit || '') + '</td><td class="num">' + yen(it.price) + '</td><td class="num">' + yen(it.amount) + '</td>'
+        + '<td><button type="button" class="hand' + (it.handed ? ' done' : '') + '" data-act="hand" data-row="' + it.row + '" data-on="' + (it.handed ? '0' : '1') + '"'
+        + ' title="' + (it.handed ? '押すと「まだ」に戻します' : '押すと「渡した」にします') + '">'
+        + (it.handed ? '✓ 渡した ' + esc(it.handedDate) : 'まだ（押すと渡した）') + '</button></td></tr>';
+    }).join('')
+    + '<tr class="total"><td>合計</td><td></td><td class="num">' + o.qty + '点</td><td></td><td class="num">' + yen(o.amount) + '</td><td></td></tr>'
+    + (sp.kanyu ? '<tr class="split"><td colspan="4">うち ' + SEPARATE_WORD + '</td><td class="num">' + yen(sp.kanyu) + '</td><td></td></tr>'
+      + '<tr class="split"><td colspan="4">' + SEPARATE_WORD + 'を除いた代金</td><td class="num">' + yen(sp.other) + '</td><td></td></tr>' : '')
+    + '</tbody></table>';
+
+  if (o.note && !editingInfo) html += '<div class="note"><div class="s-label">保護者からの備考</div>' + esc(o.note) + '</div>';
+  html += '<div class="d-foot">'
+    + (o.editUrl ? '<button type="button" class="btn btn-small" data-act="copyLink" title="保護者が自分で注文を確かめる・変えるリンクです。メールが見つからないと言われたときに、保護者にだけ伝えてください">🔗 保護者用の変更リンクをコピー</button><span style="flex:1"></span>' : '')
+    + '<button type="button" class="btn btn-danger btn-small" data-act="cancel">この注文を取り消す</button></div>';
+  $('detail').innerHTML = html;
+}
+
+$('detail').addEventListener('click', function (ev) {
+  var b = ev.target.closest('button[data-act]');
+  if (!b) return;
+  var o = data.orders.filter(function (x) { return x.no === selectedNo; })[0];
+  if (!o) return;
+  var who = o.child + '（' + o.no + '）';
+  switch (b.dataset.act) {
+    case 'eventOn': act('setOrderEvent', [o.no, true], who + 'を用品販売で扱う注文にしました'); break;
+    case 'eventOff': act('setOrderEvent', [o.no, false], who + 'の用品販売の印を外しました'); break;
+    case 'pay':
+      var paidOk = false;
+      act('setOrderPaid', [o.no, true], who + 'の代金を受け取りました', function () { paidOk = true; }).then(function () {
+        if (paidOk) askReceipt(o);
+      });
+      break;
+    case 'unpay':
+      if (confirm(who + 'の「代金を受け取った」を取り消して、「まだ」に戻しますか？')) act('setOrderPaid', [o.no, false], '代金を「まだ」に戻しました');
+      break;
+    case 'handAll': act('setItemsHanded', [o.no, [], true], who + 'に全部渡しました'); break;
+    case 'unhandAll':
+      if (confirm(who + 'の「渡した」をすべて取り消して、「まだ」に戻しますか？')) act('setItemsHanded', [o.no, [], false], '受け渡しを「まだ」に戻しました');
+      break;
+    case 'hand': act('setItemsHanded', [o.no, [Number(b.dataset.row)], b.dataset.on === '1']); break;
+    case 'receiptSend':
+      if (!confirm(o.parent + ' 様（' + o.email + '）に、領収書（' + yen(o.amount) + '）のPDFをメールで送ります。'
+        + (o.receiptSent ? '\n\n前にも送っています（' + o.receiptSent + '）。同じ番号でもう一度送ります。' : '') + '\n\nよろしいですか？')) break;
+      act('sendReceipt', [o.no], who + 'に領収書を送りました');
+      break;
+    case 'receiptView':
+      viewReceipt(o.no);
+      break;
+    case 'copyLink':
+      copyText(o.editUrl, who + 'の変更リンクをコピーしました。保護者にだけ伝えてください');
+      break;
+    case 'changeNo':
+      var nv = prompt(who + 'の注文番号を、何に変えますか？\n\n数字だけ入れると「No.0012」の形になります。\nほかの注文と同じ番号にはできません。', o.no);
+      if (nv == null || !nv.trim() || nv.trim() === o.no) break;
+      act('changeOrderNo', [o.no, nv], null, function (d) {
+        selectedNo = d.changedNo;
+        toast('注文番号を ' + o.no + ' から ' + d.changedNo + ' に変えました');
+      });
+      break;
+    case 'infoEdit': editingInfo = o.no; renderDetail(); $('iChild').focus(); break;
+    case 'infoCancel': editingInfo = ''; renderDetail(); break;
+    case 'infoSave':
+      var info = { child: $('iChild').value, age: $('iAge').value, parent: $('iParent').value,
+        tel: $('iTel').value, email: $('iEmail').value, note: $('iNote').value };
+      act('updateOrderInfo', [o.no, info], who + 'の情報を直しました', function () { editingInfo = ''; });
+      break;
+    case 'cancel':
+      if (confirm(who + 'の注文（' + yen(o.amount) + '）を取り消します。\n\n注文の一覧から消え、「取り消した注文」シートに控えが残ります。よろしいですか？')) {
+        selectedNo = '';
+        act('cancelOrder', [o.no], who + 'の注文を取り消しました');
+      }
+      break;
+  }
+});
+
+// 代金を受け取ったあと、領収書をすぐ送るか聞く
+var receiptAskNo = '';
+function askReceipt(o) {
+  receiptAskNo = o.no;
+  $('receiptAsk').textContent = o.parent + ' 様（' + o.email + '）に、領収書（' + yen(o.amount) + '）のPDFをメールで送ります。';
+  $('receiptModal').classList.remove('hidden');
+  $('receiptNow').focus();
+}
+$('receiptNow').addEventListener('click', function () {
+  $('receiptModal').classList.add('hidden');
+  var o = data.orders.filter(function (x) { return x.no === receiptAskNo; })[0];
+  if (o) act('sendReceipt', [o.no], o.child + '（' + o.no + '）に領収書を送りました');
+});
+$('receiptLater').addEventListener('click', function () { $('receiptModal').classList.add('hidden'); });
+
+// 領収書のPDFを、新しいタブで開く（開けないときは保存する）
+function viewReceipt(no) {
+  if (DEMO) { toast('見本では領収書を作れません。本物の注文で試してください', true); return; }
+  // ボタンを押したその場でタブを開いておく（あとから開くとブラウザに止められるため）
+  var w = window.open('', '_blank');
+  if (w) w.document.write('<p style="font-family:sans-serif">領収書を作っています…</p>');
+  toast('領収書を作っています…');
+  call('previewReceipt', [no]).then(function (r) {
+    var bin = atob(r.data);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    if (w) { w.location.href = url; return; }
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = r.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }).catch(function (e) {
+    if (w) w.close();
+    toast(errMsg(e), true);
+  });
+}
+
+// ===== 業者への発注 =====
+
+function renderVendors() {
+  var groups = [];
+  var byVendor = {};
+  data.orders.forEach(function (o) {
+    o.items.forEach(function (it) {
+      if (it.ordered) return;
+      var v = it.vendor || '';
+      var g = byVendor[v];
+      if (!g) { g = byVendor[v] = { vendor: v, lines: [], byKey: {}, refs: [], orders: {} }; groups.push(g); }
+      var key = it.name + '|' + it.size;
+      var line = g.byKey[key];
+      if (!line) { line = g.byKey[key] = { name: it.name, size: it.size, unit: it.unit || '', qty: 0 }; g.lines.push(line); }
+      line.qty += it.qty;
+      g.refs.push({ row: it.row, no: o.no });
+      g.orders[o.no] = true;
+    });
+  });
+  // 業者が決まっていない分は最後に
+  groups.sort(function (a, b) { return (a.vendor ? 0 : 1) - (b.vendor ? 0 : 1) || a.vendor.localeCompare(b.vendor, 'ja'); });
+  var badge = $('vendorBadge');
+  badge.textContent = groups.length;
+  badge.classList.toggle('hidden', !groups.length);
+  if (!groups.length) {
+    $('vendors').innerHTML = '<div class="empty">まだ発注していない用品はありません。</div>';
+    return;
+  }
+  $('vendors').innerHTML = groups.map(function (g, gi) {
+    g.lines.sort(function (a, b) { return a.name.localeCompare(b.name, 'ja') || a.size.localeCompare(b.size, 'ja', { numeric: true }); });
+    // 合計の点数には、単位のある用品（肝油の「ヶ月分」など）は入れない
+    var total = g.lines.reduce(function (a, l) { return a + (l.unit ? 0 : l.qty); }, 0);
+    return '<div class="vcard"><h3>' + esc(g.vendor || '（業者が決まっていない用品）') + '</h3>'
+      + '<div class="v-sub">' + Object.keys(g.orders).length + ' 件の注文から' + (total ? '・合計 ' + total + ' 点' : '') + '</div>'
+      + '<table><thead><tr><th>用品</th><th>サイズ・種類</th><th class="num">数</th></tr></thead><tbody>'
+      + g.lines.map(function (l) {
+        return '<tr><td>' + esc(l.name) + '</td><td>' + esc(l.size || '—') + '</td><td class="num qty">' + l.qty + esc(l.unit) + '</td></tr>';
+      }).join('') + '</tbody></table>'
+      + '<div class="v-actions"><button type="button" class="btn" data-print="' + gi + '">🖨 注文書を印刷</button>'
+      + '<button type="button" class="btn btn-main" data-g="' + gi + '">✅ ' + esc(g.vendor || 'この分') + 'に発注した</button></div></div>';
+  }).join('');
+  vendorGroups = groups;
+}
+var vendorGroups = [];
+
+// 業者に送る注文書（FAX用。白黒で読みやすいように）を新しいタブに出して、印刷の画面を開く
+function printPurchaseOrder(g) {
+  var w = window.open('', '_blank');
+  if (!w) { toast('新しいタブを開けませんでした。ポップアップを許可してください。', true); return; }
+  w.document.write('<p style="font-family:sans-serif">注文書を作っています…</p>');
+  call('getSettingsForAdmin').then(function (s) {
+    var v = (db.vendors || []).filter(function (x) { return x.name === g.vendor; })[0] || {};
+    var d = new Date();
+    var today = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    var count = g.lines.reduce(function (a, l) { return a + (l.unit ? 0 : l.qty); }, 0);
+    var rows = g.lines.map(function (l, i) {
+      return '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(l.name) + '</td><td class="c">' + esc(l.size || '—') + '</td>'
+        + '<td class="n">' + l.qty + esc(l.unit || '') + '</td><td></td></tr>';
+    }).join('');
+    var lines = function (list) { return list.filter(String).map(esc).join('<br>'); };
+    w.document.open();
+    w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>注文書_' + esc(g.vendor || '業者未定') + '_' + today + '</title><style>'
+      + '@page { size: A4; margin: 16mm; }'
+      + 'body { font-family: "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif; color: #000; margin: 0; padding: 16px; font-size: 14px; }'
+      + 'h1 { text-align: center; font-size: 28px; letter-spacing: 0.5em; margin: 0 0 18px; border-bottom: 3px double #000; padding-bottom: 6px; }'
+      + '.date { text-align: right; margin-bottom: 12px; }'
+      + '.head { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 18px; }'
+      + '.to .name { font-size: 22px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 6px; }'
+      + '.from { text-align: right; line-height: 1.6; }'
+      + '.from .name { font-size: 17px; font-weight: bold; }'
+      + 'table { width: 100%; border-collapse: collapse; margin-top: 8px; }'
+      + 'th, td { border: 1px solid #000; padding: 7px 8px; font-size: 15px; }'
+      + 'th { background: #eee; } .c { text-align: center; } .n { text-align: right; font-weight: bold; white-space: nowrap; }'
+      + '.total { text-align: right; margin-top: 8px; font-size: 16px; font-weight: bold; }'
+      + '.memo { border: 1px solid #000; min-height: 70px; padding: 6px 8px; margin-top: 16px; }'
+      + '.bar { margin-bottom: 14px; } .bar button { font-size: 15px; padding: 8px 18px; }'
+      + '@media print { .bar { display: none; } body { padding: 0; } }'
+      + '</style></head><body>'
+      + '<div class="bar"><button onclick="print()">🖨 印刷する</button></div>'
+      + '<h1>注文書</h1>'
+      + '<div class="date">' + today + '</div>'
+      + '<div class="head"><div class="to"><div class="name">' + esc(g.vendor || '（業者が決まっていない用品）') + '　御中</div>'
+      + lines([v.tel ? 'TEL：' + v.tel : '', v.fax ? 'FAX：' + v.fax : '']) + '</div>'
+      + '<div class="from"><div class="name">' + esc(s.kindergarten || '') + '</div>'
+      + lines(String(s.receiptAddress || '').split('\n').concat([s.receiptTel ? 'TEL：' + s.receiptTel : '']))
+      + '<br>担当：＿＿＿＿＿＿＿＿</div></div>'
+      + '<p>下記のとおり注文いたします。よろしくお願いいたします。</p>'
+      + '<table><thead><tr><th style="width:2.5em">No.</th><th>品名</th><th style="width:7em">サイズ・種類</th><th style="width:6em">数量</th><th style="width:9em">備考</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table>'
+      + (count ? '<div class="total">合計 ' + count + ' 点</div>' : '')
+      + '<div class="memo">備考</div>'
+      + '<script>window.onload = function () { setTimeout(function () { print(); }, 300); };<\/script>'
+      + '</body></html>');
+    w.document.close();
+  }).catch(function (e) {
+    w.close();
+    toast('注文書を作れませんでした：' + errMsg(e), true);
+  });
+}
+
+$('vendors').addEventListener('click', function (ev) {
+  var pb = ev.target.closest('button[data-print]');
+  if (pb) {
+    var pg = vendorGroups[Number(pb.dataset.print)];
+    if (pg) printPurchaseOrder(pg);
+    return;
+  }
+  var b = ev.target.closest('button[data-g]');
+  if (!b) return;
+  var g = vendorGroups[Number(b.dataset.g)];
+  if (!g) return;
+  var name = g.vendor || '業者が決まっていない用品';
+  if (!confirm('「' + name + '」の ' + g.refs.length + ' 行を「発注済み」にします。よろしいですか？')) return;
+  act('setItemsOrdered', [g.refs], '「' + name + '」を発注済みにしました。注文履歴に残しました');
+});
+
+// ===== これまでの注文履歴 =====
+
+var historyData = [];
+var ALL_VENDORS = '*'; // 「すべての業者」（業者が決まっていない分の '' と分けるため）
+
+function shownHistory() {
+  var ven = $('historyVendor').value;
+  return historyData.filter(function (h) { return ven === ALL_VENDORS || h.vendor === ven; });
+}
+
+function renderHistory() {
+  var list = shownHistory();
+  $('historyCount').textContent = list.length + ' 回の発注';
+  if (!list.length) {
+    $('historyList').innerHTML = '<div class="empty">' + (historyData.length ? 'この業者への発注はまだありません。' : 'まだ発注の履歴はありません。<br>「○○に発注した」を押すと、ここに残ります。') + '</div>';
+    return;
+  }
+  $('historyList').innerHTML = list.map(function (h) {
+    var total = h.lines.reduce(function (a, l) { return a + (l.unit ? 0 : l.qty); }, 0);
+    return '<div class="hcard"><div class="h-head"><span class="h-date">' + esc(h.date) + '</span>'
+      + '<span class="h-vendor">' + esc(h.vendor || '（業者が決まっていない用品）') + '</span>'
+      + '<span class="h-sub">' + h.orders.length + ' 件の注文から' + (total ? '・合計 ' + total + ' 点' : '') + '</span></div>'
+      + '<table><thead><tr><th>用品</th><th>サイズ・種類</th><th class="num">数</th></tr></thead><tbody>'
+      + h.lines.map(function (l) {
+        return '<tr class="' + catClass(l.category) + '"><td>' + esc(l.name) + '</td><td>' + esc(l.size || '—') + '</td><td class="num">' + l.qty + esc(l.unit) + '</td></tr>';
+      }).join('') + '</tbody></table>'
+      + '</div>';
+  }).join('');
+}
+
+// 今出ている履歴（業者で絞り込んだときはその業者の分）を、A4の用紙に印刷する
+function printHistory() {
+  var ven = $('historyVendor').value;
+  var list = shownHistory();
+  if (!list.length) { toast('印刷する履歴がありません。', true); return; }
+  var w = window.open('', '_blank');
+  if (!w) { toast('新しいタブを開けませんでした。ポップアップを許可してください。', true); return; }
+  var d = new Date();
+  var today = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  var target = ven === ALL_VENDORS ? 'すべての業者' : ven || '（業者が決まっていない用品）';
+  var blocks = list.map(function (h) {
+    var total = h.lines.reduce(function (a, l) { return a + (l.unit ? 0 : l.qty); }, 0);
+    return '<div class="block"><div class="bh"><span class="date">' + esc(h.date) + '</span>'
+      + '<span class="vendor">' + esc(h.vendor || '（業者が決まっていない用品）') + '</span>'
+      + (total ? '<span class="sum">合計 ' + total + ' 点</span>' : '') + '</div>'
+      + '<table><thead><tr><th>品名</th><th style="width:9em">サイズ・種類</th><th style="width:6em">数量</th></tr></thead><tbody>'
+      + h.lines.map(function (l) {
+        return '<tr><td>' + esc(l.name) + '</td><td class="c">' + esc(l.size || '—') + '</td><td class="n">' + l.qty + esc(l.unit || '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }).join('');
+  w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>発注の履歴_' + esc(target) + '_' + today + '</title><style>'
+    + '@page { size: A4; margin: 15mm; }'
+    + 'body { font-family: "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif; color: #000; margin: 0; padding: 16px; font-size: 13px; }'
+    + 'h1 { font-size: 22px; margin: 0 0 4px; border-bottom: 2px solid #000; padding-bottom: 4px; }'
+    + '.meta { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 13px; }'
+    + '.block { margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid; }'
+    + '.bh { display: flex; gap: 16px; align-items: baseline; background: #eee; border: 1px solid #000; border-bottom: none; padding: 5px 8px; }'
+    + '.bh .date { font-weight: bold; } .bh .vendor { font-weight: bold; font-size: 15px; } .bh .sum { margin-left: auto; }'
+    + 'table { width: 100%; border-collapse: collapse; }'
+    + 'th, td { border: 1px solid #000; padding: 4px 8px; } th { font-weight: normal; font-size: 12px; text-align: left; }'
+    + '.c { text-align: center; } .n { text-align: right; font-weight: bold; white-space: nowrap; }'
+    + '.bar { margin-bottom: 14px; } .bar button { font-size: 15px; padding: 8px 18px; }'
+    + '@media print { .bar { display: none; } body { padding: 0; } }'
+    + '</style></head><body>'
+    + '<div class="bar"><button onclick="print()">🖨 印刷する</button></div>'
+    + '<h1>発注の履歴</h1>'
+    + '<div class="meta"><span>' + esc(target) + '・' + list.length + ' 回の発注（新しい順）</span><span>' + esc(data.kindergarten || '') + '　' + today + ' 印刷</span></div>'
+    + blocks
+    + '<script>window.onload = function () { setTimeout(function () { print(); }, 300); };<\/script>'
+    + '</body></html>');
+  w.document.close();
+}
+
+$('historyBtn').addEventListener('click', function () {
+  $('historyModal').classList.remove('hidden');
+  $('historyCount').textContent = '';
+  $('historyList').innerHTML = '<div class="empty">読み込んでいます…</div>';
+  call('getPurchaseHistory').then(function (list) {
+    historyData = list || [];
+    var names = [];
+    historyData.forEach(function (h) { if (names.indexOf(h.vendor) < 0) names.push(h.vendor); });
+    names.sort(function (a, b) { return (a ? 0 : 1) - (b ? 0 : 1) || a.localeCompare(b, 'ja'); });
+    var cur = $('historyVendor').value;
+    $('historyVendor').innerHTML = '<option value="' + ALL_VENDORS + '">すべての業者</option>' + names.map(function (n) {
+      return '<option value="' + esc(n) + '"' + (n === cur ? ' selected' : '') + '>' + esc(n || '（業者が決まっていない用品）') + '</option>';
+    }).join('');
+    renderHistory();
+  }).catch(function (e) {
+    $('historyList').innerHTML = '<div class="empty">読み込めませんでした：' + esc(errMsg(e)) + '</div>';
+  });
+});
+$('historyVendor').addEventListener('change', renderHistory);
+$('historyPrint').addEventListener('click', printHistory);
+$('historyClose').addEventListener('click', function () { $('historyModal').classList.add('hidden'); });
+$('historyModal').addEventListener('click', function (ev) { if (ev.target === $('historyModal')) $('historyModal').classList.add('hidden'); });
+
+// ===== 袋詰め（A. 中身リスト／B. 品物ごとの配り表） =====
+
+// 「袋詰めしない」用品か。用品の登録の内容（db）で決める（登録を直したら、すぐ印刷に反映されるように）。
+// 用品の登録をまだ読めていないときは、注文と一緒に届いた印を使う
+function isNoPack(it) {
+  if (!db.products.length) return !!it.noPack;
+  var p = productOf(it);
+  return p ? !!p.noPack : !!it.noPack;
+}
+// 注文の品物が、用品の登録のどれか（色が年齢で決まる用品は「上靴（赤）」のように名前に色が付いている）
+function productOf(it) {
+  return db.products.filter(function (x) {
+    return x.category === it.category && (x.name === it.name || x.ageColor && it.name.indexOf(x.name + '（') === 0);
+  })[0];
+}
+
+// 印刷する袋：用品販売で扱う子（🛍 の印）だけ。年齢で絞り、品物は「まだ渡していない分だけ」か「すべて」。
+// 「袋詰めしない」用品（用品の登録でチェック）は入れない。品物が残らない注文は除く
+function packOrders() {
+  var target = $('packTarget').value;
+  var age = $('packAge').value;
+  var list = data.orders.filter(function (o) { return o.event && (!age || o.age === age); }).map(function (o) {
+    return { order: o, items: o.items.filter(function (it) { return !isNoPack(it) && (target === 'all' || !it.handed); }) };
+  }).filter(function (b) { return b.items.length; });
+  var byNo = function (a, b) { return a.order.no.localeCompare(b.order.no, 'ja', { numeric: true }); };
+  if ($('packSort').value === 'age') {
+    list.sort(function (a, b) {
+      var ia = data.ages.indexOf(a.order.age), ib = data.ages.indexOf(b.order.age);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || byNo(a, b);
+    });
+  } else {
+    list.sort(byNo);
+  }
+  return list;
+}
+
+// 品物ごとにまとめる（配り表の1枚分）。袋の順はそのまま
+function packPicks(bags) {
+  var picks = [], byName = {};
+  bags.forEach(function (b, bi) {
+    b.items.forEach(function (it) {
+      var p = byName[it.name];
+      if (!p) { p = byName[it.name] = { name: it.name, category: it.category, unit: it.unit || '', rows: [], sizes: {} }; picks.push(p); }
+      p.rows.push({ bag: bi + 1, order: b.order, size: it.size, qty: it.qty });
+      p.sizes[it.size] = (p.sizes[it.size] || 0) + it.qty;
+    });
+  });
+  picks.sort(function (a, b) { return catRank(a.category) - catRank(b.category) || a.name.localeCompare(b.name, 'ja'); });
+  return picks;
+}
+
+function renderPack() {
+  var cur = $('packAge').value;
+  $('packAge').innerHTML = '<option value="">すべての年齢</option>'
+    + data.ages.map(function (a) { return '<option' + (a === cur ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('');
+  var bags = packOrders();
+  var picks = packPicks(bags);
+  var unordered = 0;
+  bags.forEach(function (b) { b.items.forEach(function (it) { if (!it.ordered) unordered++; }); });
+  // 注文に入っている「袋詰めしない」用品の名前（印刷に出ないことを知らせる）
+  var skipped = [];
+  data.orders.forEach(function (o) {
+    o.items.forEach(function (it) { if (isNoPack(it) && skipped.indexOf(it.name) < 0) skipped.push(it.name); });
+  });
+  var notEvent = data.orders.filter(function (o) { return !o.event; }).length;
+  $('packStatus').textContent = (!bags.length ? '印刷する袋はありません（袋詰めするのは「🛍 用品販売」の印が付いた子だけです）。'
+    : '袋 ' + bags.length + ' 人分・品物 ' + picks.length + ' 種類')
+    + (notEvent ? '\n用品販売で扱わない子（' + notEvent + ' 人）は出していません' : '')
+    + (skipped.length ? '\n袋詰めしない用品（印刷に出しません）：' + skipped.join('、') : '')
+    + (bags.length && unordered ? '\n⚠ まだ業者に発注していない品物が ' + unordered + ' 行あります（「業者への発注」タブで確かめてください）' : '');
+  $('packStatus').classList.toggle('warn', !!unordered);
+}
+['packTarget', 'packAge', 'packSort'].forEach(function (id) { $(id).addEventListener('change', renderPack); });
+
+// 印刷用の新しいタブを開いて、開いたら印刷の画面を出す
+function openPrint(title, css, body) {
+  var w = window.open('', '_blank');
+  if (!w) { toast('新しいタブを開けませんでした。ポップアップを許可してください。', true); return; }
+  w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>' + esc(title) + '</title><style>'
+    + 'body { font-family: "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif; color: #000; margin: 0; padding: 16px; font-size: 14px;'
+    + ' -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+    + 'table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #000; padding: 5px 8px; }'
+    + 'th { font-weight: normal; font-size: 12px; background: #eee; text-align: left; }'
+    + '.c { text-align: center; } .n { text-align: right; white-space: nowrap; }'
+    + '.box { display: inline-block; width: 16px; height: 16px; border: 1.5px solid #000; vertical-align: middle; }'
+    + '.age { display: inline-block; font-weight: bold; padding: 1px 10px; border-radius: 10px; border: 1px solid #000; }'
+    + '.bar { margin-bottom: 14px; } .bar button { font-size: 15px; padding: 8px 18px; }'
+    + '@media print { .bar { display: none; } body { padding: 0; } }'
+    + css + '</style></head><body>'
+    + '<div class="bar"><button onclick="print()">🖨 印刷する</button></div>'
+    + body
+    + '<script>window.onload = function () { setTimeout(function () { print(); }, 300); };<\/script>'
+    + '</body></html>');
+  w.document.close();
+}
+
+// 年齢の色（画面と同じ色を、印刷でも使う）
+function agePrintStyle(age) {
+  var i = data.ages.indexOf(age);
+  if (i < 0) return '';
+  var c = AGE_COLORS[i % AGE_COLORS.length];
+  return 'background:' + c[1] + ';color:' + c[2];
+}
+function todayJa() {
+  var d = new Date();
+  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+}
+function qtyText(qty, unit) { return qty + (unit || ''); }
+
+// A. 中身リスト：1人分ずつ、A4に2人分。点線で切って袋に入れる
+$('packSlipBtn').addEventListener('click', function () {
+  var bags = packOrders();
+  if (!bags.length) { toast('印刷する袋がありません。', true); return; }
+  var body = bags.map(function (b, bi) {
+    var o = b.order;
+    var count = b.items.reduce(function (a, it) { return a + (it.unit ? 1 : it.qty); }, 0);
+    return '<div class="slip">'
+      + '<div class="top"><span class="bag">' + (bi + 1) + '</span><span class="no">' + esc(o.no) + '</span>'
+      + '<span class="age" style="' + agePrintStyle(o.age) + '">' + esc(o.age) + '</span>'
+      + '<span class="name">' + esc(o.child) + '</span><span class="kg">' + esc(data.kindergarten || '') + '</span></div>'
+      + '<div class="sub">保護者：' + esc(o.parent) + '　／　品物 ' + count + ' 点</div>'
+      + '<table><thead><tr><th class="c" style="width:3em">入れた</th><th>品名</th><th style="width:8em">サイズ・種類</th><th style="width:5em">数</th></tr></thead><tbody>'
+      + b.items.map(function (it) {
+        return '<tr><td class="c"><span class="box"></span></td><td>' + esc(it.name) + '</td><td class="c size">' + esc(it.size || '—') + '</td>'
+          + '<td class="n' + (it.qty > 1 && !it.unit ? ' many' : '') + '">' + qtyText(it.qty, it.unit) + '</td></tr>';
+      }).join('') + '</tbody></table>'
+      + (o.note ? '<div class="note">保護者からの備考：' + esc(o.note) + '</div>' : '')
+      + '<div class="sign"><span>詰めた人：＿＿＿＿＿＿</span><span>確認した人：＿＿＿＿＿＿</span></div>'
+      + '</div>';
+  }).join('');
+  openPrint('中身リスト_' + todayJa(),
+    '@page { size: A4; margin: 10mm 12mm; }'
+    + '.slip { box-sizing: border-box; min-height: 136mm; padding: 6mm 2mm 8mm; border-bottom: 1.5px dashed #888; break-inside: avoid; page-break-inside: avoid; display: flex; flex-direction: column; }'
+    + '.top { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }'
+    + '.bag { font-size: 26px; font-weight: bold; border: 2px solid #000; border-radius: 6px; min-width: 1.6em; text-align: center; padding: 0 6px; }'
+    + '.no { font-size: 20px; font-weight: bold; } .name { font-size: 24px; font-weight: bold; } .age { font-size: 15px; }'
+    + '.kg { margin-left: auto; font-size: 12px; color: #444; }'
+    + '.sub { font-size: 13px; margin-bottom: 6px; }'
+    + 'td { font-size: 15px; } td.size { font-weight: bold; font-size: 16px; } td.n { font-weight: bold; font-size: 16px; } td.many { font-size: 19px; text-decoration: underline; }'
+    + '.note { margin-top: 6px; border: 1px solid #000; padding: 4px 8px; font-size: 13px; }'
+    + '.sign { margin-top: auto; padding-top: 10px; display: flex; justify-content: space-around; font-size: 14px; }',
+    body);
+});
+
+// B. 品物ごとの配り表：品物ごとに、袋の順で「誰に・どのサイズを・いくつ」。担当ごとに切り分ける
+$('packPickBtn').addEventListener('click', function () {
+  var bags = packOrders();
+  if (!bags.length) { toast('印刷する袋がありません。', true); return; }
+  var body = packPicks(bags).map(function (p) {
+    var sizes = Object.keys(p.sizes).sort(function (a, b) { return a.localeCompare(b, 'ja', { numeric: true }); });
+    var total = sizes.reduce(function (a, s) { return a + p.sizes[s]; }, 0);
+    var sizeText = sizes.map(function (s) { return (s ? esc(s) + '：' : '') + qtyText(p.sizes[s], p.unit); }).join('　');
+    return '<div class="pick">'
+      + '<div class="ph"><span class="pname">' + esc(p.name) + '</span><span class="cat">' + esc(p.category) + '</span>'
+      + '<span class="sum">' + (sizes.length > 1 || sizes[0] ? 'サイズ・種類ごと　' + sizeText + '　／　' : '') + '合計 ' + qtyText(total, p.unit) + '</span></div>'
+      + '<table><thead><tr><th class="c" style="width:3em">入れた</th><th class="c" style="width:3.5em">袋</th><th style="width:6em">注文番号</th><th>園児名</th><th style="width:5em">年齢</th>'
+      + '<th style="width:8em">サイズ・種類</th><th style="width:5em">数</th></tr></thead><tbody>'
+      + p.rows.map(function (r) {
+        return '<tr><td class="c"><span class="box"></span></td><td class="c bagno">' + r.bag + '</td><td>' + esc(r.order.no) + '</td><td>' + esc(r.order.child) + '</td>'
+          + '<td class="c"><span class="age" style="' + agePrintStyle(r.order.age) + '">' + esc(r.order.age) + '</span></td>'
+          + '<td class="c size">' + esc(r.size || '—') + '</td><td class="n' + (r.qty > 1 && !p.unit ? ' many' : '') + '">' + qtyText(r.qty, p.unit) + '</td></tr>';
+      }).join('') + '</tbody></table>'
+      + '<div class="sign">担当：＿＿＿＿＿＿＿＿</div></div>';
+  }).join('');
+  openPrint('配り表_' + todayJa(),
+    '@page { size: A4; margin: 12mm; }'
+    + 'h1 { font-size: 20px; margin: 0 0 4px; } .meta { font-size: 12px; margin-bottom: 10px; }'
+    + '.pick { padding: 8px 0 14px; border-bottom: 1.5px dashed #888; margin-bottom: 8px; break-inside: avoid; page-break-inside: avoid; }'
+    + '.ph { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }'
+    + '.pname { font-size: 20px; font-weight: bold; } .cat { font-size: 12px; border: 1px solid #000; padding: 0 6px; border-radius: 4px; }'
+    + '.sum { margin-left: auto; font-size: 13px; font-weight: bold; }'
+    + 'td { font-size: 14px; } td.bagno { font-weight: bold; font-size: 16px; } td.size { font-weight: bold; font-size: 16px; }'
+    + 'td.n { font-weight: bold; font-size: 16px; } td.many { font-size: 19px; text-decoration: underline; } .age { font-size: 12px; padding: 0 6px; }'
+    + '.sign { text-align: right; margin-top: 6px; font-size: 13px; }',
+    '<h1>品物ごとの配り表</h1><div class="meta">' + esc(data.kindergarten || '') + '　' + todayJa() + ' 印刷　／　袋 ' + bags.length + ' 人分（'
+      + ($('packSort').value === 'age' ? '年齢ごとに、注文番号の順' : '注文番号の順') + '）　※「袋」の番号は中身リストの左上の番号と同じです</div>' + body);
+});
+
+// ===== 用品販売（園のイベント）で扱う人だけの集計 =====
+
+function eventOrders() {
+  return data.orders.filter(function (o) { return o.event; })
+    .sort(function (a, b) { return a.no.localeCompare(b.no, 'ja', { numeric: true }); });
+}
+
+// 合計・受領済み・未受領（それぞれ肝油とその他に分ける）
+function eventSums(list) {
+  var s = { total: 0, paid: 0, all: { kanyu: 0, other: 0 }, got: { kanyu: 0, other: 0 } };
+  list.forEach(function (o) {
+    var sp = splitAmount(o.items);
+    s.total += o.amount;
+    s.all.kanyu += sp.kanyu; s.all.other += sp.other;
+    if (o.paid) { s.paid += o.amount; s.got.kanyu += sp.kanyu; s.got.other += sp.other; }
+  });
+  s.left = { kanyu: s.all.kanyu - s.got.kanyu, other: s.all.other - s.got.other };
+  return s;
+}
+
+// 分類（園服・用品・その他の用品）ごとの 合計・受領済み・未受領。代金を受け取ったかは注文ごと
+function eventCategorySums(list) {
+  var rows = [], byCat = {};
+  CATEGORY_ORDER.forEach(function (c) { rows.push(byCat[c] = { category: c, total: 0, paid: 0 }); });
+  list.forEach(function (o) {
+    o.items.forEach(function (it) {
+      var r = byCat[it.category];
+      if (!r) rows.push(r = byCat[it.category] = { category: it.category, total: 0, paid: 0 });
+      r.total += it.amount;
+      if (o.paid) r.paid += it.amount;
+    });
+  });
+  rows.sort(function (a, b) { return catRank(a.category) - catRank(b.category); });
+  return rows;
+}
+
+// 会計用の明細の品名：名前の最後の（　）を外す。「スモック（黄）」「上靴（赤）」などの色・種類違いを1つにまとめるため
+// ただし LEDGER_KEEP_WORDS で始まる用品は、（　）も含めて別々に出す（絵の具筆（太）・（中）・（細）は分ける）
+var LEDGER_KEEP_WORDS = ['絵の具筆'];
+function ledgerName(name) {
+  name = String(name);
+  var keep = LEDGER_KEEP_WORDS.some(function (w) { return name.indexOf(w) === 0; });
+  return keep ? name : name.replace(/（[^（）]*）$/, '');
+}
+
+// 会計用の明細：代金を受け取った注文だけを、分類ごと・品物ごとにまとめる（サイズ・色・種類は分けない）
+function ledgerData(list) {
+  var paid = list.filter(function (o) { return o.paid; });
+  var cats = [], byCat = {}, items = [];
+  var BIG = 1e6;
+  CATEGORY_ORDER.forEach(function (c) { cats.push(byCat[c] = { category: c, lines: [], byKey: {}, amount: 0 }); });
+  // key の行に足す。label は明細に出す品名、unit は数の単位、price は単価
+  var addLine = function (it, key, label, unit, price, qty, amount) {
+    var c = byCat[it.category];
+    if (!c) cats.push(c = byCat[it.category] = { category: it.category, lines: [], byKey: {}, amount: 0 });
+    var l = c.byKey[key];
+    if (!l) { l = c.byKey[key] = { name: label, unit: unit, prices: [], qty: 0, amount: 0, rank: BIG }; c.lines.push(l); }
+    if (l.prices.indexOf(price) < 0) l.prices.push(price);
+    // 用品の登録と同じ順。まとめた中でいちばん上にある用品の位置にする（登録から消した用品は分類の最後）
+    var p = productOf(it) || productOf({ category: it.category, name: ledgerName(it.name) });
+    if (p) l.rank = Math.min(l.rank, db.products.indexOf(p));
+    l.qty += qty;
+    l.amount += amount;
+    c.amount += amount;
+  };
+  paid.forEach(function (o) {
+    // 肝油は1人分（例：12ヶ月分 1,560円）を単価にして、数は人数で数える。
+    // 月数が違う人は「肝油（10ヶ月分）」のように別の行にする
+    var kanyu = { qty: 0, amount: 0, it: null };
+    o.items.forEach(function (it) {
+      items.push(it);
+      if (String(it.name).indexOf(SEPARATE_WORD) >= 0) {
+        kanyu.qty += it.qty;
+        kanyu.amount += it.amount;
+        kanyu.it = kanyu.it || it;
+        return;
+      }
+      var name = ledgerName(it.name);
+      addLine(it, name, name, it.unit || '', it.price, it.qty, it.amount);
+    });
+    if (kanyu.it) {
+      var name = ledgerName(kanyu.it.name);
+      addLine(kanyu.it, name + '|' + kanyu.qty, name + '（' + kanyu.qty + (kanyu.it.unit || '') + '）', '名', kanyu.amount, 1, kanyu.amount);
+    }
+  });
+  cats.sort(function (a, b) { return catRank(a.category) - catRank(b.category); });
+  cats.forEach(function (c) {
+    c.lines.sort(function (a, b) { return a.rank - b.rank || a.name.localeCompare(b.name, 'ja', { numeric: true }); });
+  });
+  var sp = splitAmount(items);
+  return { people: paid.length, cats: cats, total: sp.kanyu + sp.other, split: sp };
+}
+
+// 単価：サイズなどで違うときは「3,600円〜3,800円」
+function ledgerPrice(prices) {
+  var min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
+  return min === max ? yen(min) : yen(min) + '〜' + yen(max);
+}
+
+function renderEvent() {
+  var list = eventOrders();
+  var s = eventSums(list);
+  $('eventBadge').textContent = list.length;
+  $('eventBadge').classList.toggle('hidden', !list.length);
+  $('eCount').textContent = list.length + ' 人';
+  $('eTotal').textContent = yen(s.total);
+  $('ePaid').textContent = yen(s.paid);
+  $('eUnpaid').textContent = yen(s.total - s.paid);
+  $('eTotalSplit').textContent = splitText(s.all);
+  $('ePaidSplit').textContent = splitText(s.got);
+  $('eUnpaidSplit').textContent = splitText(s.left);
+  if (!list.length) {
+    $('eCats').innerHTML = '<div class="empty">まだ印の付いた人はいません。<br>「👧 園児ごとの注文」で人を選び、「🛍 用品販売で扱う」を押してください。</div>';
+    return;
+  }
+  $('eCats').innerHTML = '<table class="ev"><thead><tr><th>分類</th><th class="num">合計金額</th><th class="num">代金受領済み</th><th class="num">まだ受け取っていない額</th></tr></thead><tbody>'
+    + eventCategorySums(list).map(function (r) {
+      return '<tr class="' + catClass(r.category) + '"><td><span class="cat">' + esc(r.category) + '</span></td><td class="num"><b>' + yen(r.total) + '</b></td>'
+        + '<td class="num">' + yen(r.paid) + '</td><td class="num">' + yen(r.total - r.paid) + '</td></tr>';
+    }).join('')
+    + '<tr class="total"><td>合計</td><td class="num">' + yen(s.total) + '</td><td class="num">' + yen(s.paid) + '</td><td class="num">' + yen(s.total - s.paid) + '</td></tr></tbody></table>';
+}
+
+// A4で印刷：会計用の明細（分類ごとに品物・単価・数・金額と小計、最後に合計。サイズは分けない）
+$('eventPrintBtn').addEventListener('click', function () {
+  var list = eventOrders();
+  if (!list.length) { toast('用品販売で扱う人がいません。', true); return; }
+  var d = ledgerData(list);
+  if (!d.people) { toast('代金を受け取った人がいません。', true); return; }
+  var body = '<h1>用品販売 会計明細 ' + esc(data.year || '') + '</h1>'
+    + '<div class="meta">' + esc(data.kindergarten || '') + '　' + todayJa() + ' 印刷　／　代金受領済み ' + d.people + ' 人分</div>'
+    + '<table class="sum"><thead><tr><th>分類</th><th>金額</th></tr></thead><tbody>'
+    + d.cats.map(function (c) { return '<tr><th>' + esc(c.category) + '</th><td class="n">' + yen(c.amount) + '</td></tr>'; }).join('')
+    + '<tr class="tot"><th>合計</th><td class="n">' + yen(d.total) + '</td></tr>'
+    + (d.split.kanyu ? '<tr><th>うち ' + SEPARATE_WORD + '</th><td class="n">' + yen(d.split.kanyu) + '</td></tr>'
+      + '<tr><th>' + SEPARATE_WORD + 'を除いた代金</th><td class="n">' + yen(d.split.other) + '</td></tr>' : '')
+    + '</tbody></table>'
+    + d.cats.map(function (c) {
+      // 分類の見出しは表の見出しの中に入れる（見出しだけがページの下に残らないように。次のページにも見出しが出る）
+      return '<table class="cat"><thead><tr><th colspan="4" class="cat-title">' + esc(c.category) + '</th></tr>'
+        + '<tr><th>品名</th><th style="width:12em">単価</th><th style="width:6em">数</th><th style="width:8em">金額</th></tr></thead><tbody>'
+        + (c.lines.length ? c.lines.map(function (l) {
+          return '<tr><td>' + esc(l.name) + '</td><td class="n">' + ledgerPrice(l.prices) + '</td>'
+            + '<td class="n">' + l.qty + esc(l.unit) + '</td><td class="n">' + yen(l.amount) + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" class="c">なし</td></tr>')
+        + '<tr class="tot"><td colspan="3">' + esc(c.category) + ' 小計</td><td class="n">' + yen(c.amount) + '</td></tr></tbody></table>';
+    }).join('')
+    + '<div class="grand">合計（代金受領済み）<b>' + yen(d.total) + '</b></div>';
+  openPrint('会計明細_' + todayJa(),
+    '@page { size: A4; margin: 12mm; }'
+    + 'h1 { font-size: 22px; margin: 0 0 4px; border-bottom: 2px solid #000; padding-bottom: 4px; } h2 { font-size: 16px; margin: 18px 0 6px; }'
+    + '.meta { font-size: 12px; margin-bottom: 10px; }'
+    + 'table.sum { width: auto; } table.sum td { min-width: 10em; font-weight: bold; }'
+    + 'table.cat { margin-top: 18px; } th.cat-title { font-size: 16px; font-weight: bold; background: #fff; border: none; border-bottom: 1px solid #000; padding: 0 0 6px; }'
+    + 'tr { break-inside: avoid; page-break-inside: avoid; } tr.tot td, tr.tot th { font-weight: bold; background: #f4f4f4; }'
+    + '.grand { margin-top: 16px; text-align: right; font-size: 16px; border-top: 2px solid #000; padding-top: 6px; } .grand b { font-size: 20px; margin-left: 12px; }',
+    body);
+});
+
+// ===== タブ =====
+
+Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+  t.addEventListener('click', function () {
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (x) {
+      x.classList.toggle('on', x === t);
+      $(x.dataset.view).classList.toggle('hidden', x !== t);
+    });
+    // 一番上の合計は、注文のタブのときだけ出す
+    $('summary').classList.toggle('hidden', ['packView', 'eventView', 'productView', 'vendorRegView', 'settingsView'].indexOf(t.dataset.view) >= 0);
+    if (t.dataset.view === 'settingsView' && !settingsLoaded) loadSettings();
+  });
+});
+
+// ===== 設定 =====
+
+var settingsLoaded = false;
+
+function setChoice(boxId, value) {
+  Array.prototype.forEach.call($(boxId).querySelectorAll('input'), function (r) {
+    r.checked = r.value === value;
+    r.parentNode.classList.toggle('on', r.checked);
+  });
+}
+function getChoice(boxId) {
+  var r = $(boxId).querySelector('input:checked');
+  return r ? r.value : '';
+}
+['sOpen', 'sMail'].forEach(function (id) {
+  $(id).addEventListener('change', function () { setChoice(id, getChoice(id)); });
+});
+
+function fillSettings(s) {
+  setChoice('sOpen', s.open);
+  setChoice('sMail', s.sendMail);
+  setChoice('sEventDefault', s.eventDefault === 'チェックなし' ? 'チェックなし' : 'チェックあり');
+  $('sKg').value = s.kindergarten;
+  $('sTitle').value = s.title;
+  $('sNotice').value = s.notice;
+  $('sPay').value = s.payNote;
+  $('sAdminMail').value = s.adminMail;
+  $('sAges').value = s.ages;
+  $('sSizes').value = s.sizes;
+  renderAgeColors(parseAgeColors(s.ageColors));
+  $('sReceiptNote').value = s.receiptNote || '';
+  $('sReceiptAddress').value = s.receiptAddress || '';
+  $('sReceiptTel').value = s.receiptTel || '';
+  $('sYear').value = s.year || '';
+  var dl = String(s.editDeadline || '').match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}:\d{2})$/);
+  $('sDeadlineDate').value = dl ? dl[1] + '-' + dl[2] + '-' + dl[3] : '';
+  $('sDeadlineTime').value = dl && dl[4] !== '23:59' ? dl[4] : '';
+  $('sDeadlineState').innerHTML = !dl ? '今は締切なし（「受付中」のあいだは注文でき、代金を受け取るまでオンラインで変更できます）。'
+    : s.editDeadlinePassed ? '<b class="deadline-passed">締切を過ぎています。保護者はオンラインで注文・変更・取り消しができません。</b>'
+    : '<b class="deadline-open">締切まで、保護者はオンラインで注文・変更・取り消しができます。</b>';
+  $('sGuideNote').value = s.guideNote || '';
+  showStamp(s.stamp);
+}
+
+// 入園する年齢ごとの色。シートには「3歳児＝赤、4歳児＝青」の形で入る
+function parseAgeColors(v) {
+  var map = {};
+  String(v || '').split(/[、,，\n]+/).forEach(function (x) {
+    var m = x.match(/^\s*(.+?)\s*[＝=:：]\s*(.+?)\s*$/);
+    if (m) map[m[1].replace(/[　\s]/g, '')] = m[2];
+  });
+  return map;
+}
+function getAgeColors() {
+  var map = {};
+  Array.prototype.forEach.call($('sAgeColors').querySelectorAll('input'), function (x) {
+    if (x.value.trim()) map[x.dataset.age] = x.value.trim();
+  });
+  return map;
+}
+// 年齢の欄（sAges）の年齢ごとに、色の入力欄を出す
+function renderAgeColors(map) {
+  var ages = $('sAges').value.split(/[、,，\s　]+/).filter(String);
+  $('sAgeColors').innerHTML = ages.length ? ages.map(function (a) {
+    return '<label>' + esc(a) + '<input type="text" data-age="' + esc(a) + '" value="' + esc(map[a] || '') + '" placeholder="例：赤"></label>';
+  }).join('') : '<span class="hint">先に「入園する年齢の選択肢」を入れてください。</span>';
+}
+$('sAges').addEventListener('input', function () { renderAgeColors(getAgeColors()); });
+
+function showStamp(dataUrl) {
+  $('stampBox').innerHTML = dataUrl ? '<img src="' + esc(dataUrl) + '" alt="角印">' : 'なし';
+  $('stampDelete').classList.toggle('hidden', !dataUrl);
+}
+
+// 角印の画像：小さくしてから（長い辺を240pxに）保存する
+$('stampPick').addEventListener('click', function () { $('stampFile').click(); });
+$('stampFile').addEventListener('change', function () {
+  var file = this.files[0];
+  this.value = '';
+  if (!file) return;
+  if (!/^image\/(png|jpeg)$/.test(file.type)) { setMsg('sMsg', '角印は、PNG か JPEG の画像を選んでください。', false); return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      var scale = Math.min(1, 240 / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      var dataUrl = c.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
+      setMsg('sMsg', '角印を保存しています…', true);
+      call('saveReceiptStamp', [dataUrl]).then(function (s) {
+        showStamp(s.stamp);
+        setMsg('sMsg', '角印を保存しました。', true);
+      }).catch(function (e) { setMsg('sMsg', errMsg(e), false); });
+    };
+    img.onerror = function () { setMsg('sMsg', '画像を読み込めませんでした。', false); };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+$('stampDelete').addEventListener('click', function () {
+  if (!confirm('角印の画像を消しますか？')) return;
+  call('deleteReceiptStamp').then(function (s) {
+    showStamp(s.stamp);
+    setMsg('sMsg', '角印を消しました。', true);
+  }).catch(function (e) { setMsg('sMsg', errMsg(e), false); });
+});
+
+// ===== バックアップ =====
+
+function showBackup(b) {
+  var box = $('backupStatus');
+  var text, cls = '';
+  if (b.needAuth) {
+    text = 'まだ始めていません。スプレッドシートのメニュー「用品注文 → 💾 毎日の自動バックアップを始める」を実行して、Googleドライブを使う許可をしてください。';
+    cls = 'warn';
+  } else {
+    text = (b.on ? '✅ 毎日の自動バックアップ：動いています' : '⚠ 毎日の自動バックアップ：止まっています（メニューから始めてください）')
+      + '\n最後にとったバックアップ：' + (b.last || 'まだありません')
+      + (b.error ? '\n⚠ 前回のバックアップで問題がありました：' + b.error : '');
+    cls = b.on && !b.error ? 'ok' : 'warn';
+  }
+  box.textContent = text;
+  box.className = 'backup-status ' + cls;
+  $('backupFolder').classList.toggle('hidden', !b.folderUrl);
+  if (b.folderUrl) $('backupFolder').href = b.folderUrl;
+  $('backupNowBtn').disabled = !!b.needAuth;
+}
+function loadBackup() {
+  return call('getBackupStatus').then(showBackup).catch(function (e) {
+    $('backupStatus').textContent = '読み込めませんでした：' + errMsg(e);
+    $('backupStatus').className = 'backup-status warn';
+  });
+}
+$('backupNowBtn').addEventListener('click', function () {
+  $('backupNowBtn').disabled = true;
+  $('backupStatus').textContent = 'バックアップをとっています…（少し時間がかかります）';
+  $('backupStatus').className = 'backup-status';
+  call('backupNow').then(function (b) {
+    showBackup(b);
+    toast('バックアップをとりました');
+  }).catch(function (e) {
+    $('backupStatus').textContent = 'バックアップをとれませんでした：' + errMsg(e);
+    $('backupStatus').className = 'backup-status warn';
+  }).then(function () { $('backupNowBtn').disabled = false; });
+});
+
+function loadSettings() {
+  setMsg('sMsg', '読み込んでいます…', true);
+  loadBackup();
+  return call('getSettingsForAdmin').then(function (s) {
+    settingsLoaded = true;
+    fillSettings(s);
+    setMsg('sMsg', '', true);
+  }).catch(function (e) { setMsg('sMsg', errMsg(e), false); });
+}
+
+$('sResetBtn').addEventListener('click', loadSettings);
+
+// 「2026/12/10 17:00」→「12月10日（木）17:00」（23:59 は日付だけ）。締切なしは ''
+function deadlineLabel(text) {
+  var m = String(text || '').match(/^(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2})$/);
+  if (!m) return '';
+  var d = new Date(+m[1], +m[2] - 1, +m[3]);
+  var hm = m[4] + ':' + m[5];
+  return (+m[2]) + '月' + (+m[3]) + '日（' + '日月火水木金土'.charAt(d.getDay()) + '）' + (hm === '23:59' ? '' : (+m[4]) + ':' + m[5]);
+}
+$('sDeadlineClear').addEventListener('click', function () {
+  $('sDeadlineDate').value = '';
+  $('sDeadlineTime').value = '';
+});
+
+$('sSaveBtn').addEventListener('click', function () {
+  var s = {
+    open: getChoice('sOpen'), sendMail: getChoice('sMail'), kindergarten: $('sKg').value, title: $('sTitle').value,
+    notice: $('sNotice').value, payNote: $('sPay').value, adminMail: $('sAdminMail').value, ages: $('sAges').value, sizes: $('sSizes').value,
+    receiptNote: $('sReceiptNote').value, receiptAddress: $('sReceiptAddress').value, receiptTel: $('sReceiptTel').value,
+    ageColors: (function (m) { return Object.keys(m).map(function (a) { return a + '＝' + m[a]; }).join('、'); })(getAgeColors()),
+    guideNote: $('sGuideNote').value,
+    eventDefault: getChoice('sEventDefault'),
+    editDeadline: $('sDeadlineDate').value ? $('sDeadlineDate').value.replace(/-/g, '/') + ' ' + ($('sDeadlineTime').value || '23:59') : '',
+    year: $('sYear').value.replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).trim()
+  };
+  if (!s.kindergarten.trim()) { setMsg('sMsg', '園の名前を入力してください。', false); $('sKg').focus(); return; }
+  if (!/^\d{1,2}$/.test(s.year) || Number(s.year) < 1) { setMsg('sMsg', '今の年度は、令和の年の数字（例：8）で入れてください。', false); $('sYear').focus(); return; }
+  $('sSaveBtn').disabled = true;
+  setMsg('sMsg', '保存しています…', true);
+  call('saveSettings', [s]).then(function (saved) {
+    fillSettings(saved);
+    setMsg('sMsg', '設定を保存しました。保護者の注文画面には、次に開いたときから反映されます。', true);
+    // 園の名前・年齢・サイズの選択肢を、ほかのタブにも反映する
+    return fetchAll();
+  }).catch(function (e) {
+    setMsg('sMsg', errMsg(e), false);
+  }).then(function () { $('sSaveBtn').disabled = false; });
+});
+
+// ===== 用品の登録 =====
+
+var db = { products: [], categories: [], vendors: [], ages: [], sizes: [] };
+var editingId = 0;   // 0 = 新しく登録
+var sizes = [];      // サイズありのときの表 [{ size, price }]
+var extraSizes = []; // 「設定」の選択肢にないサイズ（この用品だけのもの）
+var productLoaded = false;
+
+function pYen(n) { return n === '' || n == null ? '（未入力）' : Number(n).toLocaleString('ja-JP') + '円'; }
+function setMsg(id, text, ok) {
+  var m = $(id);
+  m.textContent = text;
+  m.className = 'msg' + (text ? ' show ' + (ok ? 'ok' : 'err') : '');
+}
+function showMsg(text, ok) { setMsg('pMsg', text, ok); }
+function showVMsg(text, ok) { setMsg('vMsg', text, ok); }
+function toHalf(v) {
+  return String(v).replace(/[！-～]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).trim();
+}
+
+function hasSize(p) { return p.sizes.length > 1 || p.sizes[0].size !== ''; }
+
+function priceText(p) {
+  var prices = p.sizes.map(function (s) { return s.price; });
+  if (prices.some(function (x) { return x === ''; })) return '（未入力）';
+  var min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
+  return min === max ? pYen(min) : pYen(min) + '〜' + pYen(max);
+}
+
+function renderProductList() {
+  var q = $('pSearch').value.trim().toLowerCase();
+  var cat = $('catFilter').value;
+  var ven = $('vendorFilter').value;
+  var shown = db.products.filter(function (p) {
+    if (cat && p.category !== cat) return false;
+    if (ven === '-' ? p.vendor : ven && p.vendor !== ven) return false;
+    if (!q) return true;
+    return (p.name + ' ' + p.vendor + ' ' + p.note + ' ' + p.category).toLowerCase().indexOf(q) >= 0;
+  });
+  $('pCount').textContent = '登録済み ' + db.products.length + ' 件'
+    + (shown.length !== db.products.length ? '（表示中 ' + shown.length + ' 件）' : '');
+  if (!db.products.length) {
+    $('pList').innerHTML = '<div class="empty">まだ用品が登録されていません。<br>右の欄に入力して「登録する」を押してください。</div>';
+    return;
+  }
+  if (!shown.length) { $('pList').innerHTML = '<div class="empty">見つかりませんでした。</div>'; return; }
+  // 検索や業者で絞り込んでいるときは、間の用品が見えないので並べ替えない（分類の絞り込みはよい）
+  var canMove = !q && !ven;
+  $('pList').innerHTML = '<table class="plist"><thead><tr>' + (sortMode ? '<th>順番</th>' : '')
+    + '<th>分類</th><th>用品名</th><th>サイズ</th><th>単価</th><th>発注業者</th><th>必ず用意</th></tr></thead><tbody>'
+    + shown.map(function (p) {
+      var cls = 'row ' + catClass(p.category) + (p.id === editingId ? ' sel' : '') + (p.hidden ? ' off' : '') + (p.id === lastMoved ? ' moved' : '');
+      return '<tr class="' + cls + '" data-id="' + p.id + '">'
+        + (sortMode
+          ? '<td class="mv-cell">'
+            + '<button type="button" class="mv" data-mv="-1" title="上へ"' + (canMove && neighbor(p.id, -1) >= 0 ? '' : ' disabled') + '>▲</button> '
+            + '<button type="button" class="mv" data-mv="1" title="下へ"' + (canMove && neighbor(p.id, 1) >= 0 ? '' : ' disabled') + '>▼</button></td>'
+          : '')
+        + '<td><span class="cat">' + esc(p.category) + '</span></td>'
+        + '<td>' + esc(p.name) + (p.ageColor ? '<span class="tag">色は年齢で</span>' : '') + (p.hidden ? '<span class="tag">お休み</span>' : '') + (p.noPack ? '<span class="tag">袋詰めしない</span>' : '') + (p.recycle ? '<span class="tag recycle">♻ リサイクル品可</span>' : '') + '</td>'
+        + '<td>' + (hasSize(p) ? esc(p.sizes.map(function (s) { return s.size; }).join('・')) : '—') + '</td>'
+        + '<td class="num">' + priceText(p) + (p.unit ? '<div class="hint">1' + esc(p.unit) + 'あたり</div>' : '') + '</td>'
+        + '<td>' + esc(p.vendor || '') + '</td>'
+        + '<td>' + (p.required || []).map(function (a) { return '<span class="req-tag">' + esc(a) + '</span>'; }).join('')
+        + ((p.hideAges || []).length ? '<div class="hint">' + esc(p.hideAges.join('・')) + 'には出さない</div>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function optionsHtml(values, cur) {
+  return values.map(function (v) {
+    return '<option value="' + esc(v[0]) + '"' + (v[0] === cur ? ' selected' : '') + '>' + esc(v[1]) + '</option>';
+  }).join('');
+}
+
+function renderFilters() {
+  var pair = function (x) { return [x, x]; };
+  $('catFilter').innerHTML = optionsHtml([['', 'すべての分類']].concat(db.categories.map(pair)), $('catFilter').value);
+  $('vendorFilter').innerHTML = optionsHtml([['', 'すべての業者']]
+    .concat(db.vendors.map(function (v) { return [v.name, v.name]; }), [['-', '（業者が未定）']]), $('vendorFilter').value);
+}
+
+function renderCategories(cur) {
+  $('categoryBox').innerHTML = db.categories.map(function (c) {
+    return '<label><input type="radio" name="category" value="' + esc(c) + '"' + (c === cur ? ' checked' : '') + '> ' + esc(c) + '</label>';
+  }).join('');
+}
+function getCategory() {
+  var r = $('categoryBox').querySelector('input:checked');
+  return r ? r.value : '';
+}
+
+// 発注業者の選択欄（登録にない業者名が入っている用品は、その名前も消さずに出す）
+function renderVendorSelect(cur) {
+  var names = db.vendors.map(function (v) { return v.name; });
+  var opts = [['', '（未定）']].concat(names.map(function (n) { return [n, n]; }));
+  if (cur && names.indexOf(cur) < 0) opts.push([cur, cur + '（未登録）']);
+  $('pVendor').innerHTML = optionsHtml(opts, cur || '');
+}
+
+function applyProductData(d) {
+  db = d;
+  // 新しい内容を読んだので、保存していない並べ替えは消える
+  endOrderEdit();
+  renderFilters();
+  renderCategories(getCategory());
+  renderVendorSelect($('pVendor').value);
+  renderAges(getRequired(), getHideAges());
+  renderProductList();
+  renderVendorList();
+  renderPack(); // 「袋詰めしない」が変わったかもしれない
+}
+
+// 必須購入・出さない年齢のチェック欄（年齢は「設定」シートの選択肢。登録済みで選択肢にない年齢も消さずに出す）
+function renderAges(checked, hide) {
+  hide = hide || [];
+  var box = function (list, word) {
+    return db.ages.concat(list.filter(function (a) { return db.ages.indexOf(a) < 0; })).map(function (a) {
+      return '<label><input type="checkbox" value="' + esc(a) + '"' + (list.indexOf(a) >= 0 ? ' checked' : '') + '> ' + esc(a) + word + '</label>';
+    }).join('');
+  };
+  $('requiredBox').innerHTML = box(checked, 'は必ず用意');
+  $('hideAgesBox').innerHTML = box(hide, 'には出さない');
+}
+function checkedAges(id) {
+  return Array.prototype.map.call($(id).querySelectorAll('input:checked'), function (x) { return x.value; });
+}
+function getRequired() { return checkedAges('requiredBox'); }
+function getHideAges() { return checkedAges('hideAgesBox'); }
+
+$('pSearch').addEventListener('input', renderProductList);
+$('catFilter').addEventListener('change', renderProductList);
+$('vendorFilter').addEventListener('change', renderProductList);
+$('pList').addEventListener('click', function (ev) {
+  var tr = ev.target.closest('tr.row');
+  if (!tr) return;
+  var mv = ev.target.closest('button.mv');
+  if (mv) { moveProduct(Number(tr.dataset.id), Number(mv.dataset.mv)); return; }
+  var p = db.products.filter(function (x) { return x.id === Number(tr.dataset.id); })[0];
+  if (p) loadForm(p);
+});
+
+// ===== 用品の並べ替え（画面の中で入れ替えて、「並び順を保存する」でまとめて保存） =====
+
+var sortMode = false;  // 「順番を並べ替える」を押している間だけ ▲▼ を出す
+var orderDirty = false;
+var savedOrder = [];   // 並べ替える前の順（やめる用）
+var lastMoved = 0;
+
+function setOrderMsg() {
+  $('orderMsg').textContent = orderDirty
+    ? '並び順を変えました。保存するまで注文画面には反映されません。'
+    : '▲▼で順番を入れ替えて、「並び順を保存する」を押してください。';
+  $('orderSaveBtn').disabled = !orderDirty;
+}
+
+$('sortBtn').addEventListener('click', function () {
+  // 間の用品が隠れないように、検索と業者の絞り込みを外す
+  $('pSearch').value = '';
+  $('vendorFilter').value = '';
+  sortMode = true;
+  orderDirty = false;
+  savedOrder = db.products.slice();
+  $('sortBtn').classList.add('hidden');
+  $('orderBar').classList.remove('hidden');
+  setOrderMsg();
+  renderProductList();
+});
+
+// 同じ分類の中で、上（-1）または下（1）にある用品の位置。なければ -1
+function neighbor(id, dir) {
+  var list = db.products;
+  var i = list.findIndex(function (x) { return x.id === id; });
+  if (i < 0) return -1;
+  for (var j = i + dir; j >= 0 && j < list.length; j += dir) {
+    if (list[j].category === list[i].category) return j;
+  }
+  return -1;
+}
+
+function moveProduct(id, dir) {
+  var j = neighbor(id, dir);
+  if (j < 0) return;
+  var list = db.products;
+  var i = list.findIndex(function (x) { return x.id === id; });
+  var tmp = list[i]; list[i] = list[j]; list[j] = tmp;
+  orderDirty = true;
+  lastMoved = id;
+  setOrderMsg();
+  renderProductList();
+}
+
+function endOrderEdit() {
+  sortMode = false;
+  orderDirty = false;
+  lastMoved = 0;
+  $('orderBar').classList.add('hidden');
+  $('sortBtn').classList.remove('hidden');
+}
+
+// 並べ替えを保存していないときは、ほかの保存をいったん止める（保存すると並び順が元に戻ってしまうため）
+function orderPending(showFn) {
+  if (!orderDirty) return false;
+  showFn('先に上の「並び順を保存する」か「やめる」を押してください。', false);
+  return true;
+}
+
+$('orderUndoBtn').addEventListener('click', function () {
+  if (orderDirty) db.products = savedOrder;
+  endOrderEdit();
+  renderProductList();
+});
+
+$('orderSaveBtn').addEventListener('click', function () {
+  var ids = db.products.map(function (x) { return x.id; });
+  $('orderSaveBtn').disabled = true;
+  $('orderUndoBtn').disabled = true;
+  call('saveProductOrder', [ids]).then(function (d) {
+    endOrderEdit();
+    applyProductData(d);
+    toast('並び順を保存しました。注文画面もこの順に出ます');
+  }).catch(function (e) {
+    toast(errMsg(e), true);
+  }).then(function () {
+    $('orderSaveBtn').disabled = false;
+    $('orderUndoBtn').disabled = false;
+  });
+});
+
+function setSizeMode(on) {
+  $('hasSize').checked = on;
+  $('sizeBox').classList.toggle('hidden', !on);
+  $('noSizeBox').classList.toggle('hidden', on);
+}
+
+// チェックボックスに出すサイズ：「設定」の選択肢 ＋ この用品だけのサイズ
+function sizeChoices() {
+  return db.sizes.concat(extraSizes.filter(function (s) { return db.sizes.indexOf(s) < 0; }));
+}
+
+// サイズを選択肢の順（小さい順）に並べる
+function sortSizes() {
+  var order = sizeChoices();
+  sizes.sort(function (a, b) { return order.indexOf(a.size) - order.indexOf(b.size); });
+}
+
+function renderSizes() {
+  var on = sizes.map(function (s) { return s.size; });
+  $('sizeChecks').innerHTML = sizeChoices().map(function (s) {
+    var checked = on.indexOf(s) >= 0;
+    return '<label class="' + (checked ? 'on' : '') + '"><input type="checkbox" value="' + esc(s) + '"' + (checked ? ' checked' : '') + '>' + esc(s) + '</label>';
+  }).join('');
+  $('sizeRows').innerHTML = sizes.length
+    ? sizes.map(function (s, i) {
+      return '<tr><td class="size-name">' + esc(s.size) + '</td>'
+        + '<td><input type="text" class="price-in" data-i="' + i + '" inputmode="numeric" value="' + esc(s.price) + '"> 円</td></tr>';
+    }).join('')
+    : '<tr><td colspan="2" class="hint">上でサイズにチェックを付けると、ここに出ます。</td></tr>';
+}
+
+$('sizeChecks').addEventListener('change', function (ev) {
+  var t = ev.target;
+  if (t.type !== 'checkbox') return;
+  if (t.checked) {
+    sizes.push({ size: t.value, price: $('bulkPrice').value.trim() });
+    sortSizes();
+  } else {
+    sizes = sizes.filter(function (s) { return s.size !== t.value; });
+  }
+  renderSizes();
+});
+
+$('sizeRows').addEventListener('input', function (ev) {
+  var t = ev.target;
+  if (t.dataset.i == null) return;
+  sizes[Number(t.dataset.i)].price = t.value;
+});
+
+// 単価を、チェックしたサイズすべてに入れる
+$('bulkBtn').addEventListener('click', function () {
+  var price = $('bulkPrice').value.trim();
+  if (!price) { showMsg('単価を入れてから押してください。', false); $('bulkPrice').focus(); return; }
+  if (!sizes.length) { showMsg('先にサイズにチェックを付けてください。', false); return; }
+  sizes.forEach(function (s) { s.price = price; });
+  renderSizes();
+  showMsg('', true);
+});
+
+// 一覧にないサイズを、この用品に追加する（チェックが付いた状態で出る）
+function addCustomSize() {
+  var sz = toHalf($('customSize').value);
+  if (!sz) return;
+  if (sizeChoices().indexOf(sz) < 0) extraSizes.push(sz);
+  if (!sizes.some(function (s) { return s.size === sz; })) {
+    sizes.push({ size: sz, price: $('bulkPrice').value.trim() });
+    sortSizes();
+  }
+  $('customSize').value = '';
+  renderSizes();
+}
+$('customBtn').addEventListener('click', addCustomSize);
+$('customSize').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') addCustomSize(); });
+
+function changeSizeMode(on) {
+  if (on && $('pPrice').value && !$('bulkPrice').value) $('bulkPrice').value = $('pPrice').value;
+  setSizeMode(on);
+  renderSizes();
+}
+$('hasSize').addEventListener('change', function () { changeSizeMode($('hasSize').checked); });
+
+// 「園服」を選んだらサイズあり、ほかの分類ならサイズなしにしておく（あとから変えてよい）
+$('categoryBox').addEventListener('change', function (ev) {
+  if (ev.target.name === 'category') changeSizeMode(ev.target.value === '園服');
+});
+
+function clearForm(keep) {
+  editingId = 0;
+  if (!keep) {
+    renderCategories('');
+    renderVendorSelect('');
+    $('pPrice').value = '';
+    $('bulkPrice').value = '';
+    $('customSize').value = '';
+    sizes = [];
+    extraSizes = [];
+    setSizeMode(false);
+    renderAges([]);
+  }
+  $('pName').value = '';
+  $('pNote').value = '';
+  $('pCaption').value = '';
+  $('pAgeColor').checked = false;
+  $('pUnit').value = '';
+  $('pStartQty').value = '';
+  $('pMaxQty').value = '';
+  $('pHidden').checked = false;
+  $('pNoPack').checked = false;
+  $('pRecycle').checked = false;
+  renderSizes();
+  $('editTitle').innerHTML = '新しい用品を登録';
+  $('pSaveBtn').textContent = '登録する';
+  $('pDeleteBtn').classList.add('hidden');
+  renderProductList();
+}
+
+function loadForm(p) {
+  editingId = p.id;
+  renderCategories(p.category);
+  $('pName').value = p.name;
+  renderVendorSelect(p.vendor || '');
+  $('pNote').value = p.note || '';
+  $('pCaption').value = p.caption || '';
+  $('pHidden').checked = !!p.hidden;
+  $('pNoPack').checked = !!p.noPack;
+  $('pRecycle').checked = !!p.recycle;
+  renderAges(p.required || [], p.hideAges || []);
+  $('pAgeColor').checked = !!p.ageColor;
+  $('pUnit').value = p.unit || '';
+  $('pStartQty').value = p.startQty || '';
+  $('pMaxQty').value = p.maxQty || '';
+  $('bulkPrice').value = '';
+  $('customSize').value = '';
+  if (hasSize(p)) {
+    sizes = p.sizes.map(function (s) { return { size: s.size, price: s.price }; });
+    extraSizes = sizes.map(function (s) { return s.size; }).filter(function (s) { return db.sizes.indexOf(s) < 0; });
+    $('pPrice').value = '';
+    setSizeMode(true);
+  } else {
+    sizes = [];
+    extraSizes = [];
+    $('pPrice').value = p.sizes[0].price;
+    setSizeMode(false);
+  }
+  renderSizes();
+  $('editTitle').innerHTML = '用品を直す<span class="mode">（' + esc(p.name) + '）</span>';
+  $('pSaveBtn').textContent = '変更を保存する';
+  $('pDeleteBtn').classList.remove('hidden');
+  showMsg('', true);
+  renderProductList();
+}
+
+$('pNewBtn').addEventListener('click', function () { clearForm(false); showMsg('', true); $('pName').focus(); });
+
+function pBusy(on) {
+  ['pSaveBtn', 'pNewBtn', 'pDeleteBtn'].forEach(function (id) { $(id).disabled = on; });
+}
+
+$('pSaveBtn').addEventListener('click', function () {
+  if (orderPending(showMsg)) return;
+  var p = {
+    id: editingId,
+    category: getCategory(),
+    name: $('pName').value.trim(),
+    vendor: $('pVendor').value,
+    required: getRequired(),
+    ageColor: $('pAgeColor').checked,
+    hideAges: getHideAges(),
+    unit: $('pUnit').value.trim(),
+    startQty: $('pStartQty').value.trim(),
+    maxQty: $('pMaxQty').value.trim(),
+    note: $('pNote').value.trim(),
+    caption: $('pCaption').value.trim(),
+    hidden: $('pHidden').checked,
+    noPack: $('pNoPack').checked,
+    recycle: $('pRecycle').checked,
+    sizes: $('hasSize').checked
+      ? sizes.filter(function (s) { return String(s.size).trim() || String(s.price).trim(); })
+      : [{ size: '', price: $('pPrice').value.trim() }]
+  };
+  if (!p.category) { showMsg('分類（園服／用品／その他の用品）を選んでください。', false); return; }
+  if (!p.name) { showMsg('用品名を入力してください。', false); $('pName').focus(); return; }
+  if ($('hasSize').checked && !p.sizes.length) { showMsg('注文できるサイズにチェックを付けてください。', false); return; }
+  var wasNew = !editingId;
+  pBusy(true);
+  showMsg('保存しています…', true);
+  call('saveProduct', [p]).then(function (d) {
+    applyProductData(d);
+    if (wasNew) {
+      // 続けて登録しやすいように、分類・業者・サイズ・必須購入はそのまま残す
+      clearForm(true);
+      showMsg('「' + p.name + '」を登録しました。続けて次の用品を入力できます。', true);
+      $('pName').focus();
+    } else {
+      var saved = db.products.filter(function (x) { return x.id === d.savedId; })[0];
+      if (saved) loadForm(saved);
+      showMsg('「' + p.name + '」の変更を保存しました。', true);
+    }
+  }).catch(function (e) {
+    showMsg(errMsg(e), false);
+  }).then(function () { pBusy(false); });
+});
+
+$('pDeleteBtn').addEventListener('click', function () {
+  if (!editingId || orderPending(showMsg)) return;
+  var name = $('pName').value.trim();
+  if (!confirm('「' + name + '」を消します。よろしいですか？\n（これまでの注文の記録は消えません）')) return;
+  pBusy(true);
+  call('deleteProduct', [editingId]).then(function (d) {
+    applyProductData(d);
+    clearForm(false);
+    showMsg('「' + name + '」を消しました。', true);
+  }).catch(function (e) {
+    showMsg(errMsg(e), false);
+  }).then(function () { pBusy(false); });
+});
+
+// ===== 発注業者の登録 =====
+
+var editingVendor = ''; // '' = 新しく登録
+
+function renderVendorList() {
+  $('vCount').textContent = '登録済み ' + db.vendors.length + ' 社';
+  if (!db.vendors.length) {
+    $('vList').innerHTML = '<div class="empty">まだ業者が登録されていません。<br>右の欄に入力して「登録する」を押してください。</div>';
+    return;
+  }
+  $('vList').innerHTML = '<table class="plist"><thead><tr><th>業者名</th><th>電話番号</th><th>FAX番号</th><th>用品の数</th><th>備考</th></tr></thead><tbody>'
+    + db.vendors.map(function (v) {
+      var n = db.products.filter(function (p) { return p.vendor === v.name; }).length;
+      return '<tr class="row' + (v.name === editingVendor ? ' sel' : '') + '" data-name="' + esc(v.name) + '">'
+        + '<td>' + esc(v.name) + '</td><td>' + esc(v.tel) + '</td><td>' + esc(v.fax || '') + '</td><td class="num">' + n + ' 件</td><td>' + esc(v.note) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function clearVendorForm() {
+  editingVendor = '';
+  $('vName').value = '';
+  $('vTel').value = '';
+  $('vFax').value = '';
+  $('vNote').value = '';
+  $('vEditTitle').textContent = '新しい業者を登録';
+  $('vSaveBtn').textContent = '登録する';
+  $('vDeleteBtn').classList.add('hidden');
+  renderVendorList();
+}
+
+function loadVendorForm(v) {
+  editingVendor = v.name;
+  $('vName').value = v.name;
+  $('vTel').value = v.tel;
+  $('vFax').value = v.fax || '';
+  $('vNote').value = v.note;
+  $('vEditTitle').textContent = '業者を直す（' + v.name + '）';
+  $('vSaveBtn').textContent = '変更を保存する';
+  $('vDeleteBtn').classList.remove('hidden');
+  showVMsg('', true);
+  renderVendorList();
+}
+
+function vBusy(on) {
+  ['vSaveBtn', 'vNewBtn', 'vDeleteBtn'].forEach(function (id) { $(id).disabled = on; });
+}
+
+$('vList').addEventListener('click', function (ev) {
+  var tr = ev.target.closest('tr.row');
+  if (!tr) return;
+  var v = db.vendors.filter(function (x) { return x.name === tr.dataset.name; })[0];
+  if (v) loadVendorForm(v);
+});
+
+$('vNewBtn').addEventListener('click', function () { clearVendorForm(); showVMsg('', true); $('vName').focus(); });
+
+$('vSaveBtn').addEventListener('click', function () {
+  if (orderPending(showVMsg)) return;
+  var v = { oldName: editingVendor, name: $('vName').value.trim(), tel: $('vTel').value.trim(), fax: $('vFax').value.trim(), note: $('vNote').value.trim() };
+  if (!v.name) { showVMsg('業者名を入力してください。', false); $('vName').focus(); return; }
+  var wasNew = !editingVendor;
+  vBusy(true);
+  showVMsg('保存しています…', true);
+  call('saveVendor', [v]).then(function (d) {
+    // 用品の入力欄でこの業者を選んでいたら、新しい名前に合わせる
+    var renamed = v.oldName && $('pVendor').value === v.oldName;
+    applyProductData(d);
+    if (renamed) renderVendorSelect(v.name);
+    if (wasNew) {
+      clearVendorForm();
+      showVMsg('「' + v.name + '」を登録しました。続けて次の業者を入力できます。', true);
+      $('vName').focus();
+    } else {
+      var saved = db.vendors.filter(function (x) { return x.name === d.savedName; })[0];
+      if (saved) loadVendorForm(saved);
+      showVMsg('「' + v.name + '」の変更を保存しました。', true);
+    }
+  }).catch(function (e) {
+    showVMsg(errMsg(e), false);
+  }).then(function () { vBusy(false); });
+});
+
+$('vDeleteBtn').addEventListener('click', function () {
+  if (!editingVendor || orderPending(showVMsg)) return;
+  var name = editingVendor;
+  if (!confirm('「' + name + '」を消します。よろしいですか？')) return;
+  vBusy(true);
+  call('deleteVendor', [name]).then(function (d) {
+    applyProductData(d);
+    clearVendorForm();
+    showVMsg('「' + name + '」を消しました。', true);
+  }).catch(function (e) {
+    showVMsg(errMsg(e), false);
+  }).then(function () { vBusy(false); });
+});
+
+// ===== 読み込み =====
+
+// 注文と、用品・業者の登録内容を両方読む
+function fetchAll() {
+  return Promise.all([ordersCall(), call('getProductAdminData')]).then(function (r) {
+    data = r[0];
+    renderAll();
+    applyProductData(r[1]);
+    if (!productLoaded) {
+      productLoaded = true;
+      clearForm(false);
+      clearVendorForm();
+    }
+  });
+}
+
+function load() {
+  $('count').textContent = '読み込んでいます…';
+  return fetchAll().catch(function (e) {
+    var msg = errMsg(e);
+    // 合言葉が違うとき（変わったときなど）は、入れ直してもらう
+    if (!IN_APPS_SCRIPT && !DEMO && msg.indexOf('合言葉') >= 0) { showLogin(msg); return; }
+    $('count').textContent = '読み込めませんでした（' + msg + '）';
+    toast('読み込めませんでした。\n' + msg, true);
+  });
+}
+
+function showLogin(msg) {
+  $('login').classList.remove('hidden');
+  $('loginErr').textContent = msg || '';
+  $('loginErr').classList.toggle('show', !!msg);
+  $('keyInput').value = '';
+  $('keyInput').focus();
+}
+
+function tryLogin() {
+  var key = $('keyInput').value.replace(/[！-～]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).trim();
+  if (!key) { showLogin('合言葉を入れてください。'); return; }
+  adminKey = key;
+  $('loginBtn').disabled = true;
+  $('loginBtn').textContent = '確かめています…';
+  fetchAll().then(function () {
+    try { localStorage.setItem(KEY_STORE, key); } catch (e) { /* 覚えられなくても、今回は開ける */ }
+    $('login').classList.add('hidden');
+  }).catch(function (e) {
+    showLogin(errMsg(e));
+  }).then(function () {
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = '開く';
+  });
+}
+
+$('loginBtn').addEventListener('click', tryLogin);
+$('keyInput').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tryLogin(); });
+$('demoBtn').addEventListener('click', function () {
+  DEMO = true;
+  $('login').classList.add('hidden');
+  $('demoBox').classList.remove('hidden');
+  $('logoutBtn').textContent = '見本をやめる';
+  load();
+});
+// ===== 注文画面のURLとQRコード =====
+
+var qrMade = false;
+function loadScript(src) {
+  return new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+function showQr() {
+  $('orderUrl').value = ORDER_URL;
+  $('openOrder').href = ORDER_URL;
+  $('qrModal').classList.remove('hidden');
+  if (qrMade) return;
+  $('qr').textContent = 'QRコードを作っています…';
+  var ready = window.QRCode ? Promise.resolve() : loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+  ready.then(function () {
+    $('qr').textContent = '';
+    new QRCode($('qr'), { text: ORDER_URL, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+    // 保存する画像には、読み取りやすいように白い余白を付ける
+    var canvas = $('qr').querySelector('canvas');
+    if (canvas) {
+      var pad = 24;
+      var out = document.createElement('canvas');
+      out.width = canvas.width + pad * 2;
+      out.height = canvas.height + pad * 2;
+      var ctx = out.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(canvas, pad, pad);
+      $('qrSave').href = out.toDataURL('image/png');
+    }
+    qrMade = true;
+  }).catch(function () {
+    $('qr').textContent = 'QRコードを作れませんでした。インターネットにつながっているか確かめてください。';
+  });
+}
+$('qrBtn').addEventListener('click', showQr);
+
+// 保護者に配るお知らせ（A4・1枚）：QRコードと注文のしかた。園の名前・お知らせ・支払い方法・電話番号は ⚙ 設定から
+// 保護者へのメールの差出人（Apps Script をデプロイした Google アカウント。index.html のメール欄の説明にも同じアドレスを書いている）
+var MAIL_FROM = 'kabagakuen.kabayochien@gmail.com';
+
+function printGuide() {
+  // 先にタブを開く（あとから開くと、ポップアップとして止められるため）
+  var w = window.open('', '_blank');
+  if (!w) { toast('新しいタブを開けませんでした。ポップアップを許可してください。', true); return; }
+  w.document.write('<p style="font-family:sans-serif">お知らせを作っています…</p>');
+  var ready = window.QRCode ? Promise.resolve() : loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+  Promise.all([ready, call('getSettingsForAdmin')]).then(function (r) {
+    var s = r[1];
+    // 印刷しても読み取りやすいように、大きめに作って画像にする
+    var box = document.createElement('div');
+    new QRCode(box, { text: ORDER_URL, width: 480, height: 480, correctLevel: QRCode.CorrectLevel.M });
+    var canvas = box.querySelector('canvas');
+    var qr = canvas ? canvas.toDataURL('image/png') : (box.querySelector('img') || {}).src;
+    var kg = s.kindergarten || data.kindergarten || '';
+    var br = function (t) { return esc(t).replace(/\n/g, '<br>'); };
+    var steps = [
+      ['QRコードを読み取る', 'スマートフォンのカメラで上のQRコードを読み取り、注文画面を開きます。'],
+      ['入園する年齢を選ぶ', '基本的に購入する用品が、最初から入ります。リサイクル品などをご家庭で用意する用品は、0にできます。'],
+      ['お子さまと保護者の方の情報を入れる', 'お子さまのお名前は<b>ひらがな</b>で、姓と名の間にスペースを入れてください（例：やまだ はなこ）。'
+        + '保護者のお名前・メールアドレス・電話番号も入れます。'],
+      ['用品のサイズ・数を選ぶ', 'サイズ（種類）を選び、「＋」「−」で数を変えます。必要な用品の数を選んでください。'],
+      ['「用品販売の日に購入する」を確かめる', s.eventDefault === 'チェックなし'
+        ? '用品販売の日に購入する場合は、チェックを入れてください。'
+        : '最初からチェックが入っています。用品販売の日に購入しない場合は、チェックを外してください。'],
+      ['「確認へ進む」→「この内容で注文する」', '内容を確かめて、確認の画面の<b>いちばん下にある「この内容で注文する」を必ず押してください</b>。'
+        + '緑の「注文完了」の画面が出れば、注文は終わりです。園で注文された方は、この画面を職員へ見せてください。きょうだいの分は、この画面から続けて注文できます。'],
+      ['確認のメールが届きます', '注文の内容が書かれたメールが <b>' + esc(MAIL_FROM) + '</b> から届きます。'
+        + '迷惑メールの設定をしている方は、このアドレスからのメールを受け取れるようにしてください。届かないときは、迷惑メールのフォルダもご確認ください。']
+    ];
+    w.document.open();
+    w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>用品注文のお知らせ_' + esc(kg) + '</title><style>'
+      + '@page { size: A4; margin: 12mm 14mm; }'
+      + 'body { font-family: "Yu Gothic", "Hiragino Sans", "Meiryo", sans-serif; color: #222; margin: 0; padding: 16px; font-size: 13px; line-height: 1.5;'
+      + ' -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+      + '.bar { margin-bottom: 14px; } .bar button { font-size: 15px; padding: 8px 18px; }'
+      + '.page { width: 182mm; }'
+      + '.top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 3px solid #2a9d8f; padding-bottom: 4px; }'
+      + '.top .for { font-size: 14px; } .top .kg { font-size: 14px; font-weight: bold; }'
+      + 'h1 { font-size: 24px; margin: 8px 0 2px; color: #1f6f64; letter-spacing: 0.05em; }'
+      + '.lead { margin: 0 0 10px; }'
+      + '.qr-row { display: flex; gap: 18px; align-items: center; border: 2px solid #2a9d8f; border-radius: 12px; padding: 10px 16px; }'
+      + '.qr-row img { width: 42mm; height: 42mm; flex: none; }'
+      + '.qr-text .big { font-size: 18px; font-weight: bold; color: #1f6f64; margin-bottom: 4px; }'
+      + '.qr-text .url { font-size: 11px; color: #555; word-break: break-all; margin-top: 6px; }'
+      + '.qr-text .deadline { margin-top: 8px; font-size: 16px; color: #b5482a; }'
+      + '.notice { margin-top: 10px; background: #e0f2ef; border-radius: 8px; padding: 8px 12px; }'
+      + 'h2 { font-size: 15px; margin: 10px 0 4px; color: #1f6f64; border-left: 5px solid #2a9d8f; padding-left: 8px; }'
+      + 'ol.steps { list-style: none; margin: 0; padding: 0; }'
+      + 'ol.steps li { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px dashed #c8dcd8; }'
+      + 'ol.steps .num { flex: none; width: 24px; height: 24px; border-radius: 50%; background: #2a9d8f; color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-top: 1px; }'
+      + 'ol.steps .t { font-weight: bold; font-size: 14px; }'
+      + '.cols { display: flex; gap: 12px; } .cols > div { flex: 1; min-width: 0; }'
+      + '.box { border: 1px solid #999; border-radius: 8px; padding: 6px 10px; }'
+      + '.box.extra { border: 2px solid #2a9d8f; padding: 8px 12px; font-size: 13.5px; }'
+      + '.foot { margin-top: 10px; text-align: right; font-size: 13px; }'
+      + '@media print { .bar { display: none; } body { padding: 0; } }'
+      + '</style></head><body>'
+      + '<div class="bar"><button onclick="print()">🖨 印刷する</button></div>'
+      + '<div class="page" id="page"><div class="top"><span class="for">' + '用品を注文される方へ' + '</span><span class="kg">' + esc(kg) + '</span></div>'
+      + '<h1>入園用品のご注文について</h1>'
+      + '<p class="lead">入園に必要な用品は、スマートフォンからご注文いただけます。下のQRコードから注文画面を開き、手順にそってご注文ください。</p>'
+      + '<div class="qr-row"><img src="' + esc(qr) + '" alt="注文画面のQRコード"><div class="qr-text">'
+      + '<div class="big">📱 ここから注文できます</div>スマートフォンのカメラで、左のQRコードを読み取ってください。'
+      + '<div class="url">' + esc(ORDER_URL) + '</div>'
+      + (deadlineLabel(s.editDeadline) ? '<div class="deadline">⏰ ご注文の締切：<b>' + deadlineLabel(s.editDeadline) + 'まで</b></div>' : '')
+      + '</div></div>'
+      + (s.notice ? '<div class="notice">' + br(s.notice) + '</div>' : '')
+      + '<h2>注文のしかた</h2><ol class="steps">'
+      + steps.map(function (st, i) {
+        return '<li><span class="num">' + (i + 1) + '</span><div><div class="t">' + esc(st[0]) + '</div>' + st[1] + '</div></li>';
+      }).join('') + '</ol>'
+      + '<div class="cols"><div><h2>注文の変更・取り消し</h2><div class="box">数を変える・用品を足す・取り消すときは、確認のメールにあるリンクから行えます（'
+      + (deadlineLabel(s.editDeadline) ? '<b>' + deadlineLabel(s.editDeadline) + 'まで</b>。代金をお支払いいただいたあとはできません' : '代金をお支払いいただく前まで') + '）。'
+      + 'メールは、ほかの方に転送しないでください。</div></div>'
+      + (s.payNote ? '<div><h2>代金のお支払い</h2><div class="box">' + br(s.payNote) + '</div></div>' : '') + '</div>'
+      // ⚙ 設定の「お知らせに足す文」（空欄なら出さない）
+      + (String(s.guideNote || '').trim() ? '<h2>そのほかのお知らせ</h2><div class="box extra">' + br(String(s.guideNote).trim()) + '</div>' : '')
+      + '<div class="foot">お問い合わせ：' + esc(kg) + (s.receiptTel ? '　TEL ' + esc(s.receiptTel) : '') + '</div></div>'
+      // お知らせや支払い方法の文が長くても、A4の1枚に収まるように縮める（A4の印刷できる高さ＝297mm−上下の余白24mm）
+      + '<script>window.onload = function () {'
+      + ' var p = document.getElementById("page"); var mm = 96 / 25.4; var h = p.scrollHeight;'
+      + ' var k = Math.min(1, (273 * mm - 8) / h); if (k < 1) p.style.zoom = k;'
+      + ' setTimeout(function () { print(); }, 300); };<\/script>'
+      + '</body></html>');
+    w.document.close();
+  }).catch(function (e) {
+    w.close();
+    toast('お知らせを作れませんでした：' + errMsg(e), true);
+  });
+}
+$('guidePrintBtn').addEventListener('click', printGuide);
+$('qrClose').addEventListener('click', function () { $('qrModal').classList.add('hidden'); });
+$('qrModal').addEventListener('click', function (ev) { if (ev.target === $('qrModal')) $('qrModal').classList.add('hidden'); });
+$('qrSave').addEventListener('click', function (ev) { if (!qrMade) ev.preventDefault(); });
+$('copyUrlBtn').addEventListener('click', function () { copyText(ORDER_URL, 'URLをコピーしました'); });
+
+// 文字をクリップボードにコピーする（使えないブラウザでは、隠した欄を選んでコピー）
+function copyText(text, okMsg) {
+  var done = function () { toast(okMsg); };
+  var fallback = function () {
+    var t = document.createElement('textarea');
+    t.value = text;
+    t.style.position = 'fixed';
+    t.style.opacity = '0';
+    document.body.appendChild(t);
+    t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* なにもしない */ }
+    document.body.removeChild(t);
+    if (ok) done(); else window.prompt('Ctrl+C でコピーしてください', text);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
+
+$('reloadBtn').addEventListener('click', function () { load().then(function () { toast('最新の内容にしました'); }); });
+
+// ===== 1分ごとに、注文を自動で読み直す =====
+// 保護者からの新しい注文・変更を取り込む。書き込み中や、名前・連絡先を直している途中は待つ
+var AUTO_RELOAD_MS = 60 * 1000;
+var autoLoading = false;
+setInterval(function () {
+  if (!productLoaded || autoLoading || busyNow || editingInfo) return; // まだ一度も読めていないときは、最初の読み込みを待つ
+  if (!$('login').classList.contains('hidden')) return;
+  if (!IN_APPS_SCRIPT && !DEMO && !adminKey) return;
+  if (viewingArchive) return; // 締めた年度の控えは変わらない
+  autoLoading = true;
+  var startWrites = writeCount;
+  var before = {};
+  data.orders.forEach(function (o) { before[o.no] = true; });
+  call('getAdminData').then(function (d) {
+    // 読んでいる間にボタンが押された・直し始めた・控えを見始めたときは、そちらを優先する
+    if (writeCount !== startWrites || busyNow || editingInfo || viewingArchive) return;
+    var added = d.orders.filter(function (o) { return !before[o.no]; }).length;
+    data = d;
+    renderAll();
+    if (added) toast('新しい注文が ' + added + ' 件入りました');
+  }).catch(function () {
+    // 通信できないときは、次の1分でまた試す
+  }).then(function () { autoLoading = false; });
+}, AUTO_RELOAD_MS);
+$('logoutBtn').addEventListener('click', function () {
+  if (DEMO) { location.reload(); return; }
+  if (!confirm('このパソコンに覚えている合言葉を消して、入れ直しますか？')) return;
+  try { localStorage.removeItem(KEY_STORE); } catch (e) { /* なにもしない */ }
+  adminKey = '';
+  showLogin('');
+});
+
+if (IN_APPS_SCRIPT) {
+  load();
+} else {
+  // アプリとして開いたとき：上の帯を出す。合言葉を覚えていればそのまま開く
+  $('appbar').classList.remove('hidden');
+  document.title = '用品注文の管理';
+  if (adminKey) load(); else showLogin('');
+}
+</script>
+</body>
+</html>
