@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-title" content="職員アプリ">
+<meta name="theme-color" content="#2f6f4f">
+<title>蒲幼稚園　職員アプリの入り口</title>
+<script>
+// ===== 全員に出すリンク（ここを書きかえて GitHub に置き直します） =====
+// 1行に1つ。{ 絵: '🔗', 名前: '…', URL: 'https://…', 説明: '…' }
+// URL が空（''）のものは出ません。行を消せばそのリンクはなくなります。
+var SHARED_LINKS = [
+  { 絵: '💬', 名前: 'LINE WORKS', URL: 'https://talk.worksmobile.com/', 説明: '職員の連絡（スマホはアプリが開きます）' },
+  { 絵: '🌳', 名前: '幼稚園のホームページ', URL: 'https://sites.google.com/view/kaba-yochien', 説明: '園のお知らせ・行事' }
+];
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f6f4f'/%3E%3Cpath d='M14 30 32 14l18 16v20H14z' fill='%23fff'/%3E%3Crect x='27' y='36' width='10' height='14' fill='%232f6f4f'/%3E%3C/svg%3E">
+<style>
+:root { --main: #2f6f4f; --bg: #f5f2ea; --line: #ddd6c6; --text: #2b2b2b; --muted: #6b6b6b; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: "BIZ UDPGothic", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif; font-size: 17px; line-height: 1.6; }
+header { background: var(--main); color: #fff; padding: 18px 16px 16px; text-align: center; }
+header h1 { margin: 0; font-size: 22px; letter-spacing: .05em; }
+header p { margin: 4px 0 0; font-size: 15px; opacity: .9; }
+main { max-width: 980px; margin: 0 auto; padding: 16px 14px 40px; }
+h2 { font-size: 19px; margin: 26px 0 10px; }
+.muted { color: var(--muted); font-size: 14px; }
+
+/* アプリのカード */
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.app { background: #fff; border: 1px solid var(--line); border-top: 8px solid var(--c); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; }
+.app .name { font-size: 21px; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 8px; }
+.app .name .ic { font-size: 30px; }
+.app .what { margin: 8px 0 10px; }
+.app .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+.app .tags span { background: var(--soft); color: #333; border-radius: 99px; padding: 2px 10px; font-size: 13.5px; }
+.open { display: block; margin-top: auto; text-align: center; text-decoration: none; background: var(--c); color: #fff; font-size: 20px; font-weight: bold; padding: 14px 10px; border-radius: 12px; }
+.open:hover { filter: brightness(1.08); }
+.open:focus-visible { outline: 4px solid #f0b400; outline-offset: 2px; }
+.app .who { font-size: 13.5px; color: var(--muted); margin: 8px 0 0; text-align: center; }
+.c1 { --c: #2b6cb0; --soft: #e6effa; }
+.c2 { --c: #c0602a; --soft: #fbeee4; }
+.c3 { --c: #7a5aa8; --soft: #efe9f7; }
+
+/* やりたいことから探す */
+.find { background: #fff; border: 2px solid var(--main); border-radius: 14px; padding: 14px; }
+.find label { font-weight: bold; display: block; margin-bottom: 6px; }
+.find input { width: 100%; font-size: 18px; padding: 12px 12px; border: 1px solid #bbb; border-radius: 10px; font-family: inherit; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips button { font-family: inherit; font-size: 14.5px; border: 1px solid var(--line); background: #faf8f3; border-radius: 99px; padding: 4px 12px; cursor: pointer; }
+.chips button:hover { background: #eef5f0; }
+.tasks { list-style: none; margin: 12px 0 0; padding: 0; }
+.tasks li a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-left: 6px solid var(--c); border-radius: 10px; margin-bottom: 6px; text-decoration: none; color: inherit; background: #fff; }
+.tasks li a:hover { background: var(--soft); }
+.tasks .t { font-weight: bold; }
+.tasks .w { font-size: 14px; color: #444; }
+.tasks .go { margin-left: auto; white-space: nowrap; font-size: 14px; color: var(--c); font-weight: bold; }
+.tasks .a { font-size: 12.5px; color: #fff; background: var(--c); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+.none { padding: 10px; color: var(--muted); }
+
+/* 使い方 */
+details.howto { background: #fff; border: 1px solid var(--line); border-left: 8px solid var(--c); border-radius: 12px; margin-bottom: 10px; }
+details.howto summary { cursor: pointer; padding: 12px 14px; font-weight: bold; font-size: 18px; list-style: none; }
+details.howto summary::-webkit-details-marker { display: none; }
+details.howto summary::before { content: "▶"; display: inline-block; width: 1.4em; color: var(--c); transition: transform .15s; }
+details.howto[open] summary::before { transform: rotate(90deg); }
+.howto .body { padding: 0 16px 14px 18px; }
+.howto h3 { font-size: 16.5px; margin: 14px 0 4px; color: var(--c); }
+.howto ol, .howto ul { margin: 4px 0; padding-left: 1.4em; }
+.howto li { margin: 3px 0; }
+.howto table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 4px 0; }
+.howto th, .howto td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+.howto th { background: var(--soft); white-space: nowrap; width: 9em; }
+.b { display: inline-block; background: #f1f1f1; border: 1px solid #ccc; border-radius: 6px; padding: 0 6px; font-size: .92em; white-space: nowrap; }
+.warn { background: #fff7e0; border: 1px solid #f0d58a; border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: 15px; }
+.home { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.home > div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.home h3 { margin: 0 0 4px; font-size: 16.5px; }
+.home ol { margin: 0; padding-left: 1.3em; font-size: 15.5px; }
+/* リンク */
+.links { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.lk { position: relative; display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; text-decoration: none; color: inherit; min-height: 64px; }
+.lk:hover { background: #eef5f0; }
+.lk .e { font-size: 26px; }
+.lk .n { font-weight: bold; display: block; }
+.lk .d { font-size: 13px; color: var(--muted); display: block; }
+.lk.mine { border-style: dashed; }
+.lk .del { position: absolute; top: 4px; right: 4px; border: 0; background: none; color: #999; font-size: 18px; cursor: pointer; padding: 4px 8px; }
+.lk .del:hover { color: #c00; }
+.linkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.lbtn { font-family: inherit; font-size: 15px; border: 1px solid #bbb; background: #fff; border-radius: 10px; padding: 7px 14px; cursor: pointer; }
+.lbtn.main { background: var(--main); color: #fff; border-color: var(--main); font-weight: bold; }
+.addform { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-top: 10px; max-width: 560px; }
+.addform label { display: block; margin-bottom: 8px; font-weight: bold; }
+.addform input { display: block; width: 100%; font-size: 17px; padding: 9px 10px; border: 1px solid #bbb; border-radius: 8px; font-family: inherit; font-weight: normal; margin-top: 3px; }
+.lmsg { color: #c00; font-size: 14px; }
+.hidden { display: none !important; }
+footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 30px; }
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+  header h1 { font-size: 19px; }
+  .tasks li a { flex-direction: column; align-items: flex-start; gap: 3px; }
+  .tasks .go { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏠 蒲幼稚園　職員アプリの入り口</h1>
+  <p>使うアプリを選んでください。迷ったら下の「やりたいことから探す」へ。</p>
+</header>
+
+<main>
+  <!-- アプリ -->
+  <div class="apps">
+    <section class="app c1">
+      <p class="name"><span class="ic">📘</span>クラス運営アプリ</p>
+      <p class="what">園児の情報・名簿・出席簿・春の陽・体力測定・指導要録・進級。</p>
+      <div class="tags"><span>園児の一覧</span><span>名簿の印刷</span><span>出席簿</span><span>春の陽</span><span>体力測定</span><span>指導要録</span><span>進級</span></div>
+      <a class="open" href="../daicho/">開く</a>
+      <p class="who">自分のIDとパスワードで入ります</p>
+    </section>
+    <section class="app c2">
+      <p class="name"><span class="ic">📒</span>記録と反省</p>
+      <p class="what">行事の計画と反省、事務分掌（係）の記録、自由記述の記録。</p>
+      <div class="tags"><span>行事の計画</span><span>反省</span><span>去年の記録</span><span>事務分掌</span><span>写真・PDF</span></div>
+      <a class="open" href="../gyouji/">開く</a>
+      <p class="who">園のパスワードで入ります（最初の1回だけ）</p>
+    </section>
+    <section class="app c3">
+      <p class="name"><span class="ic">🧺</span>用品注文の管理</p>
+      <p class="what">入園用品の注文を見る・代金・品物を渡す・業者への発注・袋詰め。</p>
+      <div class="tags"><span>注文を見る</span><span>代金・領収書</span><span>渡した</span><span>業者へ発注</span><span>袋詰め</span><span>用品販売</span></div>
+      <a class="open" href="../youhin/admin.html">開く</a>
+      <p class="who">管理アプリの合言葉で入ります（最初の1回だけ）</p>
+    </section>
+  </div>
+
+  <!-- リンク -->
+  <h2>🔗 よく使うリンク</h2>
+  <div class="links" id="links"></div>
+  <div class="linkbar">
+    <button type="button" class="lbtn" id="addLinkBtn">＋ 自分のリンクを足す</button>
+    <span class="muted">自分で足したリンクは、この端末だけに出ます。</span>
+  </div>
+  <form class="addform hidden" id="addForm">
+    <label>名前 <input id="lName" maxlength="30" placeholder="例：園の行事予定" required></label>
+    <label>URL <input id="lUrl" type="url" inputmode="url" placeholder="https://…" required></label>
+    <div id="lMsg" class="lmsg"></div>
+    <div class="linkbar"><button type="submit" class="lbtn main">足す</button><button type="button" class="lbtn" id="lCancel">やめる</button></div>
+  </form>
+
+  <!-- やりたいことから探す -->
+  <h2>🔍 やりたいことから探す</h2>
+  <div class="find">
+    <label for="q">したいことを入れてください（例：名簿、欠席、反省、領収書）</label>
+    <input id="q" type="search" placeholder="ここに入れると、下にしぼりこまれます" autocomplete="off">
+    <div class="chips" id="chips"></div>
+    <ul class="tasks" id="tasks"></ul>
+  </div>
+
+  <!-- 使い方 -->
+  <h2>📖 それぞれの使い方</h2>
+
+  <details class="howto c1" id="how-daicho">
+    <summary>📘 クラス運営アプリの使い方</summary>
+    <div class="body">
+      <h3>入り方</h3>
+      <ol>
+        <li>上の「クラス運営アプリ」の <span class="b">開く</span> を押します。</li>
+        <li>自分の <b>ID（名前でも入れます）</b> と <b>パスワード</b> を入れて <span class="b">入る</span>。<br>「このパソコン（スマホ）でIDを覚える」にチェックすると、次からIDを入れなくてすみます。</li>
+        <li>「どのクラスの作業をしますか？」で、作業するクラスを押します（自分のクラスには「あなたのクラス」と出ます）。<br>あとで変えるときは、上の帯の <span class="b">🏫 クラス名 ▾</span> を押します。</li>
+      </ol>
+      <h3>上の帯のボタン</h3>
+      <table>
+        <tr><th>👧 園児</th><td>園児の一覧。名前を押すと詳しい情報を見たり直したりできます。<span class="b">＋ 園児を追加</span> もここ。</td></tr>
+        <tr><th>📅 出席簿</th><td>マスを押すと「事・病」などの印が付きます（自動で保存）。続けて休んだ日は理由をまとめて入れられます。日付を押すと学級閉鎖なども入れられます。<span class="b">🖨 この月の出席簿を印刷する</span></td></tr>
+        <tr><th>🌱 成長の記録</th><td>「春の陽」「体力測定」「指導要録」を書きます。手を止めると2秒で自動保存。</td></tr>
+        <tr><th>🖨 書類</th><td>クラス名簿・クラス名簿（小）・バス名簿・電話台帳・園児名簿（割印）・県提出用名簿・絵画名札・身長順並び表・クラス編成用名簿・出席簿・春の陽だより・春の陽の下書き・体力測定結果・体力測定の記録表・指導要録（指導／学籍）・ファイルの表紙。</td></tr>
+        <tr><th>🎓 進級</th><td>来年度の組（仮の記号 A・B…）・来年度のバス・役員を入れます。</td></tr>
+        <tr><th>⚙ 管理</th><td>管理者だけ。クラス・職員・園の予定・設定・Excelからの取り込み。</td></tr>
+        <tr><th>🔑</th><td>自分のパスワードを変えます。</td></tr>
+        <tr><th>出る</th><td>使い終わったら押してください。30分使わないと自動で閉じます。</td></tr>
+      </table>
+      <h3>困ったとき</h3>
+      <ul>
+        <li><b>パスワードを忘れた／5回まちがえて入れない</b> … 5回まちがえると15分入れません。忘れたときは管理者に言ってください。</li>
+        <li><b>ほかの先生と同じ所を同時に書いた</b> … 「先に書かれた文にする／自分の文で上書き」と聞かれます。どちらかを選びます。</li>
+        <li><b>印刷がずれる</b> … 印刷の画面で「倍率：100%（実際のサイズ）」、「ヘッダーとフッター」のチェックを外してください。</li>
+      </ul>
+      <div class="warn">園児の個人情報が入っています。パスワードは人に教えず、家族と共用のスマホでは「IDを覚える」を使わないでください。</div>
+    </div>
+  </details>
+
+  <details class="howto c2" id="how-gyouji">
+    <summary>📒 記録と反省の使い方</summary>
+    <div class="body">
+      <h3>入り方</h3>
+      <ol>
+        <li>上の「記録と反省」の <span class="b">開く</span> を押します。</li>
+        <li>はじめての端末では園のパスワードを聞かれます。1回入れると、その端末は次から入れなくてすみます。</li>
+        <li>「どの記録を書きますか？」で、星組・花組・雪組・月組・合同の行事・事務分掌 から選びます（事務分掌は次に係を選びます）。</li>
+      </ol>
+      <h3>書く</h3>
+      <ul>
+        <li><span class="b">＋ 新しい記録を作る</span> → <b>白紙から作る</b> か、去年の記録を選んで <b>これをもとに作る</b>（去年の「次年度へ向けての課題」が上に出ます）。</li>
+        <li>一覧の上に「📅 去年の今ごろは、こんな行事がありました」と出たら、そこからも作れます。</li>
+        <li>行事のあと、うすいピンクの「✏ 反省がまだ」の記録を開いて、反省と次年度へ向けての課題を書きます。</li>
+        <li>書いたら <b>保存</b> を押します（書きかけは端末にも残ります）。写真・PDF・Word・Excel は「画像・ファイル」に付けられます（1つの記録に20こまで）。</li>
+      </ul>
+      <h3>見る・探す・印刷</h3>
+      <ul>
+        <li><span class="b">🔍 全部から探す</span> … 組をまたいで行事名や文で探せます。</li>
+        <li>記録を開いて印刷すると、A4たてで出ます。<span class="b">🖨 まとめて印刷</span> で1年分を表紙・目次つきで印刷できます。</li>
+        <li>園長・主任などは「確認・コメント」で確認の印やひとことを残せます。</li>
+      </ul>
+      <h3>困ったとき</h3>
+      <ul>
+        <li><b>「ほかの先生が先に保存しました」と出た</b> … 同じ記録をほかの先生が直しています。画面の案内にしたがってください。</li>
+        <li><b>読み込みが止まった</b> … 少し待つと自動でもう一度読みます。だめなら画面を再読み込みしてください。</li>
+      </ul>
+    </div>
+  </details>
+
+  <details class="howto c3" id="how-youhin">
+    <summary>🧺 用品注文の管理の使い方</summary>
+    <div class="body">
+      <h3>入り方</h3>
+      <ol>
+        <li>上の「用品注文の管理」の <span class="b">開く</span> を押します。</li>
+        <li>はじめての端末では <b>合言葉</b> を聞かれます。合言葉は担当の先生に聞いてください（スプレッドシートのメニュー「用品注文 → 🔑 管理アプリの合言葉を表示」で確かめられます）。1回入れると次からは入れなくてすみます。</li>
+        <li>画面は1分ごとに自動で新しくなります。新しい注文が入ると知らせが出ます。</li>
+      </ol>
+      <h3>タブ</h3>
+      <table>
+        <tr><th>👧 園児ごとの注文</th><td>注文の一覧。押すと詳しく出ます。<b>代金を受け取った</b>（そのあと領収書をメールで送るか聞かれます）・<b>全部渡した／1品ずつ渡した</b>・名前や連絡先を直す・取り消し。</td></tr>
+        <tr><th>📦 業者への発注</th><td>まだ発注していない品物が業者ごとに出ます。<span class="b">🖨 注文書を印刷</span> → 発注したら「○○に発注した」。</td></tr>
+        <tr><th>🎁 袋詰め</th><td>袋に入れる中身リスト（A4に2人分）と、品物ごとの配り表を印刷します。</td></tr>
+        <tr><th>🛍 用品販売</th><td>用品販売の日に購入する人の合計・受領・未受領と、会計用の明細の印刷。</td></tr>
+        <tr><th>🧺 用品の登録<br>🏢 発注業者の登録<br>⚙ 設定</th><td>担当の先生だけ。用品・値段・業者・締切・お知らせの文など。</td></tr>
+        <tr><th>📱 注文画面のQRコード</th><td>上の帯。保護者向けのお知らせ（A4・QRつき）を印刷できます。</td></tr>
+      </table>
+      <h3>困ったとき</h3>
+      <ul>
+        <li><b>保護者が「注文を直したい」</b> … 確認メールのリンクから保護者が直します（締切まで・代金を受け取る前まで）。メールがないときは、注文の詳細の「🔗 保護者用の変更リンクをコピー」。</li>
+        <li><b>「合言葉がちがいます」</b> … 上の <span class="b">合言葉を入れ直す</span> から入れ直してください。</li>
+      </ul>
+      <p class="muted">くわしい手順は、紙の「職員向けの使い方」「当日の流れ（職員向け）」を見てください。</p>
+    </div>
+  </details>
+
+  <!-- ホーム画面に置く -->
+  <h2>📌 この入り口をすぐ開けるようにする</h2>
+  <div class="home">
+    <div>
+      <h3>💻 パソコン（Edge）</h3>
+      <ol>
+        <li>このページを開いたまま、右上の <span class="b">…</span> を押します。</li>
+        <li><b>その他のツール</b> → <b>ショートカットを作成する</b>（または「アプリ」→「このサイトをアプリとしてインストール」）。</li>
+        <li>デスクトップにアイコンができます。</li>
+      </ol>
+    </div>
+    <div>
+      <h3>📱 iPhone（Safari）</h3>
+      <ol>
+        <li>下の <span class="b">共有（□に↑）</span> を押します。</li>
+        <li><b>ホーム画面に追加</b> → <b>追加</b>。</li>
+      </ol>
+    </div>
+    <div>
+      <h3>📱 Android（Chrome）</h3>
+      <ol>
+        <li>右上の <span class="b">︙</span> を押します。</li>
+        <li><b>ホーム画面に追加</b> → <b>追加</b>。</li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>蒲幼稚園　職員用のページです。保護者には配らないでください。</footer>
+</main>
+
+<script>
+// やりたいこと → どのアプリのどこ
+var APPS = {
+  daicho: { label: 'クラス運営', cls: 'c1', url: '../daicho/', how: 'how-daicho' },
+  gyouji: { label: '記録と反省', cls: 'c2', url: '../gyouji/', how: 'how-gyouji' },
+  youhin: { label: '用品注文', cls: 'c3', url: '../youhin/admin.html', how: 'how-youhin' }
+};
+var TASKS = [
+  ['daicho', '園児の情報を見る・直す', '👧 園児 → 名前を押す', '住所 電話 保護者 連絡先 誕生日 生年月日 バス'],
+  ['daicho', '園児を追加する（転入など）', '👧 園児 → ＋ 園児を追加', '転入 入園 新しい子'],
+  ['daicho', '出席・欠席をつける', '📅 出席簿 → マスを押す', '欠席 休み 事故 病気 出席停止 忌引 出欠'],
+  ['daicho', '出席簿を印刷する', '📅 出席簿 → この月の出席簿を印刷する', '欠席 出欠 月末 印刷'],
+  ['daicho', '学級閉鎖・学年閉鎖を入れる', '📅 出席簿 → 日付を押す', '閉鎖 休園 インフルエンザ'],
+  ['daicho', '園の休み・土曜保育の日を決める（管理者）', '⚙ 管理 → 園の予定', '休園 行事 土曜 カレンダー'],
+  ['daicho', 'クラス名簿を印刷する', '🖨 書類 → クラス名簿／クラス名簿（小）', '名簿 回覧 チェック'],
+  ['daicho', 'バス名簿を印刷する', '🖨 書類 → バス名簿', 'バス 送迎 名簿'],
+  ['daicho', '電話台帳を印刷する', '🖨 書類 → 電話台帳', '電話 連絡先 住所 緊急'],
+  ['daicho', '園児名簿（割印）・県提出用名簿を印刷する', '🖨 書類 → 園児名簿（割印）／県提出用名簿', '県 提出 割印 名簿'],
+  ['daicho', '絵画名札・身長順並び表を印刷する', '🖨 書類 → 絵画名札／身長順並び表', '名札 絵 身長 並び'],
+  ['daicho', 'クラス編成用名簿を印刷する', '🖨 書類 → クラス編成用名簿', '編成 来年度 名簿'],
+  ['daicho', 'ファイルの表紙を印刷する', '🖨 書類 → ファイルの表紙', '表紙 ファイル'],
+  ['daicho', '春の陽を書く', '🌱 成長の記録 → 春の陽', 'はるのひ 学期 担任より 所見 通知'],
+  ['daicho', '春の陽だよりを印刷する', '🖨 書類 → 春の陽だより／春の陽の下書き', 'はるのひ 印刷 下書き'],
+  ['daicho', '体力測定の記録を入れる', '🌱 成長の記録 → 体力測定', 'けんけん 立ち幅跳び 片足立ち まりつき 縄跳び 球投げ'],
+  ['daicho', '体力測定結果を印刷する', '🖨 書類 → 体力測定結果／体力測定の記録表', '体力 学年平均'],
+  ['daicho', '指導要録を書く', '🌱 成長の記録 → 指導要録', '要録 個人の重点 指導上参考 備考 教育日数 出席日数'],
+  ['daicho', '指導要録を印刷する', '🖨 書類 → 指導要録（指導）／（学籍）', '要録 学籍 修了'],
+  ['daicho', '来年度の組・バスを入れる', '🎓 進級', '進級 クラス分け 来年度 組 バス 役員'],
+  ['daicho', '自分のパスワードを変える', '上の帯の 🔑', 'パスワード 変更'],
+  ['gyouji', '行事の計画を書く', '組を選ぶ → ＋ 新しい記録を作る', '計画 行事 案 ねらい 準備 タイムスケジュール'],
+  ['gyouji', '去年の行事をもとに計画する', '一覧の記録 → これをもとに作る', '去年 前年 コピー 課題'],
+  ['gyouji', '行事の反省を書く', '一覧の「✏ 反省がまだ」の記録を開く', '反省 振り返り 課題 次年度'],
+  ['gyouji', '事務分掌（係）の記録を書く', '事務分掌 → 係を選ぶ', '係 分掌 事務 担当の仕事'],
+  ['gyouji', '自由に記録を残す', '＋ 新しい記録を作る → 自由記述の記録を作る', 'メモ 自由 記述'],
+  ['gyouji', '写真・PDF・Word・Excelを付ける', '記録の「画像・ファイル」', '写真 画像 添付 ファイル PDF'],
+  ['gyouji', '前の記録を探す', '🔍 全部から探す', '検索 探す さがす'],
+  ['gyouji', '1年分をまとめて印刷する', '🖨 まとめて印刷', '印刷 まとめて 年度'],
+  ['gyouji', '記録を確認してコメントする（園長・主任）', '記録を開く → 確認・コメント', '確認 検印 コメント'],
+  ['youhin', '入園用品の注文を見る', '👧 園児ごとの注文', '注文 用品 制服 入園'],
+  ['youhin', '代金を受け取った・領収書を送る', '👧 園児ごとの注文 → 注文を押す → 代金を受け取った', '代金 お金 支払い 領収書 集金'],
+  ['youhin', '品物を渡した', '👧 園児ごとの注文 → 全部渡した／1品ずつ渡した', '渡す 受け渡し'],
+  ['youhin', '業者へ発注する・注文書を印刷する', '📦 業者への発注', '発注 業者 注文書 FAX'],
+  ['youhin', '袋詰めの中身リストを印刷する', '🎁 袋詰め', '袋詰め 中身 配り表'],
+  ['youhin', '用品販売の合計・会計用の明細', '🛍 用品販売', '用品販売 会計 明細 合計 肝油'],
+  ['youhin', '保護者向けのお知らせ（QR）を印刷する', '上の帯の 📱 注文画面のQRコード', 'QR お知らせ 保護者 配布'],
+  ['youhin', '保護者の注文を直す・取り消す', '注文を押す → 変更リンクをコピー／取り消し', '変更 キャンセル 取り消し 修正']
+];
+var CHIPS = ['名簿', '印刷', '欠席', '春の陽', '体力', '要録', '進級', '行事', '反省', '注文', '代金', '発注'];
+
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+// ひらがな・カタカナ、全角・半角、空白のちがいを気にせずさがす
+function norm(s) {
+  return String(s).normalize('NFKC').toLowerCase()
+    .replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); })
+    .replace(/\s+/g, '');
+}
+var READ = { '春の陽': 'はるのひ', '要録': 'ようろく', '名簿': 'めいぼ', '欠席': 'けっせき', '反省': 'はんせい', '代金': 'だいきん', '発注': 'はっちゅう', '体力': 'たいりょく', '進級': 'しんきゅう', '行事': 'ぎょうじ', '注文': 'ちゅうもん', '印刷': 'いんさつ', '出席簿': 'しゅっせきぼ', '領収書': 'りょうしゅうしょ', '袋詰め': 'ふくろづめ' };
+function haystack(t) {
+  var s = t[1] + ' ' + t[2] + ' ' + t[3] + ' ' + APPS[t[0]].label;
+  Object.keys(READ).forEach(function (k) { if (s.indexOf(k) >= 0) s += ' ' + READ[k]; });
+  return norm(s);
+}
+var HAY = TASKS.map(haystack);
+
+function render() {
+  var words = $q.value.split(/[\s　、,]+/).map(norm).filter(Boolean);
+  var list = TASKS.filter(function (t, i) { return words.every(function (w) { return HAY[i].indexOf(w) >= 0; }); });
+  if (!words.length) list = list.filter(function (t) { return TOP.indexOf(t[1]) >= 0; });
+  var h = list.map(function (t) {
+    var a = APPS[t[0]];
+    return '<li><a class="' + a.cls + '" href="' + a.url + '"><span class="a">' + esc(a.label) + '</span><span><span class="t">' + esc(t[1]) + '</span><br><span class="w">' + esc(t[2]) + '</span></span><span class="go">開く →</span></a></li>';
+  }).join('');
+  if (!words.length) h += '<li class="none">ほかにもあります。上に入れるか、ことばのボタンを押してください。</li>';
+  else if (!list.length) h = '<li class="none">見つかりませんでした。ちがうことばで入れるか、下の「それぞれの使い方」を見てください。</li>';
+  $tasks.innerHTML = h;
+}
+// 何も入れていないときに出す、よく使うもの
+var TOP = ['出席・欠席をつける', 'クラス名簿を印刷する', '春の陽を書く', '指導要録を書く', '行事の反省を書く', '去年の行事をもとに計画する', '入園用品の注文を見る', '代金を受け取った・領収書を送る'];
+
+var $q = document.getElementById('q'), $tasks = document.getElementById('tasks');
+document.getElementById('chips').innerHTML = CHIPS.map(function (c) { return '<button type="button">' + esc(c) + '</button>'; }).join('');
+document.getElementById('chips').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  $q.value = $q.value === b.textContent ? '' : b.textContent; render();
+});
+$q.addEventListener('input', render);
+render();
+
+// ===== リンク（全員の分＋この端末で足した分） =====
+var MY_KEY = 'portal_my_links';
+function loadMine() { try { var a = JSON.parse(localStorage.getItem(MY_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function saveMine(a) { try { localStorage.setItem(MY_KEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
+function okUrl(u) { return /^https?:\/\/[^\s]+$/i.test(String(u || '').trim()); }
+function linkHtml(l, i) {
+  return '<a class="lk' + (i >= 0 ? ' mine' : '') + '" href="' + esc(l.url) + '" target="_blank" rel="noopener">' +
+    '<span class="e">' + esc(l.icon || '🔗') + '</span><span><span class="n">' + esc(l.name) + '</span>' +
+    (l.note ? '<span class="d">' + esc(l.note) + '</span>' : '') + '</span>' +
+    (i >= 0 ? '<button type="button" class="del" data-i="' + i + '" title="このリンクを消す" aria-label="消す">✕</button>' : '') + '</a>';
+}
+function renderLinks() {
+  var shared = (window.SHARED_LINKS || []).filter(function (l) { return okUrl(l.URL); })
+    .map(function (l) { return { icon: l.絵, name: l.名前, url: String(l.URL).trim(), note: l.説明 }; });
+  var mine = loadMine();
+  document.getElementById('links').innerHTML = shared.map(function (l) { return linkHtml(l, -1); }).join('') +
+    mine.map(function (l, i) { return linkHtml({ icon: '⭐', name: l.name, url: l.url, note: '自分で足したリンク' }, i); }).join('');
+}
+document.getElementById('links').addEventListener('click', function (e) {
+  var b = e.target.closest('.del'); if (!b) return;
+  e.preventDefault();
+  var mine = loadMine(), l = mine[+b.dataset.i];
+  if (!l || !confirm('「' + l.name + '」をこの端末から消しますか？')) return;
+  mine.splice(+b.dataset.i, 1); saveMine(mine); renderLinks();
+});
+var $form = document.getElementById('addForm');
+document.getElementById('addLinkBtn').onclick = function () { $form.classList.remove('hidden'); document.getElementById('lName').focus(); };
+document.getElementById('lCancel').onclick = function () { $form.reset(); document.getElementById('lMsg').textContent = ''; $form.classList.add('hidden'); };
+$form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  var name = document.getElementById('lName').value.trim(), url = document.getElementById('lUrl').value.trim();
+  var msg = document.getElementById('lMsg');
+  if (!name) { msg.textContent = '名前を入れてください。'; return; }
+  if (!okUrl(url)) { msg.textContent = 'URL は https:// で始まる形で入れてください。'; return; }
+  var mine = loadMine(); mine.push({ name: name, url: url });
+  if (!saveMine(mine)) { msg.textContent = 'この端末では保存できませんでした（プライベートモードなど）。'; return; }
+  $form.reset(); msg.textContent = ''; $form.classList.add('hidden'); renderLinks();
+});
+renderLinks();
+</script>
+</body>
+</html>
