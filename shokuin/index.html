@@ -130,7 +130,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3
 <body>
 <header>
   <h1>🏠 蒲幼稚園　職員アプリの入り口</h1>
-  <p>使うアプリを選んでください。迷ったら下の「やりたいことから探す」へ。</p>
+  <p>使うアプリを選んでください。</p>
 </header>
 
 <main>
@@ -188,7 +188,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3
 
   <!-- 使い方 -->
   <details class="sec">
-  <summary>📖 それぞれの使い方</summary>
+  <summary>📖 使い方マニュアル</summary>
   <div class="inner">
 
   <details class="howto c1" id="how-daicho">
@@ -255,7 +255,7 @@ footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3
 
   <!-- ホーム画面に置く -->
   <details class="sec">
-  <summary>📌 この入り口をすぐ開けるようにする</summary>
+  <summary>📌 ホームに追加するには</summary>
   <div class="inner">
   <div class="home">
     <div>
@@ -351,7 +351,7 @@ function render() {
     return '<li><a class="' + a.cls + '" href="' + a.url + '"><span class="a">' + esc(a.label) + '</span><span><span class="t">' + esc(t[1]) + '</span><br><span class="w">' + esc(t[2]) + '</span></span><span class="go">開く →</span></a></li>';
   }).join('');
   if (!words.length) h += '<li class="none">ほかにもあります。上に入れるか、ことばのボタンを押してください。</li>';
-  else if (!list.length) h = '<li class="none">見つかりませんでした。ちがうことばで入れるか、下の「それぞれの使い方」を見てください。</li>';
+  else if (!list.length) h = '<li class="none">見つかりませんでした。ちがうことばで入れるか、下の「使い方マニュアル」を見てください。</li>';
   $tasks.innerHTML = h;
 }
 // 何も入れていないときに出す、よく使うもの
