@@ -189,8 +189,16 @@ table.att tfoot .dcol { font-size: 11px; }
 .haru-h .cnt.over { color: #b35400; font-weight: bold; }
 .haru textarea { width: 100%; min-height: 150px; padding: 8px 10px; border: 1px solid #b8c4cc; border-radius: 8px; font-family: var(--mincho); font-size: 16px; line-height: 1.7; resize: vertical; }
 .haru textarea.dirty { border-color: var(--accent); }
-.haru details { font-size: 13px; color: var(--sub); margin-top: 4px; }
-.haru details div { white-space: pre-wrap; font-family: var(--mincho); color: var(--ink); background: #f7f9fa; border-radius: 6px; padding: 6px 8px; margin-top: 4px; }
+.haru-h .prev-btn { margin-left: 6px; }
+.haru-b { display: block; }
+.haru-prev { display: none; }
+.haru.open .haru-b { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.haru.open .haru-prev { display: block; max-height: 420px; overflow: auto; background: #f4f8f1; border: 1px solid #cfe0c4; border-radius: 8px; padding: 8px 10px; }
+.haru.open textarea { min-height: 220px; }
+.haru-prev .pt { font-size: 12px; font-weight: bold; color: #4d7a35; margin: 2px 0 4px; }
+.haru-prev .pt ~ .pt { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cfe0c4; }
+.haru-prev .px { white-space: pre-wrap; font-family: var(--mincho); font-size: 15px; line-height: 1.7; color: var(--ink); }
+@media (max-width: 760px) { .haru.open .haru-b { grid-template-columns: 1fr; } .haru.open .haru-prev { max-height: 220px; } }
 .haru .conflict { margin-top: 6px; }
 .haru .conflict pre { white-space: pre-wrap; font-family: var(--mincho); background: #fff; border: 1px solid #e6d9a8; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
 /* 体力測定 */
@@ -940,7 +948,7 @@ $('pwBtn').onclick = function () {
 };
 
 // ===== 成長の記録（春の陽・体力測定・指導要録） =====
-var G = { tab: 'haru', cls: '', term: 0, showLeft: false, pending: {}, base: {}, conflicts: {}, timer: null, chain: Promise.resolve() };
+var G = { tab: 'haru', cls: '', term: 0, showLeft: false, prevOpen: {}, pending: {}, base: {}, conflicts: {}, timer: null, chain: Promise.resolve() };
 var TERM_K = ['', '一', '二', '三'];
 var HIRA = { '星': 'ほしぐみ', '花': 'はなぐみ', '雪': 'ゆきぐみ', '月': 'つきぐみ' };
 var HARU_COLS = 24, HARU_ROWS = 12;   // 春の陽だより（A4）の、ふつうの大きさで入る字数・行数
@@ -1003,20 +1011,29 @@ function renderHaru() {
     '印刷（A4の春の陽だより）は、1行' + HARU_COLS + '字・' + HARU_ROWS + '行くらいまでがふつうの大きさです。それより長いと、枠に入るように字が小さくなります。</p>';
   if (!classes.length) h += '<div class="empty">この年度のクラスがありません。管理の「クラス」で作ってください。</div>';
   var grade = gradeOfCls(G.cls), key = 'harunohi' + G.term;
-  var kids = G.cls ? kidsOf(G.cls, G.showLeft) : [];
+  var kids = G.cls ? kidsOf(G.cls, G.showLeft) : [], anyPrev = false;
   kids.forEach(function (k) {
     var row = growthRow(year, k.id, grade) || {};
     var pk = gkey(year, k.id, key);
     if (!G.pending[pk] && !G.conflicts[pk]) G.base[pk] = row[key] || '';
     var val = G.pending[pk] ? G.pending[pk].value : G.conflicts[pk] ? G.conflicts[pk].mine : (row[key] || '');
-    var prev = [1, 2, 3].filter(function (t) { return t !== G.term && row['harunohi' + t]; }).map(function (t) {
-      return '<details><summary>' + TERM_K[t] + '学期の文を見る</summary><div>' + esc(row['harunohi' + t]) + '</div></details>';
-    }).join('');
-    h += '<div class="haru' + (isLeft(k) ? ' left' : '') + '"><div class="haru-h"><span class="no">' + esc(k.enroll.no) + '</span><span class="nm">' + esc(k.name) + '</span>' +
-      (isLeft(k) ? '<span class="badge left">退園</span>' : '') + '<span class="cnt"></span></div>' +
-      '<textarea data-id="' + esc(k.id) + '" data-pk="' + esc(pk) + '" spellcheck="false" maxlength="1000" placeholder="' + TERM_K[G.term] + '学期の春の陽を書きます">' + esc(val) + '</textarea>' +
-      '<div class="conflict" data-pk="' + esc(pk) + '"></div>' + prev + '</div>';
+    // ほかの学期に書いた文（前の学期を先に）。ボタンで横に出して、見ながら書ける
+    var prevTerms = [1, 2, 3].filter(function (t) { return t !== G.term && row['harunohi' + t]; })
+      .sort(function (a, b) { return (a < G.term ? 0 : 1) - (b < G.term ? 0 : 1) || b - a; });
+    if (prevTerms.length) anyPrev = true;
+    var open = prevTerms.length && G.prevOpen[k.id];
+    var prevLabel = '📖 ' + prevTerms.map(function (t) { return TERM_K[t]; }).join('・') + '学期の文を見る';
+    var prevBtn = prevTerms.length ? '<button class="btn small prev-btn" data-prev="' + esc(k.id) + '" data-label="' + esc(prevLabel) + '">' + (open ? '✕ とじる' : prevLabel) + '</button>' : '';
+    var prevBox = prevTerms.length ? '<div class="haru-prev">' + prevTerms.map(function (t) {
+      return '<div class="pt">' + TERM_K[t] + '学期に書いた文</div><div class="px">' + esc(row['harunohi' + t]) + '</div>';
+    }).join('') + '</div>' : '';
+    h += '<div class="haru' + (isLeft(k) ? ' left' : '') + (open ? ' open' : '') + '"><div class="haru-h"><span class="no">' + esc(k.enroll.no) + '</span><span class="nm">' + esc(k.name) + '</span>' +
+      (isLeft(k) ? '<span class="badge left">退園</span>' : '') + prevBtn + '<span class="cnt"></span></div>' +
+      '<div class="haru-b">' + prevBox +
+      '<textarea data-id="' + esc(k.id) + '" data-pk="' + esc(pk) + '" spellcheck="false" maxlength="1000" placeholder="' + TERM_K[G.term] + '学期の春の陽を書きます">' + esc(val) + '</textarea></div>' +
+      '<div class="conflict" data-pk="' + esc(pk) + '"></div></div>';
   });
+  if (anyPrev) h = h.replace('<span style="flex:1"></span>', '<button class="btn small" id="prevAllBtn">📖 ほかの学期の文を全員ぶん開く</button><span style="flex:1"></span>');
   if (G.cls && !kids.length) h += '<div class="empty">このクラスの園児はいません。</div>';
   if (kids.length) h += '<div class="row"><button class="btn main" id="haruPrintBtn">🖨 ' + TERM_K[G.term] + '学期の春の陽だより（A4）を印刷する</button><button class="btn" id="haruDraftBtn">🖨 下書き（B5）を印刷する</button></div>';
   $('growBody').innerHTML = h;
@@ -1026,6 +1043,34 @@ function renderHaru() {
     b.onclick = function () { flushGrow(); G.term = Number(b.getAttribute('data-term')); renderHaru(); };
   });
   $('haruLeft').onchange = function () { G.showLeft = this.checked; renderHaru(); };
+  // ほかの学期の文：開く・とじる（書いている欄はそのまま。画面を作り直さない）
+  var setPrev = function (b, open) {
+    var id = b.getAttribute('data-prev'), card = b.parentNode.parentNode;
+    if (open) G.prevOpen[id] = true; else delete G.prevOpen[id];
+    card.classList.toggle('open', open);
+    b.textContent = open ? '✕ とじる' : b.getAttribute('data-label');
+  };
+  var prevBtns = document.querySelectorAll('#growBody [data-prev]');
+  var paintAll = function () {
+    var all = prevBtns.length && Array.prototype.every.call(prevBtns, function (b) { return G.prevOpen[b.getAttribute('data-prev')]; });
+    if ($('prevAllBtn')) $('prevAllBtn').textContent = all ? '✕ ほかの学期の文を全員ぶんとじる' : '📖 ほかの学期の文を全員ぶん開く';
+    return all;
+  };
+  Array.prototype.forEach.call(prevBtns, function (b) {
+    b.onclick = function () {
+      var open = !G.prevOpen[b.getAttribute('data-prev')];
+      setPrev(b, open); paintAll();
+      if (open) b.parentNode.parentNode.querySelector('textarea').focus();
+    };
+  });
+  if ($('prevAllBtn')) {
+    paintAll();
+    $('prevAllBtn').onclick = function () {
+      var open = !paintAll();
+      Array.prototype.forEach.call(prevBtns, function (b) { setPrev(b, open); });
+      paintAll();
+    };
+  }
   Array.prototype.forEach.call(document.querySelectorAll('#growBody textarea'), function (ta) {
     var pk = ta.getAttribute('data-pk');
     ta.oninput = function () {
@@ -1052,10 +1097,11 @@ function paintHaru() {
   if (G.tab !== 'haru') return;
   Array.prototype.forEach.call(document.querySelectorAll('#growBody textarea[data-pk]'), function (ta) {
     var pk = ta.getAttribute('data-pk');
-    var c = haruCount(ta.value), cnt = ta.parentNode.querySelector('.cnt');
+    var card = ta.parentNode.parentNode;   // .haru（textarea は .haru-b の中）
+    var c = haruCount(ta.value), cnt = card.querySelector('.cnt');
     cnt.textContent = c.text; cnt.classList.toggle('over', c.over);
     ta.classList.toggle('dirty', !!G.pending[pk]);
-    var box = ta.parentNode.querySelector('.conflict'), cf = G.conflicts[pk];
+    var box = card.querySelector('.conflict'), cf = G.conflicts[pk];
     if (!cf) { box.innerHTML = ''; return; }
     if (box.getAttribute('data-shown') === cf.at + cf.theirs) return;
     box.setAttribute('data-shown', cf.at + cf.theirs);
