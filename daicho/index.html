@@ -1022,7 +1022,7 @@ function renderHaru() {
       .sort(function (a, b) { return (a < G.term ? 0 : 1) - (b < G.term ? 0 : 1) || b - a; });
     if (prevTerms.length) anyPrev = true;
     var open = prevTerms.length && G.prevOpen[k.id];
-    var prevLabel = '📖 ' + prevTerms.map(function (t) { return TERM_K[t]; }).join('・') + '学期の文を見る';
+    var prevLabel = '📖 ' + prevTerms.slice().sort().map(function (t) { return TERM_K[t]; }).join('・') + '学期の文を見る';
     var prevBtn = prevTerms.length ? '<button class="btn small prev-btn" data-prev="' + esc(k.id) + '" data-label="' + esc(prevLabel) + '">' + (open ? '✕ とじる' : prevLabel) + '</button>' : '';
     var prevBox = prevTerms.length ? '<div class="haru-prev">' + prevTerms.map(function (t) {
       return '<div class="pt">' + TERM_K[t] + '学期に書いた文</div><div class="px">' + esc(row['harunohi' + t]) + '</div>';
