@@ -13,12 +13,14 @@
 // 絵 は絵文字か、ページの下の ICONS にある画像の名前（LINEWORKS・Homepage・Help・Instagram・Kabachan・Buscatch・Yutakanama）。
 // URL が空（''）のものは出ません。行を消せばそのリンクはなくなります。
 // 上: true を付けたものは、アプリのカードの上に並びます（付けないものは「よく使うリンク」の中）。
+// 準備中: true を付けたものは、灰色で「準備中」と出て、押しても開きません（消せば開くようになります）。
 var SHARED_LINKS = [
   { 上: true, 絵: 'LINEWORKS', 名前: 'LINE WORKS', URL: 'https://talk.worksmobile.com/', 説明: '職員の連絡（スマホはアプリが開きます）' },
   { 絵: 'Homepage', 名前: 'ホームページ', URL: 'https://sites.google.com/view/kaba-yochien', 説明: '園のお知らせ・行事' },
   { 上: true, 絵: 'Kabachan', 名前: 'ヘルプセンター', URL: 'https://sites.google.com/view/kabagakuenkabayochien/%E3%83%9B%E3%83%BC%E3%83%A0', 説明: '' },
   { 上: true, 絵: 'Buscatch', 名前: 'バスキャッチ', URL: 'https://buscatch.net/sp_admin/kaba/login/', 説明: '' },
-  { 上: true, 絵: '📅', 名前: '年間行事予定', URL: 'https://docs.google.com/spreadsheets/d/1TpXIwPKp46pqR1uj6p1qId6s6KpsZdyYBYiQhy9K8y4/edit?gid=584846637#gid=584846637', 説明: '' },
+  { 上: true, 準備中: true, 絵: '📅', 名前: '年間行事予定', URL: 'https://docs.google.com/spreadsheets/d/1TpXIwPKp46pqR1uj6p1qId6s6KpsZdyYBYiQhy9K8y4/edit?gid=584846637#gid=584846637', 説明: '' },
+  { 絵: '🛒', 名前: '用品の注文画面', URL: 'https://kabagakuenkabayochien.github.io/kabayochien/youhin/', 説明: '保護者が用品を注文する画面' },
   { 絵: 'Instagram', 名前: 'Instagram', URL: 'https://www.instagram.com/kabagakuen.kabayochien/', 説明: '' },
   { 絵: 'Yutakanama', 名前: 'ゆたかなまナビ', URL: 'https://yutakanamanabi.kdg.jp/', 説明: '' }
 ];
@@ -97,9 +99,13 @@ details.howto[open] summary::before { transform: rotate(90deg); }
 .lk .n { font-weight: bold; display: block; }
 .lk .d { font-size: 13px; color: var(--muted); display: block; }
 .lk.mine { border-style: dashed; }
-.toplinks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.lk.wait { background: #f3f1ec; color: #888; cursor: default; }
+.lk.wait:hover { background: #f3f1ec; }
+.lk.wait .e { opacity: 0.45; filter: grayscale(1); }
+.wait-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px; background: #e2ded4; color: #666; font-size: 12px; font-weight: bold; vertical-align: 1px; }
+.toplinks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 14px; }
 .toplinks:empty { display: none; }
-@media (max-width: 520px) { .toplinks .lk { padding: 10px; gap: 8px; } .toplinks .lk .d { display: none; } .toplinks .lk .n { white-space: nowrap; font-size: 15px; } .toplinks .lk img.e { width: 32px; height: 32px; } }
+@media (max-width: 520px) { .toplinks .lk { padding: 10px; gap: 8px; } .toplinks .lk .d { display: none; } .toplinks .lk .n { white-space: nowrap; font-size: 15px; } .toplinks .lk img.e { width: 32px; height: 32px; } .toplinks .wait-tag { display: block; width: fit-content; margin: 2px 0 0; } }
 .lk .del { position: absolute; top: 4px; right: 4px; border: 0; background: none; color: #999; font-size: 18px; cursor: pointer; padding: 4px 8px; }
 .lk .del:hover { color: #c00; }
 .linkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
@@ -428,14 +434,17 @@ function loadMine() { try { var a = JSON.parse(localStorage.getItem(MY_KEY) || '
 function saveMine(a) { try { localStorage.setItem(MY_KEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
 function okUrl(u) { return /^https?:\/\/[^\s]+$/i.test(String(u || '').trim()); }
 function linkHtml(l, i) {
-  return '<a class="lk' + (i >= 0 ? ' mine' : '') + '" href="' + esc(l.url) + '" target="_blank" rel="noopener">' +
-    (ICONS[l.icon] ? '<img class="e" src="' + ICONS[l.icon] + '" alt="">' : '<span class="e">' + esc(l.icon || '🔗') + '</span>') + '<span><span class="n">' + esc(l.name) + '</span>' +
-    (l.note ? '<span class="d">' + esc(l.note) + '</span>' : '') + '</span>' +
+  var inner = (ICONS[l.icon] ? '<img class="e" src="' + ICONS[l.icon] + '" alt="">' : '<span class="e">' + esc(l.icon || '🔗') + '</span>') + '<span><span class="n">' + esc(l.name) +
+    (l.wait ? '<span class="wait-tag">準備中</span>' : '') + '</span>' +
+    (l.note ? '<span class="d">' + esc(l.note) + '</span>' : '') + '</span>';
+  // 準備中：押しても開かない（URL は残しておき、準備中: true を消せば開くようになる）
+  if (l.wait) return '<div class="lk wait" aria-disabled="true">' + inner + '</div>';
+  return '<a class="lk' + (i >= 0 ? ' mine' : '') + '" href="' + esc(l.url) + '" target="_blank" rel="noopener">' + inner +
     (i >= 0 ? '<button type="button" class="del" data-i="' + i + '" title="このリンクを消す" aria-label="消す">✕</button>' : '') + '</a>';
 }
 function renderLinks() {
   var shared = (window.SHARED_LINKS || []).filter(function (l) { return okUrl(l.URL); })
-    .map(function (l) { return { icon: l.絵, name: l.名前, url: String(l.URL).trim(), note: l.説明, top: l.上 === true }; });
+    .map(function (l) { return { icon: l.絵, name: l.名前, url: String(l.URL).trim(), note: l.説明, top: l.上 === true, wait: l.準備中 === true }; });
   var mine = loadMine();
   document.getElementById('toplinks').innerHTML = shared.filter(function (l) { return l.top; }).map(function (l) { return linkHtml(l, -1); }).join('');
   shared = shared.filter(function (l) { return !l.top; });
