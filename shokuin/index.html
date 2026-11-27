@@ -50,6 +50,7 @@ h2 { font-size: 19px; margin: 26px 0 10px; }
 .app .who { font-size: 13.5px; color: var(--muted); margin: 8px 0 0; text-align: center; }
 .c1 { --c: #2b6cb0; --soft: #e6effa; }
 .c2 { --c: #c0602a; --soft: #fbeee4; }
+.c3 { --c: #7a5aa8; --soft: #efe9f7; }
 
 /* やりたいことから探す */
 .find { background: #fff; border: 2px solid var(--main); border-radius: 14px; padding: 14px; }
@@ -154,6 +155,13 @@ footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3
       <a class="open" href="../gyouji/">開く</a>
       <p class="who">園のパスワードで入ります（最初の1回だけ）</p>
     </section>
+    <section class="app c3">
+      <p class="name"><span class="ic">🧺</span>用品注文の管理</p>
+      <p class="what">入園用品の注文を見る・代金・品物を渡す・業者への発注・袋詰め。</p>
+      <div class="tags"><span>注文を見る</span><span>代金・領収書</span><span>渡した</span><span>業者へ発注</span><span>袋詰め</span><span>用品販売</span></div>
+      <a class="open" href="../youhin/admin.html">開く</a>
+      <p class="who">合言葉で入ります（最初の1回だけ）</p>
+    </section>
   </div>
 
   <!-- リンク -->
@@ -251,6 +259,33 @@ footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3
       </ul>
     </div>
   </details>
+
+  <details class="howto c3" id="how-youhin">
+    <summary>🧺 用品注文の管理の使い方</summary>
+    <div class="body">
+      <h3>入り方</h3>
+      <ol>
+        <li>上の「用品注文の管理」の <span class="b">開く</span> を押します。</li>
+        <li>はじめての端末では <b>合言葉</b> を聞かれます。合言葉は担当の先生に聞いてください（スプレッドシートのメニュー「用品注文 → 🔑 管理アプリの合言葉を表示」で確かめられます）。1回入れると次からは入れなくてすみます。</li>
+        <li>画面は1分ごとに自動で新しくなります。新しい注文が入ると知らせが出ます。</li>
+      </ol>
+      <h3>タブ</h3>
+      <table>
+        <tr><th>👧 園児ごとの注文</th><td>注文の一覧。押すと詳しく出ます。<b>代金を受け取った</b>（そのあと領収書をメールで送るか聞かれます）・<b>全部渡した／1品ずつ渡した</b>・名前や連絡先を直す・取り消し。</td></tr>
+        <tr><th>📦 業者への発注</th><td>まだ発注していない品物が業者ごとに出ます。<span class="b">🖨 注文書を印刷</span> → 発注したら「○○に発注した」。</td></tr>
+        <tr><th>🎁 袋詰め</th><td>袋に入れる中身リスト（A4に2人分）と、品物ごとの配り表を印刷します。</td></tr>
+        <tr><th>🛍 用品販売</th><td>用品販売の日に購入する人の合計・受領・未受領と、会計用の明細の印刷。</td></tr>
+        <tr><th>🧺 用品の登録<br>🏢 発注業者の登録<br>⚙ 設定</th><td>担当の先生だけ。用品・値段・業者・締切・お知らせの文など。</td></tr>
+        <tr><th>📱 注文画面のQRコード</th><td>上の帯。保護者向けのお知らせ（A4・QRつき）を印刷できます。</td></tr>
+      </table>
+      <h3>困ったとき</h3>
+      <ul>
+        <li><b>保護者が「注文を直したい」</b> … 確認メールのリンクから保護者が直します（締切まで・代金を受け取る前まで）。メールがないときは、注文の詳細の「🔗 保護者用の変更リンクをコピー」。</li>
+        <li><b>「合言葉がちがいます」</b> … 上の <span class="b">合言葉を入れ直す</span> から入れ直してください。</li>
+      </ul>
+      <p class="muted">くわしい手順は、紙の「職員向けの使い方」「当日の流れ（職員向け）」を見てください。</p>
+    </div>
+  </details>
   </div>
   </details>
 
@@ -292,7 +327,8 @@ footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3
 // やりたいこと → どのアプリのどこ
 var APPS = {
   daicho: { label: 'クラス運営', cls: 'c1', url: '../daicho/', how: 'how-daicho' },
-  gyouji: { label: '記録と反省', cls: 'c2', url: '../gyouji/', how: 'how-gyouji' }
+  gyouji: { label: '記録と反省', cls: 'c2', url: '../gyouji/', how: 'how-gyouji' },
+  youhin: { label: '用品注文', cls: 'c3', url: '../youhin/admin.html', how: 'how-youhin' }
 };
 var TASKS = [
   ['daicho', '園児の情報を見る・直す', '👧 園児 → 名前を押す', '住所 電話 保護者 連絡先 誕生日 生年月日 バス'],
@@ -324,9 +360,17 @@ var TASKS = [
   ['gyouji', '写真・PDF・Word・Excelを付ける', '記録の「画像・ファイル」', '写真 画像 添付 ファイル PDF'],
   ['gyouji', '前の記録を探す', '🔍 全部から探す', '検索 探す さがす'],
   ['gyouji', '1年分をまとめて印刷する', '🖨 まとめて印刷', '印刷 まとめて 年度'],
-  ['gyouji', '記録を確認してコメントする（園長・主任）', '記録を開く → 確認・コメント', '確認 検印 コメント']
+  ['gyouji', '記録を確認してコメントする（園長・主任）', '記録を開く → 確認・コメント', '確認 検印 コメント'],
+  ['youhin', '入園用品の注文を見る', '👧 園児ごとの注文', '注文 用品 制服 入園'],
+  ['youhin', '代金を受け取った・領収書を送る', '👧 園児ごとの注文 → 注文を押す → 代金を受け取った', '代金 お金 支払い 領収書 集金'],
+  ['youhin', '品物を渡した', '👧 園児ごとの注文 → 全部渡した／1品ずつ渡した', '渡す 受け渡し'],
+  ['youhin', '業者へ発注する・注文書を印刷する', '📦 業者への発注', '発注 業者 注文書 FAX'],
+  ['youhin', '袋詰めの中身リストを印刷する', '🎁 袋詰め', '袋詰め 中身 配り表'],
+  ['youhin', '用品販売の合計・会計用の明細', '🛍 用品販売', '用品販売 会計 明細 合計 肝油'],
+  ['youhin', '保護者向けのお知らせ（QR）を印刷する', '上の帯の 📱 注文画面のQRコード', 'QR お知らせ 保護者 配布'],
+  ['youhin', '保護者の注文を直す・取り消す', '注文を押す → 変更リンクをコピー／取り消し', '変更 キャンセル 取り消し 修正']
 ];
-var CHIPS = ['名簿', '印刷', '欠席', '春の陽', '体力', '要録', '進級', '行事', '反省', '写真', '探す'];
+var CHIPS = ['名簿', '印刷', '欠席', '春の陽', '体力', '要録', '進級', '行事', '反省', '写真', '探す', '注文', '代金', '発注'];
 
 function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 // ひらがな・カタカナ、全角・半角、空白のちがいを気にせずさがす
@@ -335,7 +379,7 @@ function norm(s) {
     .replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); })
     .replace(/\s+/g, '');
 }
-var READ = { '春の陽': 'はるのひ', '要録': 'ようろく', '名簿': 'めいぼ', '欠席': 'けっせき', '反省': 'はんせい', '写真': 'しゃしん', '探す': 'さがす', '体力': 'たいりょく', '進級': 'しんきゅう', '行事': 'ぎょうじ', '印刷': 'いんさつ', '出席簿': 'しゅっせきぼ' };
+var READ = { '春の陽': 'はるのひ', '要録': 'ようろく', '名簿': 'めいぼ', '欠席': 'けっせき', '反省': 'はんせい', '写真': 'しゃしん', '探す': 'さがす', '体力': 'たいりょく', '進級': 'しんきゅう', '行事': 'ぎょうじ', '印刷': 'いんさつ', '出席簿': 'しゅっせきぼ', '注文': 'ちゅうもん', '代金': 'だいきん', '発注': 'はっちゅう', '領収書': 'りょうしゅうしょ', '袋詰め': 'ふくろづめ' };
 function haystack(t) {
   var s = t[1] + ' ' + t[2] + ' ' + t[3] + ' ' + APPS[t[0]].label;
   Object.keys(READ).forEach(function (k) { if (s.indexOf(k) >= 0) s += ' ' + READ[k]; });
@@ -356,7 +400,7 @@ function render() {
   $tasks.innerHTML = h;
 }
 // 何も入れていないときに出す、よく使うもの
-var TOP = ['出席・欠席をつける', 'クラス名簿を印刷する', '春の陽を書く', '指導要録を書く', '行事の反省を書く', '去年の行事をもとに計画する', '前の記録を探す', '自分のパスワードを変える'];
+var TOP = ['出席・欠席をつける', 'クラス名簿を印刷する', '春の陽を書く', '指導要録を書く', '行事の反省を書く', '去年の行事をもとに計画する', '前の記録を探す', '自分のパスワードを変える', '入園用品の注文を見る'];
 
 var $q = document.getElementById('q'), $tasks = document.getElementById('tasks');
 document.getElementById('chips').innerHTML = CHIPS.map(function (c) { return '<button type="button">' + esc(c) + '</button>'; }).join('');
